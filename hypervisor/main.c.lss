@@ -1,0 +1,8 @@
+   1              	 .file "main.c"
+   2              	 .intel_syntax noprefix
+   3              	 .text
+   4              	.Ltext0:
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+
+NO UNDEFINED SYMBOLS

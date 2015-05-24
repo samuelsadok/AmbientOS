@@ -1,0 +1,24 @@
+
+
+targeted design:
+
+1. stock VBR
+- load parasitic bootcode "by mistake"
+2. boot sector (ASM)
+- repair stock VBR
+- load bootloader
+3. boot loader (ASM + C)
+- load kernel binary (filesystem dependend)
+- enable A20
+- gather memory information
+- gather cpu information (exit if not new enough)
+- build paging tables
+- switch to long mode (enable paging and protected mode)
+- far jump to kernel
+4. kernel (64-bit C)
+- enable interrupts
+- enable thread switching
+- load VM host
+- load services
+- load payloads
+- create VM with original bootloader as entry point

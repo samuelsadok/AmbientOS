@@ -1,0 +1,35 @@
+
+1. INSTALL MINGW
+
+
+
+
+2. COMPILE BOOTSECTOR
+
+yasm -a x86 -f bin -g null -m x86 -o bootsect.bin bootsect.asm
+
+-p gas/gnu/nasm/tasm to change parser
+-r nasm/tasm/raw/cpp/gas to change preprocessor
+-m x86/amd64 to change machine
+
+
+
+
+3. COMPILE BOOTLOADER
+
+gcc blabla
+
+
+
+
+4. INSTALL OS
+
+overwrite 1st sector of partition with bootsect.bin
+
+overwrite some random sectors with bootloader.bin
+
+mark the used partition as active in MBR (change attribte to 0x80)
+the last 4*16 Bytes before the 0x55AA are 4 partition descriptors
+
+point bootsector to the bootloader
+the last 8 bytes on the second last line (0x1E8) point to the bootloader sector

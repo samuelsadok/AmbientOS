@@ -1,0 +1,216 @@
+
+
+
+fs	offset	length	
+
+common	0x00	3	jump instruction
+common	0x02	8	fs identifier
+common	0x0B	2	bytes per sector
+common	0x0D	1	sectors per cluster
+common	0x1C	4	current sector number
+
+ntfs	0x30	8	first cluster of $MFT
+ntfs	0x38	8	first cluster of $MFTMir
+
+exfat	0x60	4	first cluster of root directory
+
+(fat = fat12/fat16/fat32)
+fat	0x0E	2	first sector of FAT
+fat	0x10	1	number of FATs (typically 2)
+fat	0x11	2	number of root entries (0 on fat32)
+fat	0x16	2	number of sectors per FAT (0 on fat32)
+
+exfat	sector 12	repeating checksum of previous 11 sectors
+
+
+
+
+
+
+
+NTFS
+
+MFT is an array of 1024-byte file records:
+0	$MFT
+1	$MFTMirr
+2	$LogFile
+3	$Volume
+4	$AttrDef
+5	. (root directory)
+6	$Bitmap
+7	$Boot
+8	$BadClus
+9	$Secure
+10	$UpCase
+11	$Extend
+12...15	(reserved)
+16...	(user files / directories)
+
+
+file record:
+0x14	2	offset of first attribute (typically 0x38)
+
+
+attribute:
+0x00	4	attribute type
+0x04	4	attribute length
+0x08	1	form code (0: resident, 1: non-resident)
+0x09	1	name length
+0x0A	2	name offset
+0x0C	2	flags (should be 0 - otherwise unsupported)
+resident:
+0x10	4	value length
+0x14	2	value offset
+non-resident:
+0x10	8	lowest VCN
+0x18	8	highest VCN
+0x20	2	offset to dataruns
+0x28	8	allocated length
+0x30	8	file size
+0x38	8	valid data length
+0x40	8	total allocated (not present??)
+[name]
+data-runs: 0x21 0x03 0x54 0x04 0x00 0x00 0x00 0x00
+
+for 0xA0 $TxfLog:
+0, 0, 2, 0x48, 0x3000, 0x3000, 0x3000
+
+
+
+
+attributes for root directory:
+0x10 (standard attributes)
+0x30 (file name)
+0x40 (object ID)
+0x80 (file content)
+0x90 (index root)
+0xA0 (index allocation)
+0xB0 (bitmap - named "$I30")
+0x100 (logged utility stream - named "$TXF?DATA")
+0xFFFFFFFF (end)
+
+
+file_name attribute value (attr. 0x30)
+0x00	6	segment reference to parent
+0x40	1	length of name (in wchars)
+0x41	1	flags
+0x42		name
+
+
+index root attriute value (attr. 0x90, name $I30 for directories)
+0x08	4	size of index buffers
+0x10	4	offset of first entry (starting here, so add 0x10)
+0x14	4	size of entry array (?)
+0x1C	1	flags (should be 0)
+
+index entry (each entry represents one folder or file)
+0x00	6	segment reference (# of segment in MFT that belongs to this file)
+	$objid	0x19
+	$quota	0x18
+	$reparse	0x1a
+	$rmmetadata	0x1b
+	$usnjrnlata	0x012573
+0x08	2	size of this entry
+0x0C	2	flags (flag 0x02 set for last entry)
+0x10	6	segment regerence to parent (e.g. current folder)
+0x18, 20, 28, 30	timestamps
+0x40	8	filesize
+0x50	1	length of name (in wchars)
+0x51	1	name flags
+0x52		name
+
+index allocation value (attr. 0xA0)
+use this instead of index root if flag "large index" is set
+this is actually an array of "INDX" buffers, length of a buffer can be found in the index root
+according bitmap (attr. B0, equal name) is a 8 byte bitmap that shows which VCNs are in use (each bit = 1 VCN)
+0x00	4	magic number "INDX"
+0x18	4	offset to first entry (starting here, so add 0x18)
+0x1C	4	size of entry array
+0x20	4	offset to the end of the index buffer - 0x18
+0x24	1	flags (1 for leaf node)
+
+
+data runs:
+example 1: 21 03 54 04 ($txflog)
+21	2 bytes used for offset, 1 byte used for length (00: end of data runs)
+03	length: 3 clusters
+54 04	start cluster: 0 + 0x0454 (signed, relative to start cluster from previous run)
+
+example 2: 31 10 54 04 01
+31	3 bytes offset, 1 byte length
+10	length: 16 clusters
+54 04 01	start at cluster 0 + 0x010454
+
+
+
+
+
+LoadDataRun(int currentcluster, *datarun, byte *destination)
+	loads one data run, then calls itself for next run
+
+LoadMFTSegment(int segment, byte *destination)
+
+LoadAttribute(int ID)
+	may use LoadDataRun
+	fail gracefully
+
+LoadChild(int segment, string name)
+	LoadMFTSegment(segment)
+	try
+		LoadAttribute(index allocation)
+	catch
+		LoadAttribute(index root)
+	search index entries for "name"
+	return segment of index
+
+LoadData(int segment)
+	LoadMFTSegment(segment)
+	LoadAttribute(0x80)
+
+eax = LoadChild(0x0B, "$rmmetadata")
+eax = LoadChild(eax, "$TfxLog")
+eax = LoadChild(eax, "boot.bin")
+LoadData(eax)
+
+
+
+
+FAT32:
+
+LoadData(int cluster)
+	loads the file starting at cluster by traversing the FAT
+
+LoadChild(int cluster, string name, bool folder)
+	LoadData(cluster)
+	traverse entries to find name
+	return cluster of that enry
+
+
+eax = LoadChild(rootDir)
+eax = LoadChild("boot", 1)
+eax = LoadChild("boot.bin", 1)
+LoadData(eax)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+WIN8 NTFS BOOLOADER
+
+1. volume offset bytes cannot be validated => these are used to load the rest of the bootcode
+2. TPM hash log for the bootcode is not invoked due to a bug
+3. in case TMP is absent, the memory after the bootcode is not cleared properly

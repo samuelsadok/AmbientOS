@@ -1,0 +1,3 @@
+list files created using:
+
+objdump -D --adjust-vma=31744 -b binary -mi386 -Maddr16,data16 "boot.bin" > "boot.lss"
