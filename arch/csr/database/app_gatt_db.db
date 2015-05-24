@@ -1,0 +1,34 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      app_gatt_db.db
+ *
+ *  DESCRIPTION
+ *      Master database file containing all the includes of service specific 
+ *      database files
+ *
+ *  NOTES
+ *
+ ****************************************************************************/
+
+/* Including all the service specific database files */
+
+#include "gap_service_db.db"
+,
+#include "dev_info_service_db.db"
+,
+#include "gatt_service_db.db"
+,
+#include "csr_ota_db.db"
+,
+#include "heart_rate_service_db.db"
+,
+#include "battery_service_db.db"
+,
+#include "i2c_service_db.db"
+,
+#include "dfu_service_db.db"
+

@@ -1,0 +1,61 @@
+   1              	 .file "execinfo.c"
+   2              	 .intel_syntax noprefix
+   3              	 .text
+   4              	.Ltext0:
+   5              	 .section .text.unlikely,"ax",@progbits
+   6              	.LCOLDB0:
+   7              	 .text
+   8              	.LHOTB0:
+   9              	 .p2align 4,,15
+  10              	 .section .text.unlikely
+  11              	.Ltext_cold0:
+  12              	 .text
+  13              	 .globl backtrace
+  15              	backtrace:
+  16              	.LFB34:
+  17              	 .file 1 "../shared/stdlib/execinfo.c"
+   1:../shared/stdlib/execinfo.c **** /*
+   2:../shared/stdlib/execinfo.c **** *
+   3:../shared/stdlib/execinfo.c **** *
+   4:../shared/stdlib/execinfo.c **** * created: 10.02.15
+   5:../shared/stdlib/execinfo.c **** *
+   6:../shared/stdlib/execinfo.c **** */
+   7:../shared/stdlib/execinfo.c **** 
+   8:../shared/stdlib/execinfo.c **** 
+   9:../shared/stdlib/execinfo.c **** #include <system.h>
+  10:../shared/stdlib/execinfo.c **** 
+  11:../shared/stdlib/execinfo.c **** // todo
+  12:../shared/stdlib/execinfo.c **** size_t backtrace(void **buffer, size_t size) {
+  18              	 .loc 1 12 0
+  19              	 .cfi_startproc
+  20              	.LVL0:
+  13:../shared/stdlib/execinfo.c **** 	//unsigned int i = 0;
+  14:../shared/stdlib/execinfo.c **** 	//do {
+  15:../shared/stdlib/execinfo.c **** 	//	buffer[i] = __builtin_extract_return_addr(__builtin_return_address(i));
+  16:../shared/stdlib/execinfo.c **** 	//	i++;
+  17:../shared/stdlib/execinfo.c **** 	//} while (__builtin_frame_address(i) && i < size);
+  18:../shared/stdlib/execinfo.c **** 	//return i;
+  19:../shared/stdlib/execinfo.c **** 
+  20:../shared/stdlib/execinfo.c **** 	int i = 0;
+  21:../shared/stdlib/execinfo.c **** 	//buffer[i++] = __builtin_extract_return_addr(__builtin_return_address(1));
+  22:../shared/stdlib/execinfo.c **** 	//buffer[i++] = __builtin_extract_return_addr(__builtin_return_address(2));
+  23:../shared/stdlib/execinfo.c **** 	return i;
+  24:../shared/stdlib/execinfo.c **** }
+  21              	 .loc 1 24 0
+  22 0000 31C0     	 xor eax,eax
+  23 0002 C3       	 ret
+  24              	 .cfi_endproc
+  25              	.LFE34:
+  27              	 .section .text.unlikely
+  28              	.LCOLDE0:
+  29              	 .text
+  30              	.LHOTE0:
+  31              	.Letext0:
+  32              	 .section .text.unlikely
+  33              	.Letext_cold0:
+  34              	 .file 2 "c:\\developer\\cross-gcc\\x86_64-elf\\lib\\gcc\\x86_64-none-elf\\4.9.2\\include\\stddef.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 execinfo.c
+    {standard input}:15     .text:0000000000000000 backtrace
+
+NO UNDEFINED SYMBOLS
