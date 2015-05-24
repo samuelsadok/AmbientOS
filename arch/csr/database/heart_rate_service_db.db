@@ -1,0 +1,100 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      heart_rate_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the Heart Rate service in JSON format. This file is 
+ *      included in the main application data base file which is used 
+ *      to produce ATT flat data base.
+ *
+ *****************************************************************************/
+#ifndef __HEART_RATE_SERVICE_DB__
+#define __HEART_RATE_SERVICE_DB__
+
+
+/* UUIDs for Heart Rate Service and Characteristics*/
+
+#define UUID_HEART_RATE_SERVICE                       0x180D
+
+#define UUID_HEART_RATE_MEASUREMENT                   0x2A37
+
+#define UUID_HEART_RATE_BODY_SENSOR_LOCATION          0x2A38
+
+#define UUID_HEART_RATE_CONTROL_POINT                 0x2A39
+
+/* Heart Rate Sensor Location characteristic values */
+
+/* Body Sensor Location unknown */
+#define BODY_SENSOR_LOCATION_OTHER                    0x00
+/* Body Sensor Location chest */
+#define BODY_SENSOR_LOCATION_CHEST                    0x01
+/* Body Sensor Location wrist */
+#define BODY_SENSOR_LOCATION_WRIST                    0x02
+/* Body Sensor Location finger */
+#define BODY_SENSOR_LOCATION_FINGER                   0x03
+/* Body Sensor Location hand */
+#define BODY_SENSOR_LOCATION_HAND                     0x04
+/* Body Sensor Location ear lobe */
+#define BODY_SENSOR_LOCATION_EAR_LOBE                 0x05
+/* Body Sensor Location foot */
+#define BODY_SENSOR_LOCATION_FOOT                     0x06
+
+
+/* A user should change the following macro expansion to change the body 
+ * location of HR sensor.
+ */
+#define CURRENT_BODY_SENSOR_LOCATION_VALUE            BODY_SENSOR_LOCATION_CHEST
+
+/* For service details, refer http://developer.bluetooth.org/gatt/services/
+ * Pages/ServiceViewer.aspx?u=org.bluetooth.service.heart_rate.xml
+ */
+
+primary_service {
+    uuid : UUID_HEART_RATE_SERVICE,
+    name : "HEART_RATE_SERVICE",
+
+    /* Heart Rate Measurement characteristic supports IRQ flag, thereby reads 
+     * and writes on characteristic configuration descriptor and notifications 
+     * on characteristic value are handled by application. 
+     */
+
+    characteristic {
+        uuid : UUID_HEART_RATE_MEASUREMENT,
+        name : "HEART_RATE_MEASUREMENT",
+        properties : notify,
+        flags : FLAG_IRQ,
+        size_value : 0x11,
+
+        client_config {
+            flags : FLAG_IRQ,
+            name : "HEART_RATE_MEASUREMENT_C_CFG"
+        }
+    },
+
+    characteristic {
+        uuid : UUID_HEART_RATE_BODY_SENSOR_LOCATION,
+        name : "BODY_SENSOR_LOCATION",
+        properties : read,
+        size_value : 0x01,
+        value : CURRENT_BODY_SENSOR_LOCATION_VALUE
+    },
+
+    /* Heart Rate Control Point characteristic supports IRQ flag, thereby 
+     * writes on characteristic value are handled by application. 
+     */
+
+    characteristic {
+        uuid : UUID_HEART_RATE_CONTROL_POINT,
+        name : "HEART_RATE_CONTROL_POINT",
+        properties : write,
+        flags : FLAG_IRQ,
+        size_value : 0x01,
+        value : 0x00
+    }
+}
+
+#endif /* __HEART_RATE_SERVICE_DB__ */

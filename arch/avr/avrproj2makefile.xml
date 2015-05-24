@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Rules>
+  <Export>
+    <!-- Each command references one or several values from the project XML. Each element
+	in the path can refer to multiple nodes, as there us no uniqueness requirement
+	in XML. If the attribute-attribute is specified, the attribute with the specified
+	name is selected instead of the node content. -->
+    <!-- Parse/Invariant: All selected values must equal the specified value, else the conversion
+	is aborted. -->
+    <!-- Parse/Var: The values are written to the Makefile under the (optionally) specified
+	variable name. If multiple values are selected, a list variable is created. -->
+    <Invariant path="SchemaVersion" value="2.0" message="unknown schema version" />
+    <Invariant path="ProjectVersion" value="6.1" message="unknown project version" />
+    <Var path="avrdevice" name="MCU" />
+    <Var path="AssemblyName" name="ASSEMBLY_NAME" />
+    <Var path="Name" name="PROJECT_NAME" />
+    <Var path="RootNamespace" name="ROOT_NAMESPACE" />
+    <Var path="BootSegment" name="BOOT_SEGMENT" />
+    <Var path="AsfFrameworkConfig/framework-data/files/file" attribute="path" name="ASF_FILES" />
+    <Var path="ToolchainSettings/AvrGcc/avrgcc.compiler.directories.IncludePaths/ListValues/Value" name="ASF_INCLUDES" />
+    <Var path="ToolchainSettings/AvrGcc/avrgcc.compiler.symbols.DefSymbols/ListValues/Value" name="PROJ_MACROS" />
+    <Var path="ToolchainSettings/AvrGcc/avrgcc.linker.libraries.Libraries/ListValues/Value" name="PROJ_LIBS" />
+  </Export>
+</Rules>

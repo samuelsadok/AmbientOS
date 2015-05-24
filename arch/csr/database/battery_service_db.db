@@ -1,0 +1,53 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      battery_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the Battery Service in JSON format. This file is 
+ *      included in the main application data base file which is used to 
+ *      produce ATT flat data base.
+ *
+ *****************************************************************************/
+#ifndef __BATTERY_SERVICE_DB__
+#define __BATTERY_SERVICE_DB__
+
+
+#define UUID_BATTERY_SERVICE                           0x180f
+#define UUID_BATTERY_LEVEL                             0x2a19
+
+
+/* For service details, refer http://developer.bluetooth.org/gatt/services/
+ * Pages/ServiceViewer.aspx?u=org.bluetooth.service.battery_service.xml
+ */
+
+/* Primary service declaration of Battery service */
+primary_service {
+    uuid : UUID_BATTERY_SERVICE,
+    name : "BATTERY_SERVICE", /* Name will be used in handle name macro */
+
+    /* Battery level characteristic */
+
+    /* Battery Level characteristic supports IRQ flag, thereby reads and writes on 
+     * characteristic value are handled by application.
+     */
+
+    characteristic {
+        uuid : UUID_BATTERY_LEVEL,
+        name : "BATT_LEVEL",
+        flags : FLAG_IRQ,
+        properties : [read, notify],
+        value : 0x00,
+
+        client_config {
+            flags : FLAG_IRQ,
+            name : "BATT_LEVEL_C_CFG"
+        }
+
+    }
+}
+
+#endif /* __BATTERY_SERVICE_DB__ */

@@ -1,0 +1,125 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      dev_info_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the device information Service in JSON format. This
+ *      file is included in the main application data base file which is used
+ *      to produce ATT flat data base.
+ *
+ *  NOTES
+ *
+ ****************************************************************************/
+#ifndef __DEV_INFO_SERVICE_DB__
+#define __DEV_INFO_SERVICE_DB__
+
+
+/* Device Information service */
+#define UUID_DEVICE_INFO_SERVICE                                          0x180A
+
+/* System ID UUID */
+#define UUID_DEVICE_INFO_SYSTEM_ID                                        0x2A23
+/* Model number UUID */
+#define UUID_DEVICE_INFO_MODEL_NUMBER                                     0x2A24
+/* Serial number UUID */
+#define UUID_DEVICE_INFO_SERIAL_NUMBER                                    0x2A25
+/* Hardware revision UUID */
+#define UUID_DEVICE_INFO_HARDWARE_REVISION                                0x2A27
+/* Firmware revision UUID */
+#define UUID_DEVICE_INFO_FIRMWARE_REVISION                                0x2A26
+/* Software revision UUID */
+#define UUID_DEVICE_INFO_SOFTWARE_REVISION                                0x2A28
+/* Manufacturer name UUID */
+#define UUID_DEVICE_INFO_MANUFACTURER_NAME                                0x2A29
+/* PnP ID UUID */
+#define UUID_DEVICE_INFO_PNP_ID                                           0x2A50
+
+
+
+/* Vendor Id Source */
+#define VENDOR_ID_SRC_BT                                                  0x01
+#define VENDOR_ID_SRC_USB                                                 0x02
+
+/* Vendor Id */
+#define VENDOR_ID                                                         0x000A
+#define PRODUCT_ID                                                        0x014C
+#define PRODUCT_VER                                                       0x0100
+
+#define BLE_DEV_SERIAL          "0000-0000-0002"
+#define BLE_DEV_MANUFACTURER    "AppInstall Innovation-Labs"
+#define BLE_DEV_HARDWARE        "S1 Prototype 1"
+#define BLE_DEV_FIRMWARE        "Pre-Alpha Baseband"
+#define BLE_DEV_SOFTWARE        "Pre-Alpha Gravity Negotiation"
+
+
+/* All the names will be used in corresponding generated handle names */
+
+primary_service {
+    uuid : UUID_DEVICE_INFO_SERVICE,
+    name : "DEVICE_INFO_SERVICE", /* Name will be used in handle name */
+
+    /* Serial number characteristic of device info service */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_SERIAL_NUMBER,
+        properties : read,      /* Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_SERIAL_NUMBER",
+        value : BLE_DEV_SERIAL
+       
+    },
+
+    /* Hardware revision charcteristic of device info service */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_HARDWARE_REVISION,
+        properties : read,      /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_HARDWARE_REVISION",
+        value : BLE_DEV_HARDWARE
+    },
+
+    /* Firmware revision charcteristic */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_FIRMWARE_REVISION,
+        properties : read,      /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_FIRMWARE_REVISION",
+        value : BLE_DEV_FIRMWARE
+
+    },
+
+    /* Software revision characteristic */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_SOFTWARE_REVISION,
+        properties : read,      /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_SOFTWARE_REVISION",
+        value : BLE_DEV_SOFTWARE
+
+    },
+
+    /* Manufacturer name charcteristic */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_MANUFACTURER_NAME,
+        properties : read,      /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_MANUFACTURER_NAME",
+        value : BLE_DEV_MANUFACTURER
+    },
+
+    /* Device info PNP id */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_PNP_ID,
+        properties : read,      /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_END",
+        value : [VENDOR_ID_SRC_BT, VENDOR_ID,
+                 PRODUCT_ID,
+                 PRODUCT_VER]
+    }  
+}
+
+#endif /* __DEV_INFO_SERVICE_DB__ */

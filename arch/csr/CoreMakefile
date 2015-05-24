@@ -1,0 +1,36 @@
+#*******************************************************
+#
+# Actual Makefile passed to the uEnergy make processor.
+# The build process won't succeed if using a different
+# make processor. See Makefile for further comments.
+#
+# created: 21.02.15
+#
+#*******************************************************
+
+
+
+# variables used by the uEnergy Makefile
+XIDE_PROJECT = $(OUTPUT)			# todo: edit
+XIDE_CONFIG = Release
+OUTDIR = ./bin
+DEFS = 
+SDK_LIB_PATH = $(SDK)/lib/CSR101x_A05/
+
+# 0: standalone, 1: library
+OUTPUT_TYPE = 0
+LIBRARY_VERSION = CSR101x_A05
+SWAP_INTO_DATA = 0
+
+# 0: eeprom, 1: flash
+USE_FLASH = 0
+ERASE_NVM = 1
+
+CSFILE_CSR100x = 
+CSFILE_CSR101x_A05 = $(KEYR)	# todo: provide
+MASTER_DB = 
+LIBPATHS = 
+KEYR =
+LIBS =
+
+include $(SDK)/genmakefile.uenergy
