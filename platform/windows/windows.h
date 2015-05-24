@@ -22,15 +22,20 @@ void windows_init(void);
 void __attribute__((__noreturn__)) __reset(int code); // defined in windows.c
 
 extern CRITICAL_SECTION universalLock;
-
+extern int lockLevel;
+#include <stdio.h>
 // Enters a section of mutual exclusion.
 static inline void atomic_enter(void) {
+	//printf("acquire lock in %ld\n", GetCurrentThreadId());
 	EnterCriticalSection(&universalLock);
+	//printf("did acquire lock in %ld, level = %d\n", GetCurrentThreadId(), ++lockLevel);
 }
 
 // Releases the application's mutual exclusion.
 static inline void atomic_exit(void) {
+	//--lockLevel;
 	LeaveCriticalSection(&universalLock);
+	//printf("did release lock in %ld\n", GetCurrentThreadId());
 }
 
 

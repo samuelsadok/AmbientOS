@@ -83,7 +83,7 @@ void uav_set_rotors(float throttle, float pitch, float roll, float yaw) {
 		//int16_t speed = throttle - multirotor->Motors[i].Position.X * pitch - multirotor->Motors[i].Position.Y * roll - multirotor->Motors[i].RotationDirection * yaw;
 		float speed = math_calc_rotor(&rotors[i], throttle, pitch, roll, yaw);
 		//speed = math_kalman_filter(&(multirotor->Motors[i].filter), speed);
-		motor_set_speed(&rotors[i].motor, speed);
+		motor_set_speed(&rotors[i].motor, constrain(speed, 0.0f, 1.0f));
 	}
 }
 
@@ -107,7 +107,7 @@ void uav_control_iteration(mpu_t *mpu, math_quaternion_t *quaternion, math_ypr_t
 	attitude.Roll = attitude.Pitch;
 	attitude.Pitch = temp;
 
-	temp = angularVelocity.Roll;
+	temp = angularVelocity->Roll;
 	angularVelocity->Roll = angularVelocity->Pitch;
 	angularVelocity->Pitch = temp;
 #endif
@@ -130,7 +130,7 @@ void uav_control_iteration(mpu_t *mpu, math_quaternion_t *quaternion, math_ypr_t
 
 
 	float throttle = 0, yaw = 0, pitch = 0, roll = 0;
-
+	LOGI("pitch = %d, roll = %d", attitude.Pitch, attitude.Roll);
 
 
 	// apply controllers (must be atomic to prevent concurrent access by uav_config)
@@ -163,6 +163,8 @@ void uav_control_iteration(mpu_t *mpu, math_quaternion_t *quaternion, math_ypr_t
 		pitch = math_pid_controller(&pidP, pitch, angularVelocity->Pitch);
 		roll = math_pid_controller(&pidR, roll, angularVelocity->Roll);
 	}
+
+	//LOGI("setting throttle to %d%%%%, control is %d%%%%", (int)(throttle * 1000.0f), (int)(controlThrottle * 1000.0f));
 
 	// command calculated motion
 	if (throttle && !inactive)
@@ -220,6 +222,7 @@ status_t local_uav_on(uav_t *uav) {
 //	throttle: 0: for minimum throttle, 1: full throttle
 //	attitude: the desired attitude (can be NULL to only adjust throttle)
 status_t local_uav_control(uav_t *uav, float throttle, math_ypr_t *attitude) {
+	//LOGI("setting throttle to %d%%%%", (int)(throttle * 1000.0f));
 	atomic() {
 		controlThrottle = throttle;
 		if (attitude)

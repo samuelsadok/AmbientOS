@@ -41,7 +41,9 @@ void sim_write_bytes(const char *data, size_t length) {
 
 // Writes data to a field.
 void sim_write_val(sim_object_t *obj, const char *field, size_t fieldLength, const char *val, size_t length) {
+	//LOGI("waiting for lock in %d", GetCurrentThreadId());
 	atomic() {
+		//LOGI("got lock %d", GetCurrentThreadId());
 		sim_write_bytes("set:", 4);
 		sim_write_bytes(obj->name, obj->nameLength);
 		sim_write_bytes(".", 1);
@@ -50,6 +52,7 @@ void sim_write_val(sim_object_t *obj, const char *field, size_t fieldLength, con
 		sim_write_bytes(val, length);
 		sim_write_bytes("\n", 1);
 	}
+	//LOGI("lock released");
 }
 
 // Reads data from a field.
@@ -62,7 +65,8 @@ void sim_read_val(sim_object_t *obj, const char *field, size_t fieldLength, char
 		sim_write_bytes(field, fieldLength);
 		sim_write_bytes("\n", 1);
 
-		for (;;) {
+		bool lineTerminated = 0;
+		do {
 			DWORD dwNumberOfBytesRead;
 			size_t offset = 0;
 
@@ -75,11 +79,12 @@ void sim_read_val(sim_object_t *obj, const char *field, size_t fieldLength, char
 			while (dwNumberOfBytesRead--) {
 				if (*(val++) == '\n') {
 					*length = offset;
-					return;
+					lineTerminated = 1;
+					break;
 				}
 				offset++;
 			}
-		}
+		} while (!lineTerminated);
 	}
 }
 
@@ -101,46 +106,60 @@ void sim_write_d1(sim_object_t *obj, const char *field, size_t fieldLength, doub
 
 // Reads a field that consists of 3 double values
 void sim_read_d3(sim_object_t *obj, const char *field, size_t fieldLength, double *val1, double *val2, double *val3) {
-	char val[50];
+	char val[75];
 	size_t offset = 0, length = sizeof(val);
 
 	sim_read_val(obj, field, fieldLength, val, &length);
 
 	// parse val1
 	*val1 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 
 	// parse val2
 	*val2 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 
 	// parse val3
 	*val3 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 }
 
 // Reads a field that consists of 4 double values
 void sim_read_d4(sim_object_t *obj, const char *field, size_t fieldLength, double *val1, double *val2, double *val3, double *val4) {
-	char val[50];
+	char val[100];
 	size_t offset = 0, length = sizeof(val);
 
 	sim_read_val(obj, field, fieldLength, val, &length);
 
 	// parse val1
 	*val1 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 
 	// parse val2
 	*val2 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 
 	// parse val3
 	*val3 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 
 	// parse val4
 	*val4 = atof(val + offset);
-	while (val[offset++] != ' ' && offset < length);
+	while (offset < length)
+		if (val[offset++] == ' ')
+			break;
 
 	//printf("read 4 values: %f, %f, %f, %f", *val1, *val2, *val3, *val4);
 }

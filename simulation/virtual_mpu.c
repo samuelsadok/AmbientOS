@@ -53,9 +53,9 @@ DWORD WINAPI WorkerThreadProc(LPVOID lpParam) {
 
 		math_quaternion_t attitude = {
 			.w = w * (double)0x4000,
-			.x = x * (double)0x4000,
+			.x = -x * (double)0x4000,
 			.y = y * (double)0x4000,
-			.z = z * (double)0x4000
+			.z = -z * (double)0x4000
 		};
 
 		sim_read_d3(&(vmpu->simObj), gyroField, gyroFieldLength, &x, &y, &z);

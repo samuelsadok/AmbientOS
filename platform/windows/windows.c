@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 CRITICAL_SECTION universalLock;
-
+int lockLevel;
 void __attribute__((__noreturn__)) __reset(int code) {
 	//printf("\n");
 	fflush(stdout);

@@ -27,7 +27,9 @@ void virtual_motor_set_speed(uintptr_t motor, float speed) {
 
 // Enables the virtual motor at minimal speed.
 void virtual_motor_start(uintptr_t motor, bool direction) {
+	LOGI("start motor in %d", GetCurrentThreadId());
 	virtual_motor_set_speed(motor, 0);
+	LOGI("did start motor");
 }
 
 // Disables the virtual motor.
