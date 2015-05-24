@@ -1,0 +1,112 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      gap_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the GAP Service in JSON format. This file is included
+ *      in the main application data base file which is used to produce ATT
+ *      flat data base.
+ *
+ *****************************************************************************/
+#ifndef __GAP_SERVICE_DB__
+#define __GAP_SERVICE_DB__
+
+#ifdef USING_GAP_SERVICE
+
+
+#define UUID_GAP                                                   0x1800
+#define UUID_DEVICE_NAME                                           0x2A00
+#define UUID_APPEARANCE                                            0x2A01
+#define UUID_PER_PREF_CONN_PARAMS                                  0x2A04 // Peripheral preferred connection parameters UUID
+
+#define BLE_APPEARANCE_UNKNOWN	0
+// #define BLE_DEVICE_NAME                                                "CSR Alert Tag"
+// #define BLE_DEVICE_NAME_LENGTH                                         13
+// #define BLE_APPEARANCE_VALUE              0x0200
+
+
+
+/* NOTE:
+ * Connection parameters values should be in range specified by the Bluetooth 
+ * specification.
+ */
+/* Minimum and maximum connection interval in number of frames. */
+//#define PREFERRED_MAX_CON_INTERVAL     0x00c8 /* 250 ms */
+//#define PREFERRED_MIN_CON_INTERVAL     0x00c8 /* 250 ms */
+
+/* Slave latency in number of connection intervals. */
+//#define PREFERRED_SLAVE_LATENCY        0x0008 /* 8 conn_intervals. */
+
+/* Supervision timeout (ms) = PREFERRED_SUPERVISION_TIMEOUT * 10 ms */
+//#define PREFERRED_SUPERVISION_TIMEOUT  0x03e8 /* 10 seconds. */
+
+/* Max num of connection parameter update that we send in one connection*/
+//#define MAX_NUM_CONN_PARAM_UPDATE_REQS 2
+
+/* Advertising parameters, time is expressed in microseconds and the firmware
+ * will round this down to the nearest slot. Acceptable range is 20ms to 10.24s
+ * and the minimum must be no larger than the maximum. This value needs to be 
+ * modified at later stage as decided GPA for specific profile.
+ *
+ * To enable fast connections though the recommended 
+ * range is between 20 ms to 30 ms, but it has been observed that it is way too 
+ * energy expensive for applications running on coin cell battery. So, we
+ * have decided to use 60 ms as the fast connection advertisement interval. For 
+ * reduced power connections, the recommended range is between 1s to 2.5 s. 
+ * Vendors will need to tune these values as per their requirements.
+ */
+//#define FC_ADVERTISING_INTERVAL_MIN    (60 * MILLISECOND)
+//#define FC_ADVERTISING_INTERVAL_MAX    (60 * MILLISECOND)
+    
+//#define RP_ADVERTISING_INTERVAL_MIN    (1280 * MILLISECOND)
+//#define RP_ADVERTISING_INTERVAL_MAX    (1280 * MILLISECOND)
+
+
+
+
+
+
+
+
+/* For service details, refer http://developer.bluetooth.org/gatt/services/ 
+ * Pages/ServiceViewer.aspx?u=org.bluetooth.service.generic_access.xml 
+ */
+
+primary_service {
+    uuid : UUID_GAP,
+    name : "GAP_SERVICE",
+
+    /* Device name characteristic- Read only */
+    characteristic {
+        uuid : UUID_DEVICE_NAME,
+        name : "DEVICE_NAME",
+        properties : [read write],
+	flags : [FLAG_IRQ]
+        value : BLE_DEVICE_NAME
+    },
+
+    characteristic {
+        uuid : UUID_APPEARANCE,
+        name : "DEVICE_APPEARANCE",
+        properties : read,
+	flags : [FLAG_IRQ]
+        value : BLE_APPEARANCE
+    },
+
+/*
+    characteristic {
+        uuid : UUID_PER_PREF_CONN_PARAMS,
+        properties : read,
+        value : [PREFERRED_MIN_CON_INTERVAL, PREFERRED_MAX_CON_INTERVAL, 
+                 PREFERRED_SLAVE_LATENCY, PREFERRED_SUPERVISION_TIMEOUT]
+    }
+*/
+}
+
+#endif // USING_GAP_SERVICE
+
+#endif /* __GAP_SERVICE_DB__ */

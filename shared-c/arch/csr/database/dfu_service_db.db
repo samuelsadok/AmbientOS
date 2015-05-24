@@ -1,0 +1,68 @@
+/******************************************************************************
+ *  FILE
+ *      dfu_service_db.db
+ *
+ *****************************************************************************/
+#ifndef __DFU_SERVICE_DB__
+#define __DFU_SERVICE_DB__
+
+#define UUID_DFU_SERVICE		0x4139682D7CBF4F46A3FD15EDEFE77C00
+#define UUID_DFU_INFO			0x4139682D7CBF4F46A3FD15EDEFE77C01
+#define UUID_DFU_PLATFORM		0x4139682D7CBF4F46A3FD15EDEFE77C02
+#define UUID_DFU_APPNAME		0x4139682D7CBF4F46A3FD15EDEFE77C03
+#define UUID_DFU_VERSION		0x4139682D7CBF4F46A3FD15EDEFE77C04
+#define UUID_DFU_PROGMEM_INFO	0x4139682D7CBF4F46A3FD15EDEFE77C05
+#define UUID_DFU_PROGMEM		0x4139682D7CBF4F46A3FD15EDEFE77C06
+
+
+
+primary_service {
+    uuid : UUID_DFU_SERVICE,
+    name : "DFU_SERVICE",
+
+    characteristic {
+        uuid : UUID_DFU_INFO,
+        name : "DFU_INFO",
+        properties : [read, write],
+        flags : [ FLAG_IRQ ]
+    },
+
+    characteristic {
+        uuid : UUID_DFU_PLATFORM,
+        name : "DFU_PLATFORM",
+        properties : [read],
+        flags : [ FLAG_DYNLEN, FLAG_IRQ ]
+    },
+
+    characteristic {
+        uuid : UUID_DFU_APPNAME,
+        name : "DFU_APPNAME",
+        properties : [read],
+        flags : [ FLAG_DYNLEN, FLAG_IRQ ]
+    },
+
+    characteristic {
+        uuid : UUID_DFU_VERSION,
+        name : "DFU_VERSION",
+        properties : [read],
+        flags : [ FLAG_DYNLEN, FLAG_IRQ ]
+    }
+
+#ifdef USING_BOOTLOADER
+,    characteristic {
+        uuid : UUID_DFU_PROGMEM_INFO,
+        name : "DFU_PROGMEM_INFO",
+        properties : [read, write],
+        flags : [ FLAG_IRQ ]
+    },
+
+    characteristic {
+        uuid : UUID_DFU_PROGMEM,
+        name : "DFU_PROGMEM",
+        properties : [read, write],
+        flags : [ FLAG_DYNLEN, FLAG_IRQ ]
+    }
+#endif
+}
+
+#endif /* __DFU_SERVICE_DB__ */

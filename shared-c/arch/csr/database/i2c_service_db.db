@@ -1,0 +1,38 @@
+/******************************************************************************
+ *  FILE
+ *      i2c_service_db.db
+ *
+ *****************************************************************************/
+#ifndef __I2C_SERVICE_DB__
+#define __I2C_SERVICE_DB__
+
+
+#define UUID_I2C_SERVICE		0x827815A98E5F4D7184E371B497718D21
+#define UUID_I2C_SETUP			0x574D8970CC064FC98C0515811F5C1919
+#define UUID_I2C_DATA_TRANSFER	0x80B920BF3996444E82708A88685EA991
+
+
+
+
+primary_service {
+    uuid : UUID_I2C_SERVICE,
+    name : "I2C_SERVICE",
+
+    characteristic {
+        uuid : UUID_I2C_SETUP,
+        name : "I2C_CONTROL",
+        value : [ 0, 0, 0, 0, 0, 0 ],
+        properties : [read, write],
+        flags : [ FLAG_IRQ ]
+    },
+
+    characteristic {
+        uuid : UUID_I2C_DATA_TRANSFER,
+        name : "I2C_DATA",
+        size_value : 0,
+        properties : [read, write],
+        flags : [ FLAG_DYNLEN, FLAG_IRQ ]
+    }
+}
+
+#endif /* __I2C_SERVICE_DB__ */

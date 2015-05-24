@@ -1,0 +1,61 @@
+/******************************************************************************
+ *    Copyright (C) Cambridge Silicon Radio Limited 2013
+ *
+ * FILE
+ *    service_csr_ota_db.db
+ *
+ *  DESCRIPTION
+ *    This file defines the CSR OTA-upgrade Service in JSON format. 
+ *    This file is included in the main application database file that is 
+ *    used to produce the ATT database.
+ *
+ *****************************************************************************/
+ 
+#include "csr_ota_uuids.h"
+
+
+primary_service {
+    uuid : CSR_OTA_UPDATE_SERVICE_UUID,
+    name : "CSR_OTA_SERVICE", /* Name will be used in handle name macro */
+
+    /* This characteristic allows the Central to read or set the
+     * boot application.
+     * Support for this characteristic is MANDATORY.
+     */
+    characteristic {
+        uuid : CSR_OTA_CURRENT_APP_UUID,
+        name : "OTA_CURRENT_APP",
+        flags : [FLAG_IRQ, FLAG_ENCR_R, FLAG_ENCR_W],
+        properties : [read, write],
+        value : 0
+    },
+    
+    /* This characteristic allows the Central to read the value of a CS-key.
+     * Note that not all CS-keys support reading.
+     * Support for this characteristic is MANDATORY.
+     */
+    characteristic {
+        uuid : CSR_OTA_READ_CS_KEY_UUID,
+        name : "OTA_READ_CS_KEY",
+        flags : [FLAG_IRQ, FLAG_ENCR_W],
+        properties : [write],
+        value : 0
+    },
+    
+    /* This characteristic allows the Central to receive the value of a CS-key.
+     * Note that not all CS-keys support reading.
+     * Support for this characteristic is MANDATORY.
+     */
+    characteristic {
+        uuid : CSR_OTA_DATA_TRANSF_UUID,
+        name : "OTA_DATA_TRANSFER",
+        flags : [FLAG_IRQ, FLAG_ENCR_R],
+        properties : [read, notify],
+        size_value : 20,
+        
+        client_config {
+            flags : [FLAG_IRQ],
+            name : "OTA_DATA_TRANSFER_CLIENT_CONFIG"
+            }
+    }
+}
