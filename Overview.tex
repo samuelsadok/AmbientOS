@@ -1,0 +1,229 @@
+\documentclass[a4paper]{article}
+\usepackage{etex} % extended registers (?)
+
+\usepackage[top=1in, bottom=1.25in, left=2.0cm, right=2.0cm]{geometry}
+\usepackage{mathpartir}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{MnSymbol}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, calc, shapes, arrows, decorations.pathreplacing}
+\usepackage[underline=false]{pgf-umlsd} % sequence diagrams
+\usepackage{tabularx}
+
+
+% simple function definition for us in math mode
+\newcommand{\func}[2]{
+  \mathrm{#1}{({#2})}
+}
+%\newcommand{\fun2}[2]{ % for locations where mathrm does not work
+%  {{#1}{({#2})}}
+%}
+
+\newcommand{\IV}{
+  \mathrm{IV}
+}
+
+
+% enable the use of math mode in sequence diagrams
+\renewcommand{\mess}[4][0]{
+  \stepcounter{seqlevel}
+  \path
+  (#2)+(0,-\theseqlevel*\unitfactor-0.7*\unitfactor) node (mess from) {};
+  \addtocounter{seqlevel}{#1}
+  \path
+  (#4)+(0,-\theseqlevel*\unitfactor-0.7*\unitfactor) node (mess to) {};
+  \draw[->,>=angle 60] (mess from) -- (mess to) node[midway, above]
+  {{#3}};
+}
+
+
+% more verbose sequence diagram message
+% \vmess[delay]{sender}{message content}{receiver}{DIR}{start note}{end note}
+\newcommand{\vmess}[7][0]{
+  \stepcounter{seqlevel}
+  \path
+  (#2)+(0,-\theseqlevel*\unitfactor-0.7*\unitfactor) node (mess from) {};
+  \addtocounter{seqlevel}{#1}
+  \path
+  (#4)+(0,-\theseqlevel*\unitfactor-0.7*\unitfactor) node (mess to) {};
+  \draw[->,>=angle 60] (mess from) -- (mess to) node[midway, above]
+  {{#3}};
+
+%  \if R#5
+%    \node ({#3} from) at (mess from) {\llap{#6~}};
+%    \node ({#3} to) at (mess to) {\rlap{~#7}};
+%  \else\if L#5
+%         \node ({#3} from) at (mess from) {\rlap{~#6}};
+%         \node ({#3} to) at (mess to) {\llap{#7~}};
+%       \else
+%         \node ({#3} from) at (mess from) {#6};
+%         \node ({#3} to) at (mess to) {#7};
+%       \fi
+%  \fi
+  \if R#5
+    \node at (mess from) {\llap{#6~}};
+    \node at (mess to) {\rlap{~#7}};
+  \else\if L#5
+         \node at (mess from) {\rlap{~#6}};
+         \node at (mess to) {\llap{#7~}};
+       \else
+         \node at (mess from) {#6};
+         \node at (mess to) {#7};
+       \fi
+  \fi
+}
+
+
+% large up/down arrows
+\newcommand{\largeDownArrow}[1]{\smash{
+  \begin{tikzpicture}[baseline=-2mm]
+    \useasboundingbox (-0,0);
+    \node[single arrow,draw=black,fill=black!10,minimum height=2cm,rotate=270,sloped,anchor=center] at (0,-1) {#1};
+  \end{tikzpicture}
+}}
+\newcommand{\largeUpArrow}[1]{\smash{
+  \begin{tikzpicture}[baseline=-1mm]
+    \useasboundingbox (-2,0);
+    \node[single arrow,draw=black,fill=black!10,minimum height=2cm,shape border rotate=90] at (0,-1) {#1};
+  \end{tikzpicture}
+}}
+
+
+
+% make figures nicely centered
+\makeatletter
+\g@addto@macro\@floatboxreset\centering
+\makeatother
+
+
+% document specific math operators
+\DeclareMathOperator{\Enc}{Enc}
+\DeclareMathOperator{\Dec}{Dec}
+
+
+
+\title{AmbientOS}
+\author{[Author]}
+\date{August 2015}
+
+
+\begin{document}
+\pagenumbering{arabic}
+\maketitle
+
+\section{Design Process}
+
+\paragraph{Highly modular system} If our system is to be suitable in any computing environment one could think of, first of all we need to throw away our concept of what a computer looks like. More importantly, from this traditional concept we must not infer what an OS should look like, because that would, to some extent, lock our OS into the present. Let's take the UI as an example. The traditional paradigm, to center the OS around a 2D color UI, breaks down if we only think about the screen. The most common screen type is probably a rectangular 16M color screen with 72 DPI (or at least was, for a long time). However, if we think about it, we can come up with many more variants: high-DPI screen, monochrome screen, screen with an arbitrary shape, resizable screen, virtual reality screen, augmented reality screen, holographic screen or no screen at all.
+Since we can't reflect all possible future developments in our OS, it must be highly modular and extensible. To archieve maximum compatibility and fleibility, The core system must not rely on any assumptions about the hardware and it must be agnostic to any specific hardware interface.
+
+\paragraph{Driver = Service = Application} When looking at common OSses, one particular question arises. Why are there separate abstractions for drivers, system services and applications? There are many examples where this separation makes no sense. An application could be a driver (e.g. an on-screen keyboard). A service could be a driver (e.g. a filesystem on the network). An application could be a service (e.g. an email client).
+This defines our first and fundamental design decision. The OS is centered around a microkernel and almost everything else runs in usermode, including hardware drivers.
+
+\paragraph{Inter Process Communication} To make the design and use of services easy and efficient, the kernel must provide a powerful IPC method. There are two fundamental properties of message passing:
+
+\begin{description}
+  \item[synchronous vs assynchronous] For both variants, there are valid use cases, so our kernel will support both and let the sender decide. If the sender choses the assync version, it may accept an activity tracker to monitor the progress and status of the request. The sync version is basically a remote procedure call.
+  \item[reliable vs unreliable] Again, there are valid cases for both, so we couple this directly with the type of the call. Synchronous calls and activity trackers give a delivery guarantee and indication in case of failure. Asynchronous requests that discard the activity tracker have no guarantees. The kernel may drop, corrupt or mix up such messages.
+\end{description}
+
+A significant drawback of a microkernel design is the performance impact due to a lot of context switches. A standard file read call might be handled like this: app => file system driver => volume driver => SATA disk driver. By implementing some optimization, we can reduce this overhead.
+\begin{itemize}
+  \item Every time the kernel is entered, it makes a scheduling decision. This is expected to be often, so preemtion becomes rare.
+  \item Small arguments are passed in registers. This removes the need to read or write to memory.
+  \item Data is passed in mbufs, that is dynamic buffers that support for instance prepend, append and insert operations. This avoids the need to copy data if a driver needs to add another header to a buffer.
+  \item Buffers are passed in memory domains. A specific memory domain can belong to multiple processes simultaneously while only existing once in memory. It is only duplicated if any process writes to it while other processes still hold a reference.
+  \item Allow an application to dispatch in-kernel agents. Such agents would be written in a scripting language or bytecode, and would need to give some guarantees. On registration, the kernel would statically verify the code and compile it into native code. Instead of sending a message to the target process, the kernel can now check for agents that can handle the message. This is especially useful for requests that don't require extensive handling, such as the return value from a file read request.
+\end{itemize}
+
+\paragraph{Scheduling} A message tells the kernel to enqueue a new task, the one that will handle the message plus in case of an asynchronous message the one that sent the message. To maximize efficiency, scheduling decisions must take into account various factors:
+
+\begin{itemize}
+  \item Prefer to schedule tasks of the same process/thread on the same processor directly after each other. This will reduce cache misses due to context switching. Also, even after a context switch, there's a chance that the old process is still in cache. Sometimes it may even be worth to let other processors idle for the sake of locality.
+  \item Prefer to schedule message handling tasks on the same processor as the sender. This will benefit the cache hits for the messages that use buffers.
+  \item If a message can be handled by an agent, prefer to execute the agent immediately rather than enqueueing it as a task.
+  \item Prefer to handle a message immediately, rather than enqueueing it as a task, especially if the handler is a kernel agent. This removes the overhead of reloading the security context (e.g. privilege list).
+\begin{itemize}
+
+
+\paragraph{Security} Putting everything into usermode requires some thought about the privileges of usermode drivers. A usermode disk driver obviously will have access to the raw disk, so it could do a lot of damage. But we don't want to give the same power to, say, an internet browser. So we could simply give all drivers extended privileges. But remember that an application could be a driver too. Moreover, the kernel has no concept of what a disk is, so it would be difficult for the kernel to enforce such policies. Maybe we could run different processes in different user contexts? In this case, we'd probably need to run a file system driver for every user, which hardly makes sense. Hence, we need a finer grained method of managing privileges. Another problem that illustrates this, is the question what privileges a third party app should have. Only because I download some app from the internet and run it on my account, this doesn't mean that I want it to be able access all of my files. The answer is to always start a process with no privileges at all, and give the user the possibility to grant or deny privileges that the process needs at will. Obviously, a user or parent process can only grant privileges that he/it owns.
+
+
+\paragraph{Highly modular with no unneccessary abstractions} Consider a keyboard. 
+
+\begin{description}
+  \item[modular] All abstractions that are used shall be as general as possible.
+  \item[modular] All abstractions that are used shall be as general as possible.
+\end{description}
+
+\paragraph{Services}
+
+
+
+\paragraph{Put the experience at the center} 
+\paragraph{D} 
+
+
+
+
+\section{Memory Management}
+
+When allocating memory, the kernel should be informed how it is used. This allows the kernel to apply optimizations.
+For write restricted modes, the data must be supplied on creation.
+
+\begin{itemize}
+  \item Initialization: memory that has its init resource still available (and unmodified) and is not dirty is more likely to being paged out. (note that a file may become unavailable while the memory is being paged out, we must consider what happens to the memory object and the process that uses it: pause? kill? wait for page fault? this yields some considerations on resources: a resource should be able to notify that it wants to disappear, will definitely disappear, did disappear, etc.)
+    \begin{itemize}
+      \item Init to zero
+      \item Init from linear or block resource (e.g. a file)
+      \item Init with provided data
+      \item Don't init
+    \end{itemize}
+  \item Write Mode
+    \begin{itemize}
+      \item Writing is allowed and frequently expected. {\bf default}
+      \item Writing is allowed, but rarely expected.
+      \item Writing is not allowed, but after enabling frequent writes are expected.
+      \item Writing is not allowed and after and enabling only rare writes are expected.
+      \item Writing is never allowed. It will not be possible to enable it in the future.
+    \end{itemize}
+  \item Read mode
+    \begin{itemize}
+      \item Frequent read access is expected.
+      \item Only rare read access is expected.
+    \end{itemize}
+  \item Execute mode (available modes depend on architecture)
+    \begin{itemize}
+      \item The memory will contain executable code and execution is allowed from the beginning.
+      \item The memory will contain executable code but execution must be enabled later on.
+      \item The memory will never contain executable code.
+    \end{itemize}
+  \item Share mode
+    \begin{itemize}
+      \item Only a single thread will use the memory. Whether this is enforced depends on the architecture.
+      \item Only a group of threads will use the memory. Whether this is enforced depends on the architecture.
+      \item Only a single process will use the memory and it will not be transferred.
+      \item Only a single process will use the memory but it may be transferred to another process.
+      \item Multiple processes will read the memory. As soon as more than one process has access, write is restricted.
+      \item Multiple processes will read and write to the memory. The processes are responsible of managing concurrent accesses.
+      \item Multiple processes will read and write to the memory. As soon as a process writes to it, the view of the memory diverges.
+      \item All processes will be able to read the memory and share a consistent view of it. Write permission is managed by the allocator.
+    \end{itemize}
+  \item Endianness (not supported on all machines - default depends on machine)
+    \begin{itemize}
+      \item Little endian
+      \item Big endian
+    \end{itemize}
+  \item Resilence
+    \begin{itemize}
+      \item The memory shall not be deleted. {\bf default}
+      \item Allow the kernel to delete the memory, but only if really neccessary. This can be used for cached objects that are used very often (e.g. file system structures).
+      \item Allow the kernel to delete the memory at any time. This can be used for cached objects that are not used often (e.g. recent files).
+    \end{itemize}
+\end{itemize}
+
+
+
+\end{document}

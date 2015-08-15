@@ -1,10 +1,26 @@
 
+
+# General OS files
 .DS_Store
-
 desktop.ini
-
 Thumbs.db
 
+
+# Visual Studio
+*.v12.suo
+*.csproj.user
 bin/
 obj/
+simulation/
+
+
+# CSR SDK builds
 depend_Release_CSR101x_A05/
+
+
+# Altium Designer
+History/**/.PrjPCB.zip
+
+
+# Latex
+*.tex~
