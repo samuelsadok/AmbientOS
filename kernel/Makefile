@@ -1,3 +1,37 @@
+#*******************************************************
+#
+# Kernel Makefile
+#
+# Builds the kernel for x86 PCs (todo: extend to ARM)
+#
+# created: 24.02.15
+#
+#*******************************************************
+
+
+# application name
+OUTPUT = FlightController
+APPLICATION_NAME = OEM_Flight_Controller
+
+# select hardware
+PLATFORM := IBM_PC
+PLATFORM_NAME := BARE_PC
+ARCH := avr
+
+
+# select required features
+FEATURES = 			\
+	THREADING
+
+
+# include application specific source files
+SRC = main.c
+
+
+# let the framework control the actual build process
+FRAMEWORK = ./../shared-c/
+include $(FRAMEWORK)/Makefile
+
 
 
 CC = x86_64-none-elf-gcc

@@ -225,5 +225,42 @@ For write restricted modes, the data must be supplied on creation.
 \end{itemize}
 
 
+\section{Memory}
+
+The OS, acting as an interface between hardware and software, must consider the optimum of both worlds, and try to get there as close as possible. As an example, consider a webserver running on specialized machine that uses FPGAs to connect to hard drives.
+
+\paragraph{Software}
+PCI driver -> network interface driver -> network stack -> webserver service <- SQL query processor <- query plan interpreter <- DB filesystem <- RAID driver <- SATA driver
+
+\paragraph{Hardware}
+The multiple request handler threads of the webserver run on multiple cores. They have the network stack, and driver stack mapped into their process memory, so no process switch is required for the entire network communication. Each thread has it's own DMA buffer used to communicate with the NIC. On the backend, the webserver thread sends its SQL query to the query processor which is running on its own core. The query processor compiles an execution plan sends it to the kernel, which sends it to the FPGA. The FPGA implements the query plan interpreter, DB filesystem, RAID drivers and SATA drivers.
+
+\paragraph{OS}
+The webserver application itself does not care about how the network stack or the SQL server is implemented, as long as it's easy to use. The services don't care how they are executed, they just provide a layer of abstraction or algorithms. The hardware manufacturer provides the bare metal and hopes it will be used efficiently.
+And now the OS comes in an has to make sense of all of this. Here's how that could happen: As the webserver accepts a new TCP connection, a resource is created in the form of a pipe. The OS analyzes the TCP service and concludes that it's service handlers don't access global state. This allows the OS to direcly place the routines in a memory area seen may all processes. Now, when sending a TCP packet, the webserver can directly call the TCP stack (potentially even without invoking the kernel: the kernel could patch the respective syscalls). The same goes for the other services on the network side. On the DB side, the SQL query processor maintains state (such as cached decisions) across invokations from different clients, so it will not be embedded into other processes. Instead, it get's an own processor. The OS knows (from some source such as board descriptor), that the GPIOs accessed by the SATA service are located on the FPGA. Thus, it tries to translate the x86 SATA driver into an FPGA implementation. The same happens with some other services, yielding basically a highspeed DB implementation on an FPGA at no additional cost for the developer.
+
+
+On startup, the kernel collects information about the topology of the machine and organizes it for efficient use. This map is then used by various components (scheduler, allocator) to make optimal decisions based on cost estimation.
+
+A machine consists of processor groups that are hierarchically organized (\reg{fig:procgroups}). (machine(cpus(numa1,numa2),gpu1(shaders1,shaders2)))
+Each group has some attributes (architecture:x86/arm/heterogeneous/proprietary..., cache coherent within group: yes/no).
+
+
+
+\begin{description}
+  
+  \item[Processor Groups] The root of the map is a list of processor groups (e.g. NUMA node). Each entry points to a processor group descriptor.
+    \begin[
+  \item[Address Space] On x86, there's only one address space. Some may have more than one address
+  \item[Address Range] Start address and length.
+  \item[Global] Indicates if the block is accessible globally, or only by the owning processor group.
+\end{description}
+
+\begin{description}
+  \begin{itemize}
+    
+  \end{itemize}
+\end{description}
+
 
 \end{document}
