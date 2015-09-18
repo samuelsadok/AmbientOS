@@ -83,7 +83,9 @@ status_t init_bootvid(uint64_t bootdisk, uint64_t volumeStart, file_t *rootDir) 
 
 
 status_t load_bootimg(int num, file_t *rootDir, bitmap_t **bmpPtr) {
-	unicode_t path = (num == 1 ? UNICODE("bootimg1.bmp") : UNICODE("bootimg2.bmp"));
+	unicode_t p1 = UNICODE("bootimg1.bmp");
+	unicode_t p2 = UNICODE("bootimg2.bmp");
+	unicode_t path = (num == 1 ? p1 : p2);
 	file_t file;
 	status_t status;
 	LOGI("  navigate to file...");

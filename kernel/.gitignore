@@ -1,0 +1,5 @@
+# Bochs
+bochsrc.bxrc.auto.bxrc
+bx_enh_dbg.ini
+diskpart.auto.txt
+system.vhd

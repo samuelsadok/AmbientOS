@@ -9,9 +9,9 @@
 #define __DEVICE_H__
 
 
-#include <hardware/IBM-PC/biosdisk.h>
-#include <hardware/IBM-PC/graphics.h>
-#include <hardware/IBM-PC/teletype.h>
+#include "biosdisk.h"
+#include "graphics.h"
+#include "teletype.h"
 
 
 #endif

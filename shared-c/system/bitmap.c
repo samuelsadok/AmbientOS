@@ -49,7 +49,7 @@ void bitmap_setpixel(bitmap_t *bitmap, int64_t x, int64_t y, color_t color) {
 //	return arg1 + arg2;
 //})
 
-
+// todo: remove this stuff
 CPUACCELDECL(int, test_func, (int arg1, int arg2));
 CPUACCELFUNC(int, test_func, (int arg1, int arg2), {
 	return arg1 + arg2;
@@ -62,7 +62,7 @@ CPUACCELFUNC(int, test_func, (int arg1, int arg2), {
 //	destRect: rectangle in the destination image to paint to (paints over the whole image if NULL)
 //	srcRect: rectangle in the source image to read from (uses the whole image if NULL)
 void bitmap_paint(bitmap_t *dest, bitmap_t *src, rect_t *destRect, rect_t *srcRect) {
-	int b = test_func(23, 45);
+	// int b = test_func(23, 45);
 	assert(dest); assert(src);
 	rect_t destFrame = (rect_t) { .x = 0, .y = 0, .width = (double)dest->width, .height = (double)dest->height };
 	rect_t srcFrame = (rect_t) { .x = 0, .y = 0, .width = (double)src->width, .height = (double)src->height };

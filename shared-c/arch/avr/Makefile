@@ -112,13 +112,13 @@ OBJ := $(call toObjPath,$(filter $(addprefix %,$(SRC_EXTENSIONS)),$(SRC)))
 # Creates an object file and a dependency file from any compatible source code file
 %.o: $(call toSrcPath,$(@))
 	@echo object: $(@) source: $(call toSrcPath,$(@))
-	"$(CC)" -c $(CFLAGS) $(call getLang,$(@)) -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)" -o "$@" "$(call toSrcPath,$(@))"
+	"$(CC)" -c $(CFLAGS) $(call getLang,$(@)) -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)" -o "$@" "$(call toSrcPath,$(@))" || (rm -rf "$(@:%.o=%.d)" && false)
 	$(call repairDep,$(@:%.o=%.d))
 
 # Creates a preprocessed version from any compatible source code file
 %.pre.c: $(call toSrcPath,$(@))
 	@echo object: $(@) source: $(call toSrcPath,$(@:%.pre.c=%.o))
-	"$(CC)" -E $(CFLAGS) $(call getLang,$(@:%.pre.c=%.o)) -MD -MP -MF "$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.o)" -o "$@" "$(call toSrcPath,$(@:%.pre.c=%.o))"
+	"$(CC)" -E $(CFLAGS) $(call getLang,$(@:%.pre.c=%.o)) -MD -MP -MF "$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.o)" -o "$@" "$(call toSrcPath,$(@:%.pre.c=%.o))" || (rm -rf "$(@:%.o=%.d)" && false)
 	$(call repairDep,$(@:%.pre.c=%.d))
 
 
@@ -143,7 +143,7 @@ preprocess: $(OBJ:%.o=%.pre.c)
 all: $(OUTDIR) $(OUTDIR)/$(OUTPUT).elf
 	@echo
 	@"$(SIZE)" "$(OUTDIR)/$(OUTPUT).elf"
-	@echo compilation complete!
+	@echo -e "$(CCGREEN)compilation complete!$(CCRST)"
 
 info:
 	@echo objects: $(OBJ)

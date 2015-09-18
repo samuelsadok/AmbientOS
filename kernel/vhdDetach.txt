@@ -1,2 +1,0 @@
-select vdisk file="C:\developer\system.vhd
-detach vdisk

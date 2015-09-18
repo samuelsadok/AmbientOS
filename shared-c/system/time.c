@@ -27,6 +27,7 @@
 
 #include <system.h>
 
+#ifdef USING_TIME
 
 bool timerLock = 0;					// todo: make timer lists lock-free
 timer_t *timerList = NULL;			// linked list of active timers, sorted by their time of expiry
@@ -172,3 +173,5 @@ bool timer_has_expired(timer_t *timer) {
 	timer_update();
 	return timer->state.hasExpired;
 }
+
+#endif

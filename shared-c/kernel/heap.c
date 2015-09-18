@@ -78,7 +78,7 @@ char initialHeap[PAGE_SIZE];
 
 // Initializes the malloc and free functions using an reserved space that will be used as the initial heap.
 void malloc_init(void) {
-	heap = lastHeap = initialHeap;
+	heap = lastHeap = (heap_t *)initialHeap;
 	heap_init(heap, PAGE_SIZE);
 	heap->freeSpace--; // we never want to free this heap entirely
 	heap->nextHeap = NULL;
@@ -381,7 +381,7 @@ void *memset(void *ptr, int value, size_t num) {
 
 
 
-/*
+#ifdef USING_VIRTUAL_MEMORY
 
 #define MEMMGR_FREE				(1)
 #define MEMMGR_PAGE_FREE		(2)
@@ -441,4 +441,4 @@ void memmgr_exit_routine(void) {
 }
 
 
-*/
+#endif

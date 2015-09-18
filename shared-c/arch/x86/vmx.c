@@ -1,7 +1,9 @@
 
 
-#include <stdint.h>
-#include <hardware\x86\io.h>
+#include <system.h>
+//#include "vmx.h"
+
+#ifdef USING_VMX
 
 #define	IA32_FEATURE_CONTROL	0x3A
 
@@ -110,3 +112,5 @@ void vmx_exit(void) {
 	write_cr4(read_cr4() & ~(1 << 13));
 }
 
+
+#endif

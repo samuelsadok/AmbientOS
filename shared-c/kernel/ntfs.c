@@ -188,7 +188,7 @@ enum
 };
 
 
-unicode_t directoryIndexName;
+unicode_t directoryIndexName = UNICODE("$I30");
 
 
 
@@ -668,8 +668,8 @@ status_t ntfs_init(volume_t *volume, char *vbr, fs_t **fsPtr, uint64_t *rootRefe
 		return free(ntfs->mftSegment0), free(fs), free(mapping), status;
 	unicode_set_uppercase(mapping);
 
-	directoryIndexName = UNICODE("$I30");
-
+	//directoryIndexName = UNICODE("$I30");
+	
 	*fsPtr = fs;
 	*rootReference = 0x5;
 	return STATUS_SUCCESS;

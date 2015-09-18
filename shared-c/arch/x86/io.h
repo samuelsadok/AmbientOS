@@ -186,6 +186,12 @@ static inline void write_cr4(unsigned long val) {
 }
 
 
+// Performs really hard reset of the local CPU
+static inline __attribute__((__noreturn__)) void __reset(int reason) {
+	out(0x64, 0xFE);
+	for (;;);
+}
+
 
 
 typedef struct  __attribute__((packed)) {
@@ -256,8 +262,10 @@ void __attribute__((constructor)) funcName ## _init (void) {		\
 
 
 #include "apic.h"
+#include "debug.h"
 #include "interrupts.h"
 #include "mmu.h"
+#include "pit.h"
 #include "realmode.h"
 //#include "vmx.h"
 

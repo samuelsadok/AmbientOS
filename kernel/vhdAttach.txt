@@ -1,4 +1,0 @@
-select vdisk file="C:\developer\system.vhd
-attach vdisk
-select partition 1
-assign letter=v

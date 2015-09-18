@@ -24,22 +24,36 @@
 
 QUOTE:="
 
+# variables for echo colors
+CCGREEN=\033[0;32m
+CCYELLOW=\033[0;33m
+CCRED=\033[0;31m
+CCRST=\033[0;0m
+
 
 # add system sources
 SRC += $(addprefix $(FRAMEWORK)/kernel/,			\
+	threading.c						\
+	memory.c						\
+	heap.c							\
+	ntfs.c							\
 	kernel.c)
 
 SRC += $(addprefix $(FRAMEWORK)/system/,			\
-	build.c							\
-	dfu.c							\
-	time.c							\
+	$(call forFeature,GRAPHICS,bitmap.c)			\
+	$(call forFeature,DFU,build.c)				\
+	$(call forFeature,DFU,dfu.c)				\
+	$(call forFeature,DRIVERS,drivers.c)			\
+	$(call forFeature,FILESYSTEM,filesystem.c)		\
+	$(call forFeature,TIME,time.c)				\
 	log.c							\
 	math.c							\
+	$(call forFeature,UNICODE,unicode.c)			\
 	)
 
 # add hardware sources
 SRC += $(addprefix $(FRAMEWORK)/hardware/,			\
-	mpu/invensense_mpu.c					\
+	$(call forFeature,MPU_6050,mpu/invensense_mpu.c)			\
 	nvm.c							\
 	power.c							\
 	pwmmotor.c						\
@@ -52,7 +66,7 @@ SRC += $(addprefix $(FRAMEWORK)/services/,			\
 	gatt_service.c						\
 	gap_service.c						\
 	i2c_service.c						\
-	dfu_service.c						\
+	$(call forFeature,DFU,dfu_service.c)		\
 	)
 
 
@@ -66,7 +80,7 @@ SRC += $(call forFeature,SIMULATION,$(addprefix $(FRAMEWORK)/simulation/,	\
 
 # add special sources
 SRC += $(addprefix $(FRAMEWORK)/uav/,				\
-	local_uav.c						\
+	$(call forFeature,UAV,local_uav.c)				\
 	)
 
 
@@ -111,12 +125,15 @@ endif
 MACRO_ARGS=$(addprefix -D, $(MACROS)) -DPLATFORM_NAME=\"$(PLATFORM_NAME)\" -DAPPLICATION_NAME=\"$(APPLICATION_NAME)\" -DBUILD_TIME=\"$(BUILD_TIME)\"
 
 
-# include architecture or platform specific build process
+ifndef ARCH
+#todo: make platform to adapt to the PC where it's being compiled
+PLATFORM:=windows
+endif
+
+include $(FRAMEWORK)/platform/Makefile
+
+# include architecture specific build process
 # this controls the actual compilation
 ifdef ARCH
 include $(FRAMEWORK)/arch/$(ARCH)/Makefile
-else
-#todo: make platform to adapt to the PC where it's being compiled
-PLATFORM:=windows
-include $(FRAMEWORK)/platform/$(PLATFORM)/Makefile
 endif

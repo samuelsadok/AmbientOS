@@ -241,7 +241,6 @@ static inline uint32_t little_endian_32(uint32_t val) {
 #include <system/build.h>
 #include <system/filesystem.h>
 #include <system/bitmap.h>
-#include <system/debug.h>
 #include <system/drivers.h>
 #include <system/log.h>
 #include <system/math.h>

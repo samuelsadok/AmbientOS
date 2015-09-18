@@ -13,7 +13,7 @@ ifndef FRAMEWORK
 endif
 
 
-BIN_TOOLS:=/c/developer
+BIN_TOOLS:=/c/developer/cross-gcc/x86_64-elf/bin
 CC:=$(BIN_TOOLS)/x86_64-none-elf-gcc
 OBJCOPY:=$(BIN_TOOLS)/x86_64-none-elf-objcopy.exe
 OBJDUMP:=$(BIN_TOOLS)/x86_64-none-elf-objdump.exe
@@ -41,6 +41,7 @@ CFLAGS:=-std=c99 -O2 \
 # add architecture specific source files
 SRC+=$(addprefix $(FRAMEWORK)/arch/$(ARCH)/,			\
 	apic.c							\
+	debug.c							\
 	interrupts.c						\
 	mmu.c							\
 	realmode.c						\
@@ -56,22 +57,24 @@ OBJ := $(call toObjPath,$(filter $(addprefix %,$(SRC_EXTENSIONS)),$(SRC)))
 # Creates an object file and a dependency file from any compatible source code file
 %.o: $(call toSrcPath,$(@))
 	@echo object: $(@) source: $(call toSrcPath,$(@))
-	"$(CC)" -c $(CFLAGS) $(call getLang,$(@)) -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)" -o "$@" "$(call toSrcPath,$(@))"
+#	@echo all deps: $(OBJ) $(CRT_OBJS) $(LINKER_SCRIPT)
+#	@echo all src: $(SRC)
+	"$(CC)" -c $(CFLAGS) $(call getLang,$(@)) -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)" -o "$@" "$(call toSrcPath,$(@))" || (rm -rf "$(@:%.o=%.d)" && false)
 	$(call repairDep,$(@:%.o=%.d))
 
 # Creates a preprocessed version from any compatible source code file
 %.pre.c: $(call toSrcPath,$(@))
 	@echo object: $(@) source: $(call toSrcPath,$(@:%.pre.c=%.o))
-	"$(CC)" -E $(CFLAGS) $(call getLang,$(@:%.pre.c=%.o)) -MD -MP -MF "$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.o)" -o "$@" "$(call toSrcPath,$(@:%.pre.c=%.o))"
+	"$(CC)" -E $(CFLAGS) $(call getLang,$(@:%.pre.c=%.o)) -MD -MP -MF "$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.d)" -MT"$(@:%.pre.c=%.o)" -o "$@" "$(call toSrcPath,$(@:%.pre.c=%.o))" || (rm -rf "$(@:%.o=%.d)" && false)
 	$(call repairDep,$(@:%.pre.c=%.d))
 
 # runtime files
 CRT_SRC = $(FRAMEWORK)/arch/$(ARCH)/crt.c
-CRT0_OBJ = $(FRAMEWORK)/arch/$(ARCH)/crt0.o
-CRTI_OBJ = $(FRAMEWORK)/arch/$(ARCH)/crti.o
+CRT0_OBJ = $(call toObjPath,$(FRAMEWORK)/arch/$(ARCH)/crt0.c)
+CRTI_OBJ = $(call toObjPath,$(FRAMEWORK)/arch/$(ARCH)/crti.c)
 CRTBEGIN_OBJ := $(shell $(CC) $(CFLAGS) -print-file-name=crtbegin.o)
 CRTEND_OBJ := $(shell $(CC) $(CFLAGS) -print-file-name=crtend.o)
-CRTN_OBJ = $(FRAMEWORK)/arch/$(ARCH)/crtn.o
+CRTN_OBJ = $(call toObjPath,$(FRAMEWORK)/arch/$(ARCH)/crtn.c)
 CRT_OBJS = $(CRT0_OBJ) $(CRTI_OBJ) $(CRTN_OBJ)
 
 # build rules for architecture specific runtime wrappers
@@ -87,11 +90,11 @@ $(CRT0_OBJ): $(CRT_SRC)
 BINARY_EXPORT := -R .bootsect -R .eeprom -R .fuse -R .lock -R .signature --set-section-flags=.extended_text=alloc,load "$(OUTDIR)/$(OUTPUT).elf"
 $(OUTDIR)/$(OUTPUT).elf: $(OBJ) $(CRT_OBJS) $(LINKER_SCRIPT)
 	"$(CC)" $(CFLAGS) -o"$(OUTDIR)/$(OUTPUT).elf" $(CRT0_OBJ) $(CRTI_OBJ) $(CRTBEGIN_OBJ) $(OBJ) $(CRTEND_OBJ) $(CRTN_OBJ) $(LIBS) -Wl,-Map="$(OUTDIR)/$(OUTPUT).map"
-	"$(OBJCOPY)" $(BINARY_EXPORT) -O ihex "$(OUTDIR)/$(OUTPUT).hex"
 	"$(OBJCOPY)" $(BINARY_EXPORT) -O binary "$(OUTDIR)/$(OUTPUT).bin"
-	"$(OBJCOPY)" -j .bootsect --set-section-flags=.eeprom=alloc,load -O binary "$(OUTDIR)/$(OUTPUT).elf" "$(OUTDIR)/bootloader.bin"
-	"$(OBJDUMP)" -h -S "$(OUTDIR)/$(OUTPUT).elf" > "$(OUTDIR)/$(OUTPUT).lss"
 	"$(OBJCOPY)" $(BINARY_EXPORT) -O srec "$(OUTDIR)/$(OUTPUT).srec"
+	"$(OBJDUMP)" -h -S "$(OUTDIR)/$(OUTPUT).elf" > "$(OUTDIR)/$(OUTPUT).lss"
+	"$(OBJCOPY)" -j .bootsect --set-section-flags=.eeprom=alloc,load -O binary "$(OUTDIR)/$(OUTPUT).elf" "$(OUTDIR)/bootloader.bin"
+	"$(OBJDUMP)" -j .bootsect --adjust-vma=32256 -mi386 -Maddr16,data16 -h -S $(OUTDIR)/$(OUTPUT).elf > $(OUTDIR)/bootloader.lss
 
 
 
@@ -105,7 +108,7 @@ preprocess: $(OBJ:%.o=%.pre.c)
 all: $(OUTDIR) $(OUTDIR)/$(OUTPUT).elf
 	@echo
 	@"$(SIZE)" "$(OUTDIR)/$(OUTPUT).elf"
-	@echo compilation complete!
+	@echo -e "$(CCGREEN)compilation complete!$(CCRST)"
 
 info:
 	@echo objects: $(OBJ)
@@ -113,10 +116,13 @@ info:
 	@echo dependencies: $(wildcard $(OBJ:%.o=%.d))
 
 clean: #$(OBJ:.o=.o.clean)
-	rm -rf $(addprefix $(QUOTE)$(OUTDIR)/$(OUTPUT),$(addsuffix $(QUOTE),.elf .hex .srec .eep .map .lss))
+	rm -rf $(addprefix $(QUOTE)$(OUTDIR)/$(OUTPUT),$(addsuffix $(QUOTE),.elf .hex .bin .srec .eep .map .lss))
+	rm -rf $(addprefix $(QUOTE)$(OUTDIR)/bootloader,$(addsuffix $(QUOTE),.elf .hex .bin .srec .eep .map .lss))
 	rm -rf $(OBJ)
 	rm -rf $(OBJ:%.o=%.d)
 	rm -rf $(OBJ:%.o=%.pre.c)
+	rm -rf $(CRT_OBJS)
+	rm -rf $(CRT_OBJS:%.o=%.lss)
 
 %.clean:
 	rm -rf "$(@:%.clean=%)"
