@@ -1,0 +1,7 @@
+<FirmwareStore>
+  <Firmware Product="S1" HardwareRevision="Bla" DisplayName="S1 Prototype blinking LEDs">
+    <file>
+      baseband.img
+    </file>
+  </Firmware>
+</FirmwareStore>

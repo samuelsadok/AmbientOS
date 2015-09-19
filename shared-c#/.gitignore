@@ -1,0 +1,27 @@
+
+
+# General OS files
+.DS_Store
+desktop.ini
+Thumbs.db
+
+
+# Visual Studio
+.vs/
+*.v12.suo
+*.csproj.user
+
+
+# Build output
+bin/
+obj/
+simulation/
+depend_Release_CSR101x_A05/
+
+
+# Altium Designer
+History/**/.PrjPCB.zip
+
+
+# Latex
+*.tex~
