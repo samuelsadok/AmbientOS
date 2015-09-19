@@ -154,7 +154,25 @@ namespace AppInstall.Framework
         }
 
         /// <summary>
-        /// Tries to return a string that represents the devices MAC address.
+        /// Returns a string that represents the specified number as a data size.
+        /// e.g. 1024 would return "1kB"
+        /// The function returns at most three significant digits.
+        /// </summary>
+        /// <param name="detail">If true, the output is e.g.: "1.2kB (1234 Bytes)"</param>
+        public static string GetSizeString(ulong size, bool detail)
+        {
+            string[] units = { "", "k", "M", "G", "T", "P", "E" };
+            int unit = 0;
+            double val = size;
+            while (val >= 1024 && unit + 1 < units.Count()) {
+                val /= 1024;
+                unit++;
+            }
+            return string.Format("{0:G3} {1}B{2}", val, units[unit], detail ? " (" + size + " Bytes)" : "");
+        }
+
+        /// <summary>
+        /// Tries to return a string that represents the device's MAC address.
         /// Prefers operational interfaces and returns six zero-bytes if no interface is installed.
         /// </summary>
         public static byte[] GetMachineID()

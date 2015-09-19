@@ -38,6 +38,7 @@ namespace AppInstall.Framework
     {
         Debug,
         Info,
+        Success,
         Warning,
         Error
     }
@@ -49,12 +50,14 @@ namespace AppInstall.Framework
     {
         Dictionary<string, LogContext> children = new Dictionary<string, LogContext>();
         LogDelegate logDelegate;
+        Action breakDelegate;
         string name;
 
-        public LogContext(LogDelegate logDelegate, string name)
+        public LogContext(LogDelegate logDelegate, Action breakDelegate, string name)
         {
             this.name = name;
             this.logDelegate = logDelegate;
+            this.breakDelegate = breakDelegate == null ? () => logDelegate("", "", LogType.Info) : breakDelegate;
         }
 
         public static LogContext FromConsole(IConsole console, string name)
@@ -63,16 +66,29 @@ namespace AppInstall.Framework
                 switch (t) {
                     case LogType.Debug: console.SetColor(ConsoleColor.DarkGray, ConsoleColor.Black); break;
                     case LogType.Info: console.SetColor(ConsoleColor.Green, ConsoleColor.Black); break;
+                    case LogType.Success: console.SetColor(ConsoleColor.Green, ConsoleColor.Black); break;
                     case LogType.Warning: console.SetColor(ConsoleColor.Yellow, ConsoleColor.Black); break;
                     case LogType.Error: console.SetColor(ConsoleColor.Red, ConsoleColor.Black); break;
                 }
                 console.WriteLine(c + ": " + m);
+            }, () => {
+                console.WriteLine("");
             }, name);
         }
 
         public void Log(string message, LogType type = LogType.Info)
         {
             logDelegate(name, message, type);
+        }
+
+        /// <summary>
+        /// Inserts a break in the log.
+        /// On consoles this is an empty line.
+        /// On other log contexts, this may have no effect.
+        /// </summary>
+        public void Break()
+        {
+            breakDelegate();
         }
 
         /// <summary>
@@ -91,7 +107,7 @@ namespace AppInstall.Framework
         {
             LogContext result;
             if (!children.TryGetValue(name, out result))
-                result = (children[name] = new LogContext((c, m, t) => { logDelegate(this.name + "->" + c, m, t); }, name));
+                result = (children[name] = new LogContext((c, m, t) => { logDelegate(this.name + "->" + c, m, t); }, breakDelegate, name));
             return result;
         }
     }

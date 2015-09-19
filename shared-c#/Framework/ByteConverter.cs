@@ -320,5 +320,57 @@ namespace AppInstall.Framework
                 result = result.Reverse().ToArray();
             return result;
         }
+
+        /// <summary>
+        /// Returns the 16-bit little-endian sum of a range in a byte array.
+        /// </summary>
+        public static Int16 GetInt16LEChecksum(byte[] value, int offset, int length)
+        {
+            Int16 result = 0;
+            if (length % 2 != 0)
+                throw new ArgumentException("length must be a multiple of 2", $"{length}");
+            for (int i = offset; i < offset + length; i += 2)
+                result = unchecked((Int16)(result + ToInt16LE(value, offset)));
+            return result;
+        }
+
+        /// <summary>
+        /// Returns the 16-bit big-endian sum of a range in a byte array.
+        /// </summary>
+        public static Int16 GetInt16BEChecksum(byte[] value, int offset, int length)
+        {
+            Int16 result = 0;
+            if (length % 2 != 0)
+                throw new ArgumentException("length must be a multiple of 2", $"{length}");
+            for (int i = offset; i < offset + length; i += 2)
+                result = unchecked((Int16)(result + ToInt16BE(value, offset)));
+            return result;
+        }
+
+        /// <summary>
+        /// Returns the 32-bit little-endian sum of a range in a byte array.
+        /// </summary>
+        public static Int32 GetInt32LEChecksum(byte[] value, int offset, int length)
+        {
+            Int32 result = 0;
+            if (length % 4 != 0)
+                throw new ArgumentException("length must be a multiple of 4", $"{length}");
+            for (int i = offset; i < offset + length; i += 4)
+                result = unchecked(result + ToInt32LE(value, offset));
+            return result;
+        }
+
+        /// <summary>
+        /// Returns the 32-bit big-endian sum of a range in a byte array.
+        /// </summary>
+        public static Int32 GetInt32BEChecksum(byte[] value, int offset, int length)
+        {
+            Int32 result = 0;
+            if (length % 4 != 0)
+                throw new ArgumentException("length must be a multiple of 4", $"{length}");
+            for (int i = offset; i < offset + length; i += 4)
+                result = unchecked(result + ToInt32BE(value, offset));
+            return result;
+        }
     }
 }

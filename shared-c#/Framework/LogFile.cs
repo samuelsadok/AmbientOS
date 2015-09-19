@@ -115,7 +115,7 @@ namespace AppInstall.Framework
 
 
         public LogFile(string path)
-            : base(ConstructLogDelegate(path), "")
+            : base(ConstructLogDelegate(path), null, "")
         {
         }
 
