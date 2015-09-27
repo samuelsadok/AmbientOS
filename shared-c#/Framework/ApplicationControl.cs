@@ -47,6 +47,11 @@ namespace AppInstall.Framework
         public static string ServiceName { get; set; }
 
         /// <summary>
+        /// Temporary hack
+        /// </summary>
+        public static bool NeedsAdmin { get { return Application.NeedsAdmin; } }
+
+        /// <summary>
         /// The application must listen to this event and terminate all threads when it is triggered.
         /// </summary>
         public static CancellationToken ShutdownToken { get; private set; }

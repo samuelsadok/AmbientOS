@@ -53,6 +53,12 @@ namespace AppInstall.Framework
         Action breakDelegate;
         string name;
 
+        /// <summary>
+        /// Creates a new log context from a log delegate
+        /// </summary>
+        /// <param name="logDelegate">The delegate that accepts a log message and writes it to the output.</param>
+        /// <param name="breakDelegate">An action that inserts a break (e.g. new line) on the log context. If null, a break equals an empty log entry.</param>
+        /// <param name="name">The root name of the context (e.g. the application name).</param>
         public LogContext(LogDelegate logDelegate, Action breakDelegate, string name)
         {
             this.name = name;
@@ -76,9 +82,20 @@ namespace AppInstall.Framework
             }, name);
         }
 
+        /// <summary>
+        /// Writes a log message to the context.
+        /// </summary>
         public void Log(string message, LogType type = LogType.Info)
         {
             logDelegate(name, message, type);
+        }
+
+        /// <summary>
+        /// Writes a log message to the context using the debug type.
+        /// </summary>
+        public void Debug(string message, params object[] args)
+        {
+            logDelegate(name, string.Format(message, args), LogType.Debug);
         }
 
         /// <summary>

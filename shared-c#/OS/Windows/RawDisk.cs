@@ -183,8 +183,8 @@ namespace AppInstall.OS
             for (int i = 0x01BE; i < 0x01FE; i += 0x10) {
                 result[index++] = new VolumeInfo() {
                     Type = mbr[i + 4],
-                    Offset = ByteConverter.ToUInt32LE(mbr, i + 0x8) * this.Geometry.BytesPerSector,
-                    Length = ByteConverter.ToUInt32LE(mbr, i + 0xC) * this.Geometry.BytesPerSector,
+                    Offset = mbr.ReadUInt32(i + 0x8, Endianness.LittleEndian) * this.Geometry.BytesPerSector,
+                    Length = mbr.ReadUInt32(i + 0xC, Endianness.LittleEndian) * this.Geometry.BytesPerSector,
                     Name = "[mbr]"
                 };
             }
@@ -198,9 +198,9 @@ namespace AppInstall.OS
         public VolumeInfo[] GetGPTPartitions()
         {
             var gptHeader = this.ReadSectors(1, 1);
-            var listStart = ByteConverter.ToUInt64LE(gptHeader, 0x48);
-            var listLength = (int)ByteConverter.ToUInt32LE(gptHeader, 0x50);
-            var elementSize = (int)ByteConverter.ToUInt32LE(gptHeader, 0x54);
+            var listStart = gptHeader.ReadUInt64(0x48, Endianness.LittleEndian);
+            var listLength = gptHeader.ReadInt32(0x50, Endianness.LittleEndian);
+            var elementSize = gptHeader.ReadInt32(0x54, Endianness.LittleEndian);
 
             this.Seek((int)(listStart * Geometry.BytesPerSector), SeekOrigin.Begin);
             var data = this.ReadBytes((int)(listLength * elementSize), ApplicationControl.ShutdownToken).WaitForResult(ApplicationControl.ShutdownToken);
@@ -209,12 +209,12 @@ namespace AppInstall.OS
 
             for (int i = 0; i < listLength; i++) {
                 var entry = data.Skip(i * elementSize).Take(elementSize).ToArray();
-                var firstSector = ByteConverter.ToUInt64LE(entry, 0x20);
+                var firstSector = entry.ReadUInt64(0x20, Endianness.LittleEndian);
 
                 if (firstSector != 0) {
                     result.Add(new VolumeInfo() {
                         Offset = firstSector * this.Geometry.BytesPerSector,
-                        Length = (ByteConverter.ToUInt64LE(entry, 0x28) + 1 - firstSector) * this.Geometry.BytesPerSector,
+                        Length = (entry.ReadUInt64(0x28, Endianness.LittleEndian) + 1 - firstSector) * this.Geometry.BytesPerSector,
                         Name = System.Text.Encoding.Unicode.GetString(entry.Skip(0x38).TakeWhile((b) => b != 0).ToArray())
                     });
                 }

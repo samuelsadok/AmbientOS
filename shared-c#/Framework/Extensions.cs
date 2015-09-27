@@ -10,15 +10,6 @@ namespace AppInstall.Framework
     public static class Extensions
     {
         /// <summary>
-        /// Returns an alternative value in case this one is null.
-        /// </summary>
-        public static T Or<T>(this T value, T alternativeValue)
-            where T : class
-        {
-            return (value == null ? alternativeValue : value);
-        }
-
-        /// <summary>
         /// Thread-safely raises an event that might be null
         /// </summary>
         public static void SafeInvoke(this Action handler)
@@ -301,6 +292,19 @@ namespace AppInstall.Framework
         {
             foreach (var item in items)
                 list.Add(item);
+        }
+
+        public static IEnumerable<T> Distinct<T>(this IEnumerable<T> enumerable, Func<T, T, bool> comparer)
+        {
+            List<T> returned = new List<T>(4);
+
+            foreach (var element in enumerable)
+                if (!returned.Any(val => comparer(val, element))) {
+                    returned.Add(element);
+                    yield return element;
+                }
+
+            yield break;
         }
 
         /// <summary>

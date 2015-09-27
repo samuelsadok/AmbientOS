@@ -29,7 +29,7 @@ namespace AppInstall.OS
 
         public static LogContext DefaultLog { get { return Environment.UserInteractive ? consoleLog : debugLog; } }
         private static LogContext consoleLog = LogContext.FromConsole(SystemConsole.Console, "root");
-        private static LogContext debugLog = new LogContext((c, m, t) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, Application.ApplicationName);
+        private static LogContext debugLog = new LogContext((c, m, t) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, Application.ApplicationName);
 
         private static DispatcherThread mainThread = DispatcherThread.Create(true);
 

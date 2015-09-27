@@ -26,7 +26,7 @@ namespace AppInstall.OS.Windows
             if (ApplicationControl.IsSystemService) {
                 var service = new MainService();
                 ServiceBase.Run(service);
-            } else if (!PlatformUtilities.RestartWithAdminPrivileges(args, SystemConsole.Console)) {
+            } else if (ApplicationControl.NeedsAdmin ? !PlatformUtilities.RestartWithAdminPrivileges(args, SystemConsole.Console) : true) {
                 var trimmedArgs = args.Select((arg) => arg.TrimStart('-', '/'));
 
                 try {

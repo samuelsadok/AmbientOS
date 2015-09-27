@@ -159,7 +159,7 @@ namespace AppInstall.Framework
         /// The function returns at most three significant digits.
         /// </summary>
         /// <param name="detail">If true, the output is e.g.: "1.2kB (1234 Bytes)"</param>
-        public static string GetSizeString(ulong size, bool detail)
+        public static string GetSizeString(long size, bool detail)
         {
             string[] units = { "", "k", "M", "G", "T", "P", "E" };
             int unit = 0;
