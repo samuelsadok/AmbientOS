@@ -99,168 +99,125 @@
 \makeatother
 
 
-% document specific math operators
-\DeclareMathOperator{\Enc}{Enc}
-\DeclareMathOperator{\Dec}{Dec}
+%\newcommand{\q}[1]{{\it {#1}}}
+\newenvironment{q}{\color{gray} \small \it}{}
 
 
 
-\title{AmbientOS}
-\author{[Author]}
-\date{August 2015}
+\title{AmbientOS Technical Overview}
+\author{some author}
+\date{October 2015}
 
 
 \begin{document}
 \pagenumbering{arabic}
 \maketitle
 
-\section{Design Process}
+\paragraph{Note} AmbientOS is still in a very early stage and there are many unsolved questions, so this document will still change heavily. Some of the open questions are included in this document. They written in this style: {\q how can we blabla}.
 
-\paragraph{Highly modular system} If our system is to be suitable in any computing environment one could think of, first of all we need to throw away our concept of what a computer looks like. More importantly, from this traditional concept we must not infer what an OS should look like, because that would, to some extent, lock our OS into the present. Let's take the UI as an example. The traditional paradigm, to center the OS around a 2D color UI, breaks down if we only think about the screen. The most common screen type is probably a rectangular 16M color screen with 72 DPI (or at least was, for a long time). However, if we think about it, we can come up with many more variants: high-DPI screen, monochrome screen, screen with an arbitrary shape, resizable screen, virtual reality screen, augmented reality screen, holographic screen or no screen at all.
-Since we can't reflect all possible future developments in our OS, it must be highly modular and extensible. To archieve maximum compatibility and fleibility, The core system must not rely on any assumptions about the hardware and it must be agnostic to any specific hardware interface.
+\section{What is AmbientOS?}
+AmbientOS is an ecosystem of applications, services and libraries that adhere to a specific set of carefully chosen concepts and abstractions. These abstractions are designed to make it easy to build applications that are secure, distributed and modular. \\
+{\bf Mainline AmbientOS} is our distribution of AmbientOS that comes preconfigured with the most essential components you may need and then some.
 
-\paragraph{Driver = Service = Application} When looking at common OSses, one particular question arises. Why are there separate abstractions for drivers, system services and applications? There are many examples where this separation makes no sense. An application could be a driver (e.g. an on-screen keyboard). A service could be a driver (e.g. a filesystem on the network). An application could be a service (e.g. an email client).
-This defines our first and fundamental design decision. The OS is centered around a microkernel and almost everything else runs in usermode, including hardware drivers.
+\subsection{API}
+All API functions are ultimately based on a small set of core functions that enable an application to interact with the world (files, devices, UI, ...). These functions make up the {\bf object store interface}. An application, that relies just on this set of functions, it is highly platform independent by default. This is illustrated by looking at both native and foreign cases:
 
-\paragraph{Inter Process Communication} To make the design and use of services easy and efficient, the kernel must provide a powerful IPC method. There are two fundamental properties of message passing:
+\subsubsection{Native Application}
+In this scenario, the application is linked to a native-API module, that just issues syscalls for each function call. The actual implementation of the object store runs on the bare metal hardware. Usually, an application can expect the availability of a bunch of core system services (e.g. filesystem, device drivers, ...). Interaction with these services is done through the kernel. The native kernel can make use of an arbitrary set of optimizations to make this interaction more efficient.
+
+\subsubsection{Foreign Application}
+On a foreign system (e.g. Windows, OS X, ...), an application is linked to a fully featured object store implementation that runs in user mode in the same process as the application. An appropriate abstraction layer must be used that contains service wrappers for the host OS functionalities. Since the object store is agnostic to the type of objects it hosts, there are no restrictions on what functionality the host OS can provide.
+
+\subsubsection{Differences}
+Most differences beween running an application natively versus on another OS, are from a usability and capability perspective. {\q what exactly are the differences? could we use binary translation on another system?}
+
+
+\section{Concepts}
+{\bf Programs} expose {\bf Objects}, that have one or multiple {\bf Appearances}, each of which is associated with an {\bf Interface}.
+
+\subsection{Objects}
+{\bf Objects} are the only way for programs to cooperate.
+If a program wants to expose a resource, it does so by publishing an object. If another program wants to use an object, it invokes methods on a suitable object.
+Examples of objects include: files, folders, monitors, speakers, sensors, actuators and much more. Even programs are objects.
+
+\subsection{Programs}
+Applications, services and drivers are all equivalent in AmbientOS. Let's call them {\bf programs}. The way programs are executed depends on the system setup. On a normal PC, programs run in the form of processes in user mode. On an embedded system or on processors where there is no memory protection, programs run alongside the kernel. Conceptually, programs may also run on FPGAs or anything else that can do processing. \\
+Installing a program is equivalent to publishing an object with the ``app'' interface. Since programs can only expose objects while they are running, a program usually does not expose itself, but instead registers itself in an app registry. The app registry can be found by searching an object with the ``appreg'' object. {\q how to select the best app registry?} The default app registry is tightly coupled with the boot process of the local kernel, e.g. it may store registrations on disk and on startup publish an ``app'' object for every program it knows or finds.
+
+\subsection{Interfaces}
+Interfaces define what operations are possible on an object. An interface definition encompasses a globally unique name, a set of methods and their signatures and a set of attributes. \\
+An object can (and often does) implement multiple interfaces. For instance, an external display may implement both the {\tt aos.screen} and {\tt aos.audio.out} interfaces. \\
+For programs to do anything useful, it is essential that they can use most of the objects out of the box. That's why Mainline AmbientOS predefines interfaces for most common purposes. These interfaces all start with the prefix {\tt aos} and all Mainline AmbientOS components are based solely these interfaces. \\
+For a complete list of Mainline AmbientOS interface definitions, see {\q \ldots we need to generate interface documentation from C\# source code}. For instructions on how to design your own interfaces, see section~\ref{sec:if-guide} on page~\pageref{sec:if-guide}.
+
+\subsection{Peer}
+A peer is a single self-contained component of the AmbientOS network. Each peer has it's own object store and can host multiple programs. On a native AmbientOS system, each processor in the machine is a peer. On other host OSses, a process is a peer. Connectivity to other peers must be provided by the programs running on the peer. This can include TCP/IP, bluetooth, shared memory or any other method.
+
+\subsection{Domain}
+A set of cooperating peers can make up a domain. A peer can be part of multiple domains. A few examples:
 
 \begin{description}
-  \item[synchronous vs assynchronous] For both variants, there are valid use cases, so our kernel will support both and let the sender decide. If the sender choses the assync version, it may accept an activity tracker to monitor the progress and status of the request. The sync version is basically a remote procedure call.
-  \item[reliable vs unreliable] Again, there are valid cases for both, so we couple this directly with the type of the call. Synchronous calls and activity trackers give a delivery guarantee and indication in case of failure. Asynchronous requests that discard the activity tracker have no guarantees. The kernel may drop, corrupt or mix up such messages.
+  \item[Local peer] This is a built-in domain that cannot be altered.
+  \item[Local machine] Contains all of the peers (i.e. processors) on the local machine.
+  \item[My devices] Contains all of the devices that are (co-)owned by the user.
+  \item[Family] Contains all of the devices owned by the user's family.
+  \item[Home] Contains the devices at home (e.g. lights, sensors, heating, \ldots).
+  \item[Company] Contains all of the devices that are part of the user's company.
+  \item[Cloud] Contains services provided by a cloud provider.
 \end{description}
 
-A significant drawback of a microkernel design is the performance impact due to a lot of context switches. A standard file read call might be handled like this: app => file system driver => volume driver => SATA disk driver. By implementing some optimization, we can reduce this overhead.
+Mainline AmbientOS will include tools that make it easy to manage domains.
+
+
+\subsection{Object Store}
+The object store is the central manager of all objects. It supports two main operations:
+
+\begin{description}
+  \item[Publish] Publishes an object in all domains that the peer is part of.
+  \item[Query] Lets programs search for objects of the specified appearance. A query is active until it is terminated, i.e. a callback is invoked whenever a new object was published or disappeared. A query is always associated with a domain.
+{\q what kind of queries do we want to allow? only search by object type? or by attributes? how about regex? in the end we can't cover every use case, so the client will need a filter anyway, but still we don't want to flood it with objects}
+\end{description}
+
+
+\section{Design Principles}
+
+{\q include the design principles that we follow (mainly concerned with user experience)}
+
+
+\section{Interface Design Guidlines} \label{sec:if-guide}
+
+For a lot of common use cases, there's already a predefined interface in the {\tt aos} namespace. However, you're completely free to define your own interface to enable interoperability with others. To make sure that others get the most out of your interface, your should consider a few things.
+
 \begin{itemize}
-  \item Every time the kernel is entered, it makes a scheduling decision. This is expected to be often, so preemtion becomes rare.
-  \item Small arguments are passed in registers. This removes the need to read or write to memory.
-  \item Data is passed in mbufs, that is dynamic buffers that support for instance prepend, append and insert operations. This avoids the need to copy data if a driver needs to add another header to a buffer.
-  \item Buffers are passed in memory domains. A specific memory domain can belong to multiple processes simultaneously while only existing once in memory. It is only duplicated if any process writes to it while other processes still hold a reference.
-  \item Allow an application to dispatch in-kernel agents. Such agents would be written in a scripting language or bytecode, and would need to give some guarantees. On registration, the kernel would statically verify the code and compile it into native code. Instead of sending a message to the target process, the kernel can now check for agents that can handle the message. This is especially useful for requests that don't require extensive handling, such as the return value from a file read request.
+  \item Don't only think about your own use case. Think about what functionalities others may want to provide if they use your interface.
+  \item Make the interface general, rather than easy to use. If you want your interface to be easy to use, provide a library.
+  \item Keep in mind that some implementations may lack some of the functionality of the interface and specficy the behaviour in these cases.
+  \item Find the right set of security priviledges. Think about what subset of actions the user may want to allow on the objects.
+  \item Be clear about the semantics in the documentation.
+  \item Use it yourself. This is the best method to find flaws in the design.
 \end{itemize}
 
-\paragraph{Scheduling} A message tells the kernel to enqueue a new task, the one that will handle the message plus in case of an asynchronous message the one that sent the message. To maximize efficiency, scheduling decisions must take into account various factors:
+If your interface is good and seems useful, you can propose it to us and we may include it with Mainline AmbientOS.
+
+
+
+\section{AmbientOS Framework}
+
+To make AmbientOS development easy, we provide a complete framework that contains a full implementation of the object store, all of the Mainline AmbientOS interfaces, a bunch of useful extension functions to these interfaces and a bunch of other utility function. \\
+In addition to that, we provide abstraction layers for Windows (desktop, console services and universal apps), iOS and Android. These libraries are implemented in .NET, so they are usable by any .NET language. \\
+
+The framework consists of the following components:
 
 \begin{itemize}
-  \item Prefer to schedule tasks of the same process/thread on the same processor directly after each other. This will reduce cache misses due to context switching. Also, even after a context switch, there's a chance that the old process is still in cache. Sometimes it may even be worth to let other processors idle for the sake of locality.
-  \item Prefer to schedule message handling tasks on the same processor as the sender. This will benefit the cache hits for the messages that use buffers.
-  \item If a message can be handled by an agent, prefer to execute the agent immediately rather than enqueueing it as a task.
-  \item Prefer to handle a message immediately, rather than enqueueing it as a task, especially if the handler is a kernel agent. This removes the overhead of reloading the security context (e.g. privilege list).
-\begin{itemize}
-
-
-\paragraph{Security} Putting everything into usermode requires some thought about the privileges of usermode drivers. A usermode disk driver obviously will have access to the raw disk, so it could do a lot of damage. But we don't want to give the same power to, say, an internet browser. So we could simply give all drivers extended privileges. But remember that an application could be a driver too. Moreover, the kernel has no concept of what a disk is, so it would be difficult for the kernel to enforce such policies. Maybe we could run different processes in different user contexts? In this case, we'd probably need to run a file system driver for every user, which hardly makes sense. Hence, we need a finer grained method of managing privileges. Another problem that illustrates this, is the question what privileges a third party app should have. Only because I download some app from the internet and run it on my account, this doesn't mean that I want it to be able access all of my files. The answer is to always start a process with no privileges at all, and give the user the possibility to grant or deny privileges that the process needs at will. Obviously, a user or parent process can only grant privileges that he/it owns.
-
-
-\paragraph{Highly modular with no unneccessary abstractions} Consider a keyboard. 
-
-\begin{description}
-  \item[modular] All abstractions that are used shall be as general as possible.
-  \item[modular] All abstractions that are used shall be as general as possible.
-\end{description}
-
-\paragraph{Services}
-
-
-
-\paragraph{Put the experience at the center} 
-\paragraph{D} 
-
-
-
-
-\section{Memory Management}
-
-When allocating memory, the kernel should be informed how it is used. This allows the kernel to apply optimizations.
-For write restricted modes, the data must be supplied on creation.
-
-\begin{itemize}
-  \item Initialization: memory that has its init resource still available (and unmodified) and is not dirty is more likely to being paged out. (note that a file may become unavailable while the memory is being paged out, we must consider what happens to the memory object and the process that uses it: pause? kill? wait for page fault? this yields some considerations on resources: a resource should be able to notify that it wants to disappear, will definitely disappear, did disappear, etc.)
-    \begin{itemize}
-      \item Init to zero
-      \item Init from linear or block resource (e.g. a file)
-      \item Init with provided data
-      \item Don't init
-    \end{itemize}
-  \item Write Mode
-    \begin{itemize}
-      \item Writing is allowed and frequently expected. {\bf default}
-      \item Writing is allowed, but rarely expected.
-      \item Writing is not allowed, but after enabling frequent writes are expected.
-      \item Writing is not allowed and after and enabling only rare writes are expected.
-      \item Writing is never allowed. It will not be possible to enable it in the future.
-    \end{itemize}
-  \item Read mode
-    \begin{itemize}
-      \item Frequent read access is expected.
-      \item Only rare read access is expected.
-    \end{itemize}
-  \item Execute mode (available modes depend on architecture)
-    \begin{itemize}
-      \item The memory will contain executable code and execution is allowed from the beginning.
-      \item The memory will contain executable code but execution must be enabled later on.
-      \item The memory will never contain executable code.
-    \end{itemize}
-  \item Share mode
-    \begin{itemize}
-      \item Only a single thread will use the memory. Whether this is enforced depends on the architecture.
-      \item Only a group of threads will use the memory. Whether this is enforced depends on the architecture.
-      \item Only a single process will use the memory and it will not be transferred.
-      \item Only a single process will use the memory but it may be transferred to another process.
-      \item Multiple processes will read the memory. As soon as more than one process has access, write is restricted.
-      \item Multiple processes will read and write to the memory. The processes are responsible of managing concurrent accesses.
-      \item Multiple processes will read and write to the memory. As soon as a process writes to it, the view of the memory diverges.
-      \item All processes will be able to read the memory and share a consistent view of it. Write permission is managed by the allocator.
-    \end{itemize}
-  \item Endianness (not supported on all machines - default depends on machine)
-    \begin{itemize}
-      \item Little endian
-      \item Big endian
-    \end{itemize}
-  \item Resilence
-    \begin{itemize}
-      \item The memory shall not be deleted. {\bf default}
-      \item Allow the kernel to delete the memory, but only if really neccessary. This can be used for cached objects that are used very often (e.g. file system structures).
-      \item Allow the kernel to delete the memory at any time. This can be used for cached objects that are not used often (e.g. recent files).
-    \end{itemize}
+  \item {\tt AmbientOS.Library} contains all the interfaces, extension functions and some utility functions and classes
+  \item {\tt AmbientOS.Native} contains the P/Invoke stubs for the native AmbientOS kernel
+  \item {\tt AmbientOS.Foreign} contains wrapper classes around parts of the .NET Framework that are available on all platforms but don't conform to AmbientOS conventions (e.g. file access, networking, \ldots).
+  \item {\tt AmbientOS.Foreign.Windows} contains wrapper classes and P/Invoke stubs specific to Windows.
+  \item {\tt AmbientOS.Foreign.Mac} contains wrapper classes and P/Invoke stubs specific to OS X and iOS.
+  \item {\tt AmbientOS.Foreign.Android} contains wrapper classes and P/Invoke stubs specific to Android.
 \end{itemize}
 
-
-\section{Memory}
-
-The OS, acting as an interface between hardware and software, must consider the optimum of both worlds, and try to get there as close as possible. As an example, consider a webserver running on specialized machine that uses FPGAs to connect to hard drives.
-
-\paragraph{Software}
-PCI driver -> network interface driver -> network stack -> webserver service <- SQL query processor <- query plan interpreter <- DB filesystem <- RAID driver <- SATA driver
-
-\paragraph{Hardware}
-The multiple request handler threads of the webserver run on multiple cores. They have the network stack, and driver stack mapped into their process memory, so no process switch is required for the entire network communication. Each thread has it's own DMA buffer used to communicate with the NIC. On the backend, the webserver thread sends its SQL query to the query processor which is running on its own core. The query processor compiles an execution plan sends it to the kernel, which sends it to the FPGA. The FPGA implements the query plan interpreter, DB filesystem, RAID drivers and SATA drivers.
-
-\paragraph{OS}
-The webserver application itself does not care about how the network stack or the SQL server is implemented, as long as it's easy to use. The services don't care how they are executed, they just provide a layer of abstraction or algorithms. The hardware manufacturer provides the bare metal and hopes it will be used efficiently.
-And now the OS comes in an has to make sense of all of this. Here's how that could happen: As the webserver accepts a new TCP connection, a resource is created in the form of a pipe. The OS analyzes the TCP service and concludes that it's service handlers don't access global state. This allows the OS to direcly place the routines in a memory area seen may all processes. Now, when sending a TCP packet, the webserver can directly call the TCP stack (potentially even without invoking the kernel: the kernel could patch the respective syscalls). The same goes for the other services on the network side. On the DB side, the SQL query processor maintains state (such as cached decisions) across invokations from different clients, so it will not be embedded into other processes. Instead, it get's an own processor. The OS knows (from some source such as board descriptor), that the GPIOs accessed by the SATA service are located on the FPGA. Thus, it tries to translate the x86 SATA driver into an FPGA implementation. The same happens with some other services, yielding basically a highspeed DB implementation on an FPGA at no additional cost for the developer.
-
-
-On startup, the kernel collects information about the topology of the machine and organizes it for efficient use. This map is then used by various components (scheduler, allocator) to make optimal decisions based on cost estimation.
-
-A machine consists of processor groups that are hierarchically organized (\reg{fig:procgroups}). (machine(cpus(numa1,numa2),gpu1(shaders1,shaders2)))
-Each group has some attributes (architecture:x86/arm/heterogeneous/proprietary..., cache coherent within group: yes/no).
-
-
-
-\begin{description}
-  
-  \item[Processor Groups] The root of the map is a list of processor groups (e.g. NUMA node). Each entry points to a processor group descriptor.
-    \begin[
-  \item[Address Space] On x86, there's only one address space. Some may have more than one address
-  \item[Address Range] Start address and length.
-  \item[Global] Indicates if the block is accessible globally, or only by the owning processor group.
-\end{description}
-
-\begin{description}
-  \begin{itemize}
-    
-  \end{itemize}
-\end{description}
+Beware that the names of these assemblies do not reflect the namespaces that they cover.
 
 
 \end{document}
