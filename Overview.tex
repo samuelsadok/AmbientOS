@@ -105,7 +105,7 @@
 
 
 \title{AmbientOS Technical Overview}
-\author{some author}
+\author{AppInstall Innovation Labs}
 \date{October 2015}
 
 
@@ -140,15 +140,37 @@ Most differences beween running an application natively versus on another OS, ar
 If a program wants to expose a resource, it does so by publishing an object. If another program wants to use an object, it invokes methods on a suitable object.
 Examples of objects include: files, folders, monitors, speakers, sensors, actuators and much more. Even programs are objects.
 
-\subsection{Programs}
-Applications, services and drivers are all equivalent in AmbientOS. Let's call them {\bf programs}. The way programs are executed depends on the system setup. On a normal PC, programs run in the form of processes in user mode. On an embedded system or on processors where there is no memory protection, programs run alongside the kernel. Conceptually, programs may also run on FPGAs or anything else that can do processing. \\
-Installing a program is equivalent to publishing an object with the ``app'' interface. Since programs can only expose objects while they are running, a program usually does not expose itself, but instead registers itself in an app registry. The app registry can be found by searching an object with the ``appreg'' object. {\q how to select the best app registry?} The default app registry is tightly coupled with the boot process of the local kernel, e.g. it may store registrations on disk and on startup publish an ``app'' object for every program it knows or finds.
-
 \subsection{Interfaces}
 Interfaces define what operations are possible on an object. An interface definition encompasses a globally unique name, a set of methods and their signatures and a set of attributes. \\
-An object can (and often does) implement multiple interfaces. For instance, an external display may implement both the {\tt aos.screen} and {\tt aos.audio.out} interfaces. \\
-For programs to do anything useful, it is essential that they can use most of the objects out of the box. That's why Mainline AmbientOS predefines interfaces for most common purposes. These interfaces all start with the prefix {\tt aos} and all Mainline AmbientOS components are based solely these interfaces. \\
-For a complete list of Mainline AmbientOS interface definitions, see {\q \ldots we need to generate interface documentation from C\# source code}. For instructions on how to design your own interfaces, see section~\ref{sec:if-guide} on page~\pageref{sec:if-guide}.
+An object can (and often does) implement multiple interfaces. For instance, an external display may implement both the {\tt AmbientOS.Graphics.Screen} and {\tt AmbientOS.Audio.Speaker} interfaces. \\
+For programs to do anything useful, it is essential that they can use most of the objects out of the box. That's why Mainline AmbientOS predefines interfaces for most common purposes. These interfaces all belong to the namespace {\tt AmbientOS} and all Mainline AmbientOS components are based solely these interfaces. \\
+For a complete list of Mainline AmbientOS interface definitions, see {\q \ldots we need to generate interface documentation from XML description}. For instructions on how to design your own interfaces, see section~\ref{sec:if-guide} on page~\pageref{sec:if-guide}.
+
+\subsection{Interface Implementations \& Object References}
+It is important to distinguish between a reference to an object and an implementation of an interface. The interface implementation lives within one single program. In general, direct pointers to implementations should be used with caution. A reference to an object {\q unfinished} acts as a proxy that forwards method calls either to a local implementation or to a messaging system. While an implementation can implement multiple interfaces at once, a reference is always associated with a particular interface. References have multiple advantages over direct pointers to implementations:
+
+\begin{itemize}
+  \item Whether the implementation of a reference resides in the same process, in a different process, or on an entirely different machine is irrelevant to the client.
+  \item The implementation can change or move without the client having to care. For instance, a file could be renamed, or even moved to a different file system while it is being used by other programs.
+  \item A reference can consist of multiple paths to the same object. If one path breaks down it can seamlessly transition to another path. Similarily, it can use multiple paths concurrently to increase bandwidth, or it can select the best path depending on an appropriate metric, such as cost, latency or others.
+  \item Through reference counting, the implementation always knows when it's no longer used.
+\end{itemize}
+
+To prevent unneccessary messaging overhead due to reference counting, references are hierarchical. Each implementation maintains a root reference for each of its interfaces. If other programs want to use the object, a new reference to this root reference is created and the reference count of the root reference is incremented. When the reference count of the root reference reaches 0, the implementation knows that it's no longer used and it can free the resources associated with that interface.
+
+\subsection{Reference Counting}
+Reference counting consists of two operations: {\tt Retain}, which increments the reference count and {\tt Release}, which decrements the reference count.
+It can be hard to know the right places to call these functions, so we need to set up a set of rules (here, object denotes any reference counted object):
+
+\begin{itemize}
+  \item Functions that return an object: The function must retain the object before returning it. The object must release it when it's no longer used.
+  \item Functions that take an object as a parameter: The caller must retain the object before the call and release it afterwards.
+  \item Classes or structures that hold an object as a field: The object must be retained before being assigned to the field. When another object is assigned to the field, the old object must be released. When the structure is no longer used, all reference counted fields must be released.
+\end{itemize}
+
+\subsection{Programs}
+Applications, services and drivers are all equivalent in AmbientOS. Let's call them {\bf programs}. The way programs are executed depends on the system setup. On a normal PC, programs run in the form of processes in user mode. On an embedded system or on processors where there is no memory protection, programs run alongside the kernel. Conceptually, programs may also run on FPGAs or anything else that can do processing. \\
+Installing a program is equivalent to publishing an object with the ``AmbientOS.Framework.Application'' interface. Since programs can only expose objects while they are running, a program usually does not expose itself, but instead registers itself in an app registry. The app registry can be found by searching an object with the ``AmbientOS.Framework.ApplicationRegistry'' interface. {\q how to select the best app registry?} The default app registry is tightly coupled with the boot process of the local kernel, e.g. it may store registrations on disk and on startup publish an ``AmbientOS.Framework.Application'' object for every program it knows or finds.
 
 \subsection{Peer}
 A peer is a single self-contained component of the AmbientOS network. Each peer has it's own object store and can host multiple programs. On a native AmbientOS system, each processor in the machine is a peer. On other host OSses, a process is a peer. Connectivity to other peers must be provided by the programs running on the peer. This can include TCP/IP, bluetooth, shared memory or any other method.
@@ -191,7 +213,7 @@ For a lot of common use cases, there's already a predefined interface in the {\t
 \begin{itemize}
   \item Don't only think about your own use case. Think about what functionalities others may want to provide if they use your interface.
   \item Make the interface general, rather than easy to use. If you want your interface to be easy to use, provide a library.
-  \item Keep in mind that some implementations may lack some of the functionality of the interface and specficy the behaviour in these cases.
+  \item Keep in mind that some implementations may lack some of the functionality of the interface and specficy the behavior in these cases.
   \item Find the right set of security priviledges. Think about what subset of actions the user may want to allow on the objects.
   \item Be clear about the semantics in the documentation.
   \item Use it yourself. This is the best method to find flaws in the design.

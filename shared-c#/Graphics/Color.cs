@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using AppInstall.Framework;
+using AmbientOS;
 
 namespace AppInstall.Graphics
 {

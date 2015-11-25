@@ -21,6 +21,8 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <CodeAnalysisRuleSet>
+    </CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -30,54 +32,33 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <CodeAnalysisRuleSet />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <PlatformTarget>x64</PlatformTarget>
     <OutputPath>Build\bin\</OutputPath>
+    <CodeAnalysisRuleSet />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <PlatformTarget>x64</PlatformTarget>
     <OutputPath>Build\bin\</OutputPath>
+    <CodeAnalysisRuleSet />
   </PropertyGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\shared-c#\Framework\Activity.cs">
-      <Link>Framework\Activity.cs</Link>
-    </Compile>
     <Compile Include="..\shared-c#\Framework\ApplicationControl.cs">
       <Link>Framework\ApplicationControl.cs</Link>
     </Compile>
-    <Compile Include="..\shared-c#\Framework\ByteConverter.cs">
-      <Link>Framework\ByteConverter.cs</Link>
-    </Compile>
     <Compile Include="..\shared-c#\Framework\Config.cs">
       <Link>Framework\Config.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Console.cs">
-      <Link>Framework\Console.cs</Link>
     </Compile>
     <Compile Include="..\shared-c#\Framework\Database.cs">
       <Link>Framework\Database.cs</Link>
     </Compile>
     <Compile Include="..\shared-c#\Framework\EssentialTask.cs">
       <Link>Framework\EssentialTask.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Extensions.cs">
-      <Link>Framework\Extensions.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\LogFile.cs">
-      <Link>Framework\LogFile.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\LogSystem.cs">
-      <Link>Framework\LogSystem.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Math\Scalar.cs">
-      <Link>Framework\Math\Scalar.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Math\Vector.cs">
-      <Link>Framework\Math\Vector.cs</Link>
     </Compile>
     <Compile Include="..\shared-c#\Framework\MicroCompiler.cs">
       <Link>Framework\MicroCompiler.cs</Link>
@@ -88,14 +69,11 @@
     <Compile Include="..\shared-c#\Framework\ProgressMonitor.cs">
       <Link>Framework\ProgressMonitor.cs</Link>
     </Compile>
-    <Compile Include="..\shared-c#\Framework\SlowAction.cs">
-      <Link>Framework\SlowAction.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Utilities.cs">
-      <Link>Framework\Utilities.cs</Link>
-    </Compile>
     <Compile Include="..\shared-c#\Graphics\Color.cs">
       <Link>Graphics\Color.cs</Link>
+    </Compile>
+    <Compile Include="..\shared-c#\Networking\NetUtils.cs">
+      <Link>Networking\NetUtils.cs</Link>
     </Compile>
     <Compile Include="..\shared-c#\Organization\Definitions.cs">
       <Link>Organization\Definitions.cs</Link>
@@ -106,27 +84,8 @@
     <Compile Include="..\shared-c#\OS\Windows\DispatcherThread.Console.cs">
       <Link>OS\Windows\DispatcherThread.Console.cs</Link>
     </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\Main.Service.cs">
-      <Link>OS\Windows\Main.Service.cs</Link>
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\PInvoke.cs">
-      <Link>OS\Windows\PInvoke.cs</Link>
-    </Compile>
     <Compile Include="..\shared-c#\OS\Windows\Platform.cs">
       <Link>OS\Windows\Platform.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\PlatformUtilities.Admin.cs">
-      <Link>OS\Windows\PlatformUtilities.Admin.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\PlatformUtilities.Basic.cs">
-      <Link>OS\Windows\PlatformUtilities.Basic.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\RawDisk.cs">
-      <Link>OS\Windows\RawDisk.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\SystemConsole.cs">
-      <Link>OS\Windows\SystemConsole.cs</Link>
     </Compile>
     <Compile Include="..\shared-c#\UI\Abstraction.Win.Console.cs">
       <Link>UI\Abstraction.Win.Console.cs</Link>
@@ -138,6 +97,19 @@
       <Link>UI\Foundation.cs</Link>
     </Compile>
     <Compile Include="InstallerApplication.cs" />
+    <Compile Include="Services\FileSystem\Cluster.cs" />
+    <Compile Include="Services\FileSystem\NTFS\IndexTree.cs" />
+    <Compile Include="Services\FileSystem\NTFS\Attribute.cs" />
+    <Compile Include="Services\FileSystem\NTFS\LogOperations.cs" />
+    <Compile Include="Services\FileSystem\NTFS\MFT.cs" />
+    <Compile Include="Services\FileSystem\NTFS\NTFSService.cs" />
+    <Compile Include="Services\FileSystem\NTFS\LogFile.cs" />
+    <Compile Include="Services\FileSystem\NTFS\LogRecords.cs" />
+    <Compile Include="Services\FileSystem\NTFS\File.cs" />
+    <Compile Include="Services\FileSystem\NTFS\Volume.cs" />
+    <Compile Include="Services\FileSystem\NTFS\Test.cs" />
+    <Compile Include="Services\FileSystem\Partitions.cs" />
+    <Compile Include="Services\FileSystem\VHD.cs" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="NetFwTypeLib">
@@ -151,6 +123,7 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Data" />
@@ -158,6 +131,20 @@
     <Reference Include="System.Management" />
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.XML" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Core\AmbientOS.Core.csproj">
+      <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
+      <Name>AmbientOS.Library</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign.Windows\AmbientOS.Foreign.Windows.csproj">
+      <Project>{1e1cb682-915d-452e-961e-c47bae9863a6}</Project>
+      <Name>AmbientOS.Foreign.Windows</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign\AmbientOS.Foreign.csproj">
+      <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
+      <Name>AmbientOS.Foreign</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

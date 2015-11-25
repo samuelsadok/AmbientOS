@@ -12,6 +12,11 @@ Thumbs.db
 *.csproj.user
 
 
+# Emacs
+*~
+\#*\#
+
+
 # Build output
 bin/
 obj/
@@ -24,4 +29,10 @@ History/**/.PrjPCB.zip
 
 
 # Latex
-*.tex~
+*.blg
+*.bbl
+*.log
+*.aux
+*.fdb_latexmk
+*.synctex.gz
+*.fls

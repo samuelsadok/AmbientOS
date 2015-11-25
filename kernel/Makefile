@@ -43,7 +43,7 @@ include $(FRAMEWORK)/Makefile
 .PHONY: install debug attach detach
 
 BOCHS=C:\Developer\bochs-2.6.8
-BOCHS_VHD=C:\developer\system.vhd
+BOCHS_VHD=C:\Developer\system.vhd
 BOCHS_CONFIG=bochsrc.bxrc
 
 # escapes a string for use in a sed expression (not complete)
@@ -68,9 +68,7 @@ debug: install
 # attaches the test system VHD for manual file operations (works only on windows)
 attach:
 	echo -e "select vdisk file=\"$(call echoEscape,$(BOCHS_VHD))\"\r\nattach vdisk\r\nselect partition 1\r\nassign letter=v\r\n" > diskpart.auto.txt
-	diskpart -s diskpart.auto.txt
-	rm -rf diskpart.auto.txt
-	@echo -e "$(CCGREEN)$(call echoEscape,$(BOCHS_VHD)) attached as V:\\$(CCRST)"
+	(diskpart -s diskpart.auto.txt && rm -rf diskpart.auto.txt && echo -e "$(CCGREEN)$(call echoEscape,$(BOCHS_VHD)) attached as V:\\ $(CCRST)") || echo -e "$(CCRED)failed to attach $(call echoEscape,$(BOCHS_VHD)) V:\\ $(CCRST)"
 
 # detaches the test system VHD for direct access
 detach:

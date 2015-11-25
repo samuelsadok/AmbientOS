@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AppInstall.UI;
 using AppInstall.Framework;
+using AmbientOS.Environment;
 
 namespace AppInstall.OS
 {
@@ -18,35 +19,28 @@ namespace AppInstall.OS
         public static PlatformType Type { get { return PlatformType.Windows; } }
 
         /// <summary>
-        /// Returns a temp folder on the system
-        /// </summary>
-        public static string TempFolder { get { return Path.GetTempPath(); } }
-        /// <summary>
         /// Returns the platform specific suffix for executable binaries (.exe for Windows)
         /// </summary>
         public static string ExecutableSuffix { get { return ".exe"; } }
 
-
-        public static LogContext DefaultLog { get { return Environment.UserInteractive ? consoleLog : debugLog; } }
-        private static LogContext consoleLog = LogContext.FromConsole(SystemConsole.Console, "root");
-        private static LogContext debugLog = new LogContext((c, m, t) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, Application.ApplicationName);
-
-        private static DispatcherThread mainThread = DispatcherThread.Create(true);
+        private static DispatcherThread mainThread = DispatcherThread.Create(true, new AmbientOS.Utils.TaskController());
 
         /// <summary>
         /// Executes a routine in the context of the main thread (in GUI apps this is the GUI thread). This does also work when already in the main thread.
         /// </summary>
+        [Obsolete()]
         public static void InvokeMainThread(Action action)
         {
-            mainThread.Invoke(action);
+            mainThread.Invoke(action, new AmbientOS.Utils.TaskController());
         }
 
         /// <summary>
         /// Executes a routine in the context of the main thread (in GUI apps this is the GUI thread). This does also work when already in the main thread.
         /// </summary>
+        [Obsolete()]
         public static T EvaluateOnMainThread<T>(Func<T> action)
         {
-            return mainThread.Evaluate(action);
+            return mainThread.Evaluate(action, new AmbientOS.Utils.TaskController());
         }
     }
 }

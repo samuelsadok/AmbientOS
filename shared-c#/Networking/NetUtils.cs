@@ -5,34 +5,12 @@ using System.Text;
 using System.IO;
 using System.Threading.Tasks;
 using AppInstall.Framework;
+using AmbientOS.Utils;
 
 namespace AppInstall.Networking
 {
     public static class NetUtils
     {
-        /// <summary>
-        /// Converts a URL string into a normal string.
-        /// Invalid strings will raise an exception
-        /// </summary>
-        public static string UnescapeFromURL(this string str)
-        {
-            int i = -1;
-            str = str.Replace("+", " ");
-            while ((i = str.IndexOf('%', i + 1)) >= 0)
-                str = str.Insert(i, ((char)Convert.ToInt32(str.Substring(i + 1, 2), 16)).ToString()).Remove(i + 1, 3);
-            return str;
-        }
-
-        /// <summary>
-        /// Converts a arbitrary string into a URL string.
-        /// </summary>
-        public static string EscapeForURL(this string str)
-        {
-            const string legalChars = ".-_~";
-            return string.Join("", (from c in str
-                                    select ((Char.IsLetterOrDigit(c) || legalChars.Contains(c)) ? c.ToString() : string.Format("%{0,2:X2}", (int)c))));
-        }
-
         /// <summary>
         /// Returns true if the URL starts with the specified path element(s).
         /// This handles different scenarios regarding '/' at the beginning and the end of the path element.

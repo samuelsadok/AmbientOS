@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AppInstall.Framework;
+using AmbientOS.Utils;
 
 namespace AppInstall.OS
 {
@@ -15,10 +16,10 @@ namespace AppInstall.OS
         private Queue<Tuple<Action, AutoResetEvent>> actions = new Queue<Tuple<Action, AutoResetEvent>>();
         private Semaphore actionsQueuedSignal = new Semaphore(0, int.MaxValue);
 
-        private DispatcherThread()
+        private DispatcherThread(TaskController controller)
         {
             thread = new Thread(() => {
-                while (WaitHandle.WaitAny(new WaitHandle[] { ApplicationControl.ShutdownToken.WaitHandle, actionsQueuedSignal }) != 0) {
+                while (WaitHandle.WaitAny(new WaitHandle[] { controller.CancellationHandle, actionsQueuedSignal }) != 0) {
                     Tuple<Action, AutoResetEvent> action;
                     lock (actions) action = actions.Dequeue();
                     action.Item1.Invoke();
@@ -39,9 +40,9 @@ namespace AppInstall.OS
         /// <summary>
         /// Starts a new dispatcher thread that will be ready to process messages.
         /// </summary>
-        public static DispatcherThread Create(bool forUI)
+        public static DispatcherThread Create(bool forUI, TaskController controller)
         {
-            var thread = new DispatcherThread();
+            var thread = new DispatcherThread(controller);
             thread.Start(forUI);
             return thread;
         }
@@ -54,27 +55,27 @@ namespace AppInstall.OS
         /// <summary>
         /// Executes a routine in the context of the dispatcher thread. This does also work when already in the dispatcher thread.
         /// </summary>
-        public void Invoke(Action action)
+        public void Invoke(Action action, TaskController controller)
         {
             if (OnThread) { action(); return; }
 
             using (AutoResetEvent doneSignal = new AutoResetEvent(false)) {
                 lock (actions) actions.Enqueue(new Tuple<Action, AutoResetEvent>(action, doneSignal));
                 actionsQueuedSignal.Release();
-                if (WaitHandle.WaitAny(new WaitHandle[] { ApplicationControl.ShutdownToken.WaitHandle, doneSignal }) == 0)
-                    throw new OperationCanceledException(ApplicationControl.ShutdownToken);
+                WaitHandle.WaitAny(new WaitHandle[] { controller.CancellationHandle, doneSignal });
+                controller.ThrowIfCancellationRequested();
             }
         }
 
         /// <summary>
         /// Executes a routine in the context of the dispatcher thread. This does also work when already on the dispatcher thread.
         /// </summary>
-        public T Evaluate<T>(Func<T> function)
+        public T Evaluate<T>(Func<T> function, TaskController controller)
         {
             if (OnThread) return function();
 
             T result = default(T);
-            Invoke(() => result = function());
+            Invoke(() => result = function(), controller);
             return result;
         }
     }

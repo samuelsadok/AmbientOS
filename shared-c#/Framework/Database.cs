@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using System.Data.Linq;
 using System.Linq.Expressions;
 using AppInstall.Organization;
+using AmbientOS;
+using AmbientOS.Environment;
 
 namespace AppInstall.Framework
 {
@@ -83,11 +85,11 @@ namespace AppInstall.Framework
         /// Blocks until either a connection to the database could be established or the operation was cancelled.
         /// </summary>
         /// <exception cref="OperationCancelledException">The operation was cancelled</exception>
-        public void Setup(string userID, string password, LogContext logContext, CancellationToken cancellationToken, params string[] servers)
+        public void Setup(string userID, string password, Context context, params string[] servers)
         {
             if (!servers.Any()) throw new ArgumentException("no servers specified");
 
-            string connectionDetails = string.Format(CONNECTION_DETAILS, TableName, Application.ApplicationName, userID, password); // todo: mask arguments
+            string connectionDetails = string.Format(CONNECTION_DETAILS, TableName, context.Name, userID, password); // todo: mask arguments
             this.logContext = logContext;
 
             Exception[] errors = new Exception[servers.Count()];

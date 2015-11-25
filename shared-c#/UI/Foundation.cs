@@ -1,6 +1,7 @@
 using System;
 using AppInstall.Framework;
 using AppInstall.Graphics;
+using AmbientOS.Utils;
 
 namespace AppInstall.UI
 {

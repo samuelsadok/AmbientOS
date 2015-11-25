@@ -10,14 +10,17 @@ namespace AppInstall.Framework
         /// <summary>
         /// Returns the path including name of the executing assembly
         /// </summary>
+        [Obsolete("use PlatformUtilities.Assembly")]
         public static string ApplicationBinaryPath { get { return System.Reflection.Assembly.GetExecutingAssembly().Location; } }
         /// <summary>
         /// Returns the directory where the executing assembly is located
         /// </summary>
+        [Obsolete("use PlatformUtilities.Assembly.GetParent")]
         public static string ApplicationBinaryDirectory { get { return Path.GetDirectoryName(ApplicationBinaryPath); } }
         /// <summary>
         /// Returns the parent directory of where the executing assembly is located
         /// </summary>
+        [Obsolete("use PlatformUtilities.Assembly")]
         public static string ApplicationPath { get { return Path.GetFullPath(ApplicationBinaryDirectory + "\\.."); } }
         /// <summary>
         /// Indicates if this application is running as a system service
@@ -26,7 +29,8 @@ namespace AppInstall.Framework
         /// <summary>
         /// Returns path of the user independent configuration file
         /// </summary>
-        public static string CommonConfigPath { get { return IsSystemService ? ApplicationBinaryDirectory + "\\config.xml" : Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData) + "\\" + Application.ApplicationName + "\\config.xml"; } }
+        [Obsolete()]
+        public static string CommonConfigPath { get { return IsSystemService ? ApplicationBinaryDirectory + "\\config.xml" : Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData) + "\\APPLICATION\\config.xml"; } }
         /// <summary>
         /// Returns the path of a user and application specific folder where the application has write access.
         /// </summary>
@@ -39,7 +43,8 @@ namespace AppInstall.Framework
         /// <summary>
         /// Returns path of the user specific configuration file
         /// </summary>
-        public static string UserConfigPath { get { return IsSystemService ? CommonConfigPath : ApplicationPath + "\\" + Application.ApplicationName + "\\config.xml"; } }
+        [Obsolete()]
+        public static string UserConfigPath { get { return IsSystemService ? CommonConfigPath : ApplicationPath + "\\APPLICATION\\config.xml"; } }
 
         /// <summary>
         /// When the application is started as a service, this property will by set to the service name at startup.
@@ -47,33 +52,17 @@ namespace AppInstall.Framework
         public static string ServiceName { get; set; }
 
         /// <summary>
-        /// Temporary hack
-        /// </summary>
-        public static bool NeedsAdmin { get { return Application.NeedsAdmin; } }
-
-        /// <summary>
         /// The application must listen to this event and terminate all threads when it is triggered.
         /// </summary>
-        public static CancellationToken ShutdownToken { get; private set; }
-        private static CancellationTokenSource shutdownTokenSource;
-
-        /// <summary>
-        /// Launches the application. This routine must only be called by the "OS/[Platform]/[...]Main.cs" files.
-        /// </summary>
-        public static void Start(string[] args)
-        {
-            shutdownTokenSource = new CancellationTokenSource();
-            ShutdownToken = shutdownTokenSource.Token;
-            Application app = new Application(args);
-            new Thread(app.Main).Start();
-        }
-
-        /// <summary>
-        /// Shuts down the application in a controlled manner.
-        /// </summary>
-        public static void Shutdown()
-        {
-            shutdownTokenSource.Cancel();
-        }
+        //public static CancellationToken ShutdownToken { get; private set; }
+        //private static CancellationTokenSource shutdownTokenSource;
+        //
+        ///// <summary>
+        ///// Shuts down the application in a controlled manner.
+        ///// </summary>
+        //public static void Shutdown()
+        //{
+        //    shutdownTokenSource.Cancel();
+        //}
     }
 }
