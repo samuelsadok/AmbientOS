@@ -97,19 +97,19 @@
       <Link>UI\Foundation.cs</Link>
     </Compile>
     <Compile Include="InstallerApplication.cs" />
-    <Compile Include="Services\FileSystem\Cluster.cs" />
-    <Compile Include="Services\FileSystem\NTFS\IndexTree.cs" />
-    <Compile Include="Services\FileSystem\NTFS\Attribute.cs" />
-    <Compile Include="Services\FileSystem\NTFS\LogOperations.cs" />
-    <Compile Include="Services\FileSystem\NTFS\MFT.cs" />
-    <Compile Include="Services\FileSystem\NTFS\NTFSService.cs" />
-    <Compile Include="Services\FileSystem\NTFS\LogFile.cs" />
-    <Compile Include="Services\FileSystem\NTFS\LogRecords.cs" />
-    <Compile Include="Services\FileSystem\NTFS\File.cs" />
-    <Compile Include="Services\FileSystem\NTFS\Volume.cs" />
-    <Compile Include="Services\FileSystem\NTFS\Test.cs" />
-    <Compile Include="Services\FileSystem\Partitions.cs" />
-    <Compile Include="Services\FileSystem\VHD.cs" />
+    <Compile Include="Cluster.cs" />
+    <Compile Include="NTFS\IndexTree.cs" />
+    <Compile Include="NTFS\Attribute.cs" />
+    <Compile Include="NTFS\LogOperations.cs" />
+    <Compile Include="NTFS\MFT.cs" />
+    <Compile Include="NTFS\NTFSService.cs" />
+    <Compile Include="NTFS\LogFile.cs" />
+    <Compile Include="NTFS\LogRecords.cs" />
+    <Compile Include="NTFS\File.cs" />
+    <Compile Include="NTFS\Volume.cs" />
+    <Compile Include="NTFS\Test.cs" />
+    <Compile Include="Partitions.cs" />
+    <Compile Include="VHD.cs" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="NetFwTypeLib">
@@ -145,6 +145,9 @@
       <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
       <Name>AmbientOS.Foreign</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Services\FileSystem\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

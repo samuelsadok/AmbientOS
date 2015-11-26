@@ -223,7 +223,7 @@ If your interface is good and seems useful, you can propose it to us and we may 
 
 
 
-\section{AmbientOS Framework}
+\section{AmbientOS.C\# Framework}
 
 To make AmbientOS development easy, we provide a complete framework that contains a full implementation of the object store, all of the Mainline AmbientOS interfaces, a bunch of useful extension functions to these interfaces and a bunch of other utility function. \\
 In addition to that, we provide abstraction layers for Windows (desktop, console services and universal apps), iOS and Android. These libraries are implemented in .NET, so they are usable by any .NET language. \\
@@ -231,8 +231,8 @@ In addition to that, we provide abstraction layers for Windows (desktop, console
 The framework consists of the following components:
 
 \begin{itemize}
-  \item {\tt AmbientOS.Library} contains all the interfaces, extension functions and some utility functions and classes
-  \item {\tt AmbientOS.Native} contains the P/Invoke stubs for the native AmbientOS kernel
+  \item {\tt AmbientOS.Core} contains all the interfaces, extension functions and some utility functions and classes.
+  \item {\tt AmbientOS.Native} contains the P/Invoke stubs for the native AmbientOS kernel.
   \item {\tt AmbientOS.Foreign} contains wrapper classes around parts of the .NET Framework that are available on all platforms but don't conform to AmbientOS conventions (e.g. file access, networking, \ldots).
   \item {\tt AmbientOS.Foreign.Windows} contains wrapper classes and P/Invoke stubs specific to Windows.
   \item {\tt AmbientOS.Foreign.Mac} contains wrapper classes and P/Invoke stubs specific to OS X and iOS.
