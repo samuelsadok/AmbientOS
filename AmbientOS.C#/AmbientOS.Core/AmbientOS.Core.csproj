@@ -41,11 +41,13 @@
     <Compile Include="Attributes.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="Environment\Extensions.cs" />
+    <Compile Include="Environment\PlatformType.cs" />
     <Compile Include="Environment\Interfaces.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FileSystem\Contracts.cs" />
     <Compile Include="FileSystem\Extensions.cs" />
     <Compile Include="FileSystem\Interfaces.cs" />
+    <Compile Include="Graphics\Color.cs" />
     <Compile Include="Interfaces.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -53,8 +55,11 @@
     </Compile>
     <Compile Include="IRefCounted.cs" />
     <Compile Include="Math\DynamicGraph.cs" />
-    <Compile Include="Math\Scalar.cs" />
+    <Compile Include="Math\Matrix.cs" />
+    <Compile Include="Math\Calculator.cs" />
+    <Compile Include="Math\MatrixExtensions.cs" />
     <Compile Include="Math\Vector.cs" />
+    <Compile Include="Math\VectorExtensions.cs" />
     <Compile Include="ObjectStore.cs" />
     <Compile Include="Types.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

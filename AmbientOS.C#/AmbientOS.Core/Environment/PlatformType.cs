@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Drawing;
 
-namespace AppInstall.OS
+namespace AmbientOS.Environment
 {
-
+    /// <summary>
+    /// Identifies different platforms.
+    /// This may be useful, for instance, to display platform specific help texts.
+    /// </summary>
     public enum PlatformType {
 
         /// <summary>
@@ -15,7 +14,7 @@ namespace AppInstall.OS
         Unknown,
 
         /// <summary>
-        /// Our concept OS
+        /// The application is running on a native AmbientOS kernel.
         /// </summary>
         AmbientOS,
 
@@ -26,12 +25,12 @@ namespace AppInstall.OS
         Windows,
         
         /// <summary>
-        /// The application is running on Linux (other than Android)
+        /// The application is running on a Linux distribution other than Android.
         /// </summary>
         Linux,
 
         /// <summary>
-        /// The application is running on Mac OSX.
+        /// The application is running on Mac OS X.
         /// </summary>
         OSX,
 
@@ -44,7 +43,7 @@ namespace AppInstall.OS
         /// The application is running on Android.
         /// </summary>
         Android
-
+        
     }
 
 }

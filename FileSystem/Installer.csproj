@@ -48,54 +48,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\shared-c#\Framework\ApplicationControl.cs">
-      <Link>Framework\ApplicationControl.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Config.cs">
-      <Link>Framework\Config.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\Database.cs">
-      <Link>Framework\Database.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\EssentialTask.cs">
-      <Link>Framework\EssentialTask.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\MicroCompiler.cs">
-      <Link>Framework\MicroCompiler.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\ProcessorPool.cs">
-      <Link>Framework\ProcessorPool.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Framework\ProgressMonitor.cs">
-      <Link>Framework\ProgressMonitor.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Graphics\Color.cs">
-      <Link>Graphics\Color.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Networking\NetUtils.cs">
-      <Link>Networking\NetUtils.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\Organization\Definitions.cs">
-      <Link>Organization\Definitions.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Foundation.cs">
-      <Link>OS\Foundation.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\DispatcherThread.Console.cs">
-      <Link>OS\Windows\DispatcherThread.Console.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\OS\Windows\Platform.cs">
-      <Link>OS\Windows\Platform.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\UI\Abstraction.Win.Console.cs">
-      <Link>UI\Abstraction.Win.Console.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\UI\Abstraction.Win.cs">
-      <Link>UI\Abstraction.Win.cs</Link>
-    </Compile>
-    <Compile Include="..\shared-c#\UI\Foundation.cs">
-      <Link>UI\Foundation.cs</Link>
-    </Compile>
     <Compile Include="InstallerApplication.cs" />
     <Compile Include="Cluster.cs" />
     <Compile Include="NTFS\IndexTree.cs" />
@@ -135,7 +87,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Core\AmbientOS.Core.csproj">
       <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
-      <Name>AmbientOS.Library</Name>
+      <Name>AmbientOS.Core</Name>
     </ProjectReference>
     <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign.Windows\AmbientOS.Foreign.Windows.csproj">
       <Project>{1e1cb682-915d-452e-961e-c47bae9863a6}</Project>
@@ -146,9 +98,7 @@
       <Name>AmbientOS.Foreign</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Services\FileSystem\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -4,15 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AppInstall.Framework;
-using AppInstall.OS;
 using AmbientOS;
 using AmbientOS.Environment;
 using AmbientOS.FileSystem;
 using AmbientOS.UI;
 using AmbientOS.Utils;
 
-namespace AppInstall
+namespace AmbientOS
 {
     class Program
     {

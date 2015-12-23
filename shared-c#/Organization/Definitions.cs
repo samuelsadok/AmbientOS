@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using AmbientOS.Graphics;
 
 namespace AppInstall.Organization
 {
@@ -22,7 +23,7 @@ namespace AppInstall.Organization
 
 
         // branding
-        public static AppInstall.Graphics.Color UIColor = AppInstall.Graphics.Color.Green;
+        public static Color UIColor = Color.Green;
 
 
         // Bluetooth service IDs

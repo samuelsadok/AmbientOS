@@ -25,6 +25,7 @@ namespace AppInstall.Framework
         /// <summary>
         /// Indicates if this application is running as a system service
         /// </summary>
+        [Obsolete()]
         public static bool IsSystemService { get { return !Environment.UserInteractive; } }
         /// <summary>
         /// Returns path of the user independent configuration file
@@ -34,11 +35,13 @@ namespace AppInstall.Framework
         /// <summary>
         /// Returns the path of a user and application specific folder where the application has write access.
         /// </summary>
+        [Obsolete()]
         public static string AppDataPath { get { return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); } }
         /// <summary>
         /// Returns the path to an application specific folder that can be used for caching.
         /// The contents of this folder can dissappear.
         /// </summary>
+        [Obsolete()]
         public static string CachePath { get { return Environment.GetFolderPath(Environment.SpecialFolder.InternetCache); } }
         /// <summary>
         /// Returns path of the user specific configuration file
@@ -49,6 +52,7 @@ namespace AppInstall.Framework
         /// <summary>
         /// When the application is started as a service, this property will by set to the service name at startup.
         /// </summary>
+        [Obsolete()]
         public static string ServiceName { get; set; }
 
         /// <summary>

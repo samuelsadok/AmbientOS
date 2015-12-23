@@ -1,23 +1,100 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 
 namespace AmbientOS.Utils
 {
     /// <summary>
-    /// Represents a set that enables clients to listen for add and remove events.
-    /// Objects in a set are unordered and unique.
-    /// Objects in the set are reference counted, which makes the set reference counted as well.
+    /// The event handler type that is used to signal updates to the dynamic set.
     /// </summary>
-    public class DynamicSet<T> : IRefCounted
+    /// <param name="item">The item that was added/removed.</param>
+    /// <param name="moreToFollow">If true, the handler should defer any expensive updates (such as UI refresh), as another call to the same handler will follow shortly.</param>
+    public delegate void ItemHandler<T>(T item, bool moreToFollow);
+
+    /// <summary>
+    /// For a description, see the strongly typed class.
+    /// </summary>
+    public abstract class DynamicSet
+    {
+        public abstract void Add(object item, bool moreToFollow);
+        public abstract void Remove(object item, bool moreToFollow);
+        internal abstract void Flush();
+
+        public abstract void Subscribe<T>(DynamicSet<T> subscriber) where T : IRefCounted;
+
+
+        /// <summary>
+        /// Creates a new dynamic set that represents the union of multiple other dynamic sets.
+        /// </summary>
+        public static TSet Union<TSet, TItem>(DynamicSet<TItem>[] sets)
+            where TSet : DynamicSet<TItem>, new()
+            where TItem : IRefCounted
+        {
+            var setCount = sets.Count();
+
+            var union = new TSet();
+
+            // counts for each item the number of sets in which it is contained
+            var relevantItems = new Dictionary<TItem, int>();
+
+            ItemHandler<TItem> addedHandler = (item, moreToFollow) => {
+                lock (relevantItems) {
+                    if (relevantItems.Increment(item, 0, setCount) == 1)
+                        union.Add(item, moreToFollow);
+                }
+            };
+
+            ItemHandler<TItem> removeHandler = (item, moreToFollow) => {
+                lock (relevantItems) {
+                    if (relevantItems.Decrement(item, 0) == 0)
+                        union.Remove(item, moreToFollow);
+                }
+            };
+
+            Action flushHandler = union.Flush;
+
+            foreach (var set in sets)
+                set.AddSyncListeners(addedHandler, removeHandler, flushHandler);
+
+            return union;
+        }
+    }
+
+
+    /// <summary>
+    /// Represents a set that enables clients to listen for "add" and "remove" events.
+    /// Objects in a set are unordered and unique.
+    /// Objects in the set are reference counted, which makes the set itself reference counted as well.
+    /// All public instance members of this class are thread-safe.
+    /// </summary>
+    public class DynamicSet<T> : DynamicSet, IRefCounted
         where T : IRefCounted
     {
-        private HashSet<T> content = new HashSet<T>();
-        private List<Action<T, bool>> addedItemHandlers = new List<Action<T, bool>>();
-        private List<Action<T, bool>> removedItemHandlers = new List<Action<T, bool>>();
+        private readonly HashSet<T> content = new HashSet<T>();
+        private readonly List<T> justAdded = new List<T>();
+        private readonly List<T> justRemoved = new List<T>();
 
+        private readonly AutoResetEvent dataChanged = new AutoResetEvent(false);
+
+        private bool asyncThreadRunning = false;
+        private readonly ItemHandler<T> asyncAddedListener;
+        private readonly ItemHandler<T> asyncRemovedListener;
+
+        private readonly List<ItemHandler<T>> syncAddedListeners = new List<ItemHandler<T>>();
+        private readonly List<ItemHandler<T>> syncRemovedListeners = new List<ItemHandler<T>>();
+        private readonly List<Action> syncFlushListeners = new List<Action>();
+
+
+        public DynamicSet()
+        {
+        }
+
+        /// <summary>
+        /// Creates a new dynamic set and fills it with the specified items.
+        /// </summary>
         public DynamicSet(params T[] initialItems)
         {
             foreach (var item in initialItems)
@@ -25,18 +102,80 @@ namespace AmbientOS.Utils
         }
 
         /// <summary>
-        /// Can be used to directly access the current content.
-        /// The returned set must not be modified directly and must be locked for any read access.
-        /// For a given instance, this always returns the same value.
+        /// Creates a new dynamic set and adds the specified async event listeners.
+        /// These event listeners will never be called simultaneously.
+        /// Instead, they are executed in a safe context in a separate thread while no lock is held, so they are free to take a long time and acquire any locks.
+        /// If the handlers take a long time, they may miss items that are only in (or out of) the set for a short time.
         /// </summary>
-        internal HashSet<T> GetContent()
+        /// <param name="addedItemHandler">Called exactly once for every item that is added to the set. Can be null.</param>
+        /// <param name="removedItemHandler">Called exactly once for every item that is removed from the set. Can be null.</param>
+        /// <param name="controller">Can be used to terminate the event handler thread.</param>
+        public DynamicSet(ItemHandler<T> addedItemHandler, ItemHandler<T> removedItemHandler, TaskController controller, params T[] initialItems)
+            : this(initialItems)
         {
-            return content;
+            asyncAddedListener = addedItemHandler;
+            asyncRemovedListener = removedItemHandler;
+
+            StartSerializer(controller);
+        }
+
+
+        /// <summary>
+        /// Starts the serializer thread that invokes the async events.
+        /// This does not have to be called if async events are not used.
+        /// </summary>
+        private void StartSerializer(TaskController controller)
+        {
+            var thread = new Thread(() => {
+                while (true) {
+                    T item = default(T);
+                    bool remove = false, add = false, moreToFollow = false;
+
+                    controller.WaitOne(dataChanged);
+
+                    lock (content) {
+                        if (add = justAdded.Any()) {
+                            item = justAdded[0];
+                            justAdded.RemoveAt(0);
+                            moreToFollow = justAdded.Any();
+                            dataChanged.Set();
+                        } else if (remove = justRemoved.Any()) {
+                            item = justRemoved[0];
+                            justRemoved.RemoveAt(0);
+                            moreToFollow = justRemoved.Any();
+                            dataChanged.Set();
+                        }
+                    }
+
+                    if (add) {
+                        if (asyncAddedListener != null)
+                            asyncAddedListener(item, moreToFollow);
+                    } else if (remove) {
+                        try {
+                            if (asyncRemovedListener != null)
+                                asyncRemovedListener(item, moreToFollow);
+                        } finally {
+                            this.DoIfReferenced(() => { item.Release(); });
+                        }
+                    }
+                }
+            });
+
+            lock (content) {
+                if (asyncThreadRunning)
+                    throw new Exception("async event handler thread already running");
+
+                foreach (var item in content)
+                    justAdded.Add(item);
+
+                thread.Start();
+                asyncThreadRunning = true;
+            }
         }
 
         /// <summary>
         /// Shall decide for a given item, if it should be included in this set.
-        /// By default this returns always true.
+        /// By default this always returns true.
         /// </summary>
         protected virtual bool ShouldAdd(T item)
         {
@@ -45,193 +184,177 @@ namespace AmbientOS.Utils
 
         /// <summary>
         /// Shall decide for a given item, if it should be removed from this set.
-        /// By default, this returns always true.
+        /// By default, this always returns true.
         /// </summary>
         protected virtual bool ShouldRemove(T item)
         {
             return true;
         }
 
-
-        T lastItemAdded, lastItemRemoved;
-        bool lastItemAddedValid = false, lastItemRemovedValid = false;
-
         /// <summary>
-        /// Adds an item to the set if the filter applies and if it's not already in the set.
-        /// If moreToFollow is true, the item will not be added immediately, but only on the next Add call.
-        /// If the item is removed again during exactly that time period, it will never truly be added.
-        /// This delay is neccessary because the set must tell the listeners if there will really follow more items.
-        /// If the item was not yet in the set, its reference count is incremented (except if this set has reference count of zero) and the function returns true.
+        /// Adds an item to the set (if it wasn't already added and if it passes the add-filter).
+        /// If the item was not yet in the set, its reference count is incremented (except if this set itself has reference count of zero).
         /// </summary>
-        /// <param name="moreToFollow">Set to true if more items will be added immediately after this call. This is useful to suppress UI updates.</param>
+        /// <param name="item">The item to be added.</param>
+        /// <param name="moreToFollow">Set to true if more items will be added immediately after this call. This is useful to defer expensive UI updates.</param>
+        /// <returns>True if the item was not yet in the set, false otherwise.</returns>
         public bool Add(T item, bool moreToFollow)
         {
             lock (content) {
-                bool add = ShouldAdd(item);
-
-                if (add)
-                    if ((add = content.Add(item)))
-                        this.DoIfReferenced(() => { item.Retain(); });
-
-                if (add && lastItemRemovedValid && item.Equals(lastItemRemoved)) {
-                    lastItemRemovedValid = false;
-                    add = false;
-                }
-
-                if (!add && moreToFollow)
-                    return false;
-
-                if (lastItemAddedValid) {
-                    foreach (var listener in addedItemHandlers)
-                        listener(lastItemAdded, add);
-                    lastItemAddedValid = false;
-                }
+                bool add = ShouldAdd(item) ? content.Add(item) : false;
 
                 if (add) {
-                    if (moreToFollow) {
-                        lastItemAdded = item;
-                        lastItemAddedValid = true;
-                    } else {
-                        foreach (var listener in addedItemHandlers)
-                            listener(item, false);
+                    if (asyncThreadRunning) {
+                        justAdded.Add(item);
+                        if (justRemoved.Remove(item))
+                            this.DoIfReferenced(() => { item.Release(); });
                     }
+
+                    this.DoIfReferenced(() => { item.Retain(); });
+
+                    foreach (var subscriber in syncAddedListeners)
+                        subscriber(item, moreToFollow);
                 }
+
+                if (!moreToFollow)
+                    Flush();
 
                 return add;
             }
         }
 
         /// <summary>
-        /// Removes an item from the set if it was in the set previously.
-        /// If the item was in the set, its reference count is decremented (except if this set has reference count of zero) and the function returns true.
+        /// Removes an item from the set (if it is in the set currently and if it passes the remove-filter).
+        /// If the item was in the set, its reference count is usually decremented (except if this set itself has reference count of zero).
+        /// However, if async events are enabled, the reference count decrement is deferred until after the async event.
         /// </summary>
-        /// <param name="moreToFollow">Set to true if more items will be removed immediately after this call. This is useful to suppress UI updates.</param>
+        /// <param name="item">The item to be added.</param>
+        /// <param name="moreToFollow">Set to true if more items will be added immediately after this call. This is useful to defer expensive UI updates.</param>
+        /// <returns>True if the item was in the set, false otherwise.</returns>
         public bool Remove(T item, bool moreToFollow)
         {
             lock (content) {
-                bool remove = ShouldRemove(item);
-
-                if (remove)
-                    if ((remove = content.Remove(item)))
-                        this.DoIfReferenced(() => { item.Release(); });
-
-                if (remove && lastItemAddedValid && item.Equals(lastItemAdded)) {
-                    lastItemAddedValid = false;
-                    remove = false;
-                }
-
-                if (!remove && moreToFollow)
-                    return false;
-
-                if (lastItemRemovedValid) {
-                    foreach (var listener in removedItemHandlers)
-                        listener(lastItemRemoved, remove);
-                    lastItemRemovedValid = false;
-                }
+                bool remove = ShouldRemove(item) ? content.Remove(item) : false;
 
                 if (remove) {
-                    if (moreToFollow) {
-                        lastItemRemoved = item;
-                        lastItemRemovedValid = true;
+                    if (asyncThreadRunning) {
+                        justRemoved.Add(item);
+                        justAdded.Remove(item);
                     } else {
-                        foreach (var listener in removedItemHandlers)
-                            listener(item, false);
+                        this.DoIfReferenced(() => { item.Release(); });
                     }
+
+                    foreach (var subscriber in syncRemovedListeners)
+                        subscriber(item, moreToFollow);
                 }
+
+                if (!moreToFollow)
+                    Flush();
 
                 return remove;
             }
         }
 
-
         /// <summary>
-        /// Subscribes this set to another dynamic set.
-        /// This will immediately add all of the other set's items to this set (as long as they pass this set's filter).
+        /// For a description, see the strongly typed overload.
         /// </summary>
-        /// <param name="converter">Shall convert an item from the input type to the output type. If called multiple times for any given item, this should always return items that are equal by their default equality comparer.</param>
-        public void Subscribe<TIn>(DynamicSet<TIn> set, Func<TIn, T> converter)
-            where TIn : IRefCounted
+        public sealed override void Add(object item, bool moreToFollow)
         {
-            Action<TIn, bool> add = (item, moreToFollow) => {
-                using (var converted = converter(item))
-                    Add(converted, moreToFollow);
-            };
-            Action<TIn, bool> remove = (item, moreToFollow) => {
-                using (var converted = converter(item))
-                    Remove(converted, moreToFollow);
-            };
-            set.AddListeners(add, remove);
+            Add((T)item, moreToFollow);
         }
 
         /// <summary>
-        /// Subscribes this set to another dynamic set of which the item type is not known at compile time.
-        /// This will immediately add all of the other set's items to this set (as long as they pass this set's filter).
+        /// For a description, see the strongly typed overload.
         /// </summary>
-        /// <param name="converter">Shall convert an item from the input type to the output type. If called multiple times for any given item, this should always return items that are equal by their default equality comparer.</param>
-        public void Subscribe(object set, Func<object, T> converter)
+        public sealed override void Remove(object item, bool moreToFollow)
         {
-            if (set.GetType().GetGenericTypeDefinition() != typeof(DynamicSet<>))
-                throw new ArgumentException("expected argument of type DynamicSet", $"{set}");
-
-            Action<object, bool> add = (item, moreToFollow) => {
-                using (var converted = converter(item))
-                    Add(converted, moreToFollow);
-            };
-            Action<object, bool> remove = (item, moreToFollow) => {
-                using (var converted = converter(item))
-                    Remove(converted, moreToFollow);
-            };
-
-            set.GetType().GetMethod("AddListeners", new Type[] { typeof(Action<object, bool>), typeof(Action<object, bool>) }).Invoke(set, new object[] { add, remove });
+            Remove((T)item, moreToFollow);
         }
 
         /// <summary>
-        /// Subscribes this set to another dynamic set.
-        /// This will immediately add all of the other set's items to this set (as long as they pass this set's filter).
+        /// Adds multiple items to the set.
         /// </summary>
-        public void Subscribe(DynamicSet<T> set)
+        /// <param name="items">The collection of items to be added. Each item of the collection is evaluated lazily while no lock is held, so it's fine for the item generation to take a long time.</param>
+        public void AddRange(IEnumerable<T> items)
         {
-            Subscribe(set, (item) => item);
+            foreach (var item in items)
+                Add(item, true);
+
+            Flush();
         }
 
+        /// <summary>
+        /// Removes multiple items from the set.
+        /// </summary>
+        /// <param name="items">The collection of items to be removed. Each item of the collection is evaluated lazily while no lock is held, so it's fine for the item generation to take a long time.</param>
+        public void RemoveRange(IEnumerable<T> items)
+        {
+            foreach (var item in items)
+                Remove(item, true);
+
+            Flush();
+        }
 
         /// <summary>
-        /// Adds the specified listeners to the set.
+        /// Makes up for updates that were erroneously deferred by setting "moreToFollow" to true even though there were no more items.
         /// </summary>
-        /// <param name="addedItemHandler">Invoked when a new item is added to the set. This is guaranteed to be called only for objects that aren't already in the set. Can be null. Else, the handler is guaranteed to be invoked for each item that is already in the list.</param>
-        /// <param name="removedItemHandler">Invoked when an item is removed to the set. This is guaranteed to be called only for objects that are in the set. Can be null.</param>
-        public void AddListeners(Action<T, bool> addedItemHandler, Action<T, bool> removedItemHandler)
+        internal sealed override void Flush()
         {
-            if (addedItemHandler == null && removedItemHandler == null)
-                return;
-
             lock (content) {
-                if (removedItemHandler != null)
-                    removedItemHandlers.Add(removedItemHandler);
+                foreach (var subscriber in syncFlushListeners)
+                    subscriber();
+                dataChanged.Set();
+            }
+        }
 
-                if (addedItemHandler != null) {
-                    addedItemHandlers.Add(addedItemHandler);
+        /// <summary>
+        /// Adds the specified subscriber to the set.
+        /// This will immediately add all items in this set to the new subscriber (as long as it passes the filter).
+        /// </summary>
+        public override void Subscribe<T2>(DynamicSet<T2> subscriber)
+        {
+            if (subscriber == null)
+                throw new ArgumentNullException($"{subscriber}");
+
+            AddSyncListeners(
+                (item, moreToFollow) => subscriber.Add(item, moreToFollow),
+                (item, moreToFollow) => subscriber.Remove(item, moreToFollow),
+                subscriber.Flush
+                );
+        }
+
+        /// <summary>
+        /// Adds the specified synchronous event listeners.
+        /// These listeners are executed immediately when the event occurs.
+        /// As such, they are dangerous because a private lock is held while they are invoked.
+        /// When in doubt, use Subscribe instead.
+        /// </summary>
+        /// <param name="addedListener">Triggered for each item that is added to the dynamic set. Can be null.</param>
+        /// <param name="removedListener">Triggered for each item that is removed from the dynamic set. Can be null.</param>
+        /// <param name="flushListener">Triggered when there are no more items even though "moreToFollow" was true previously. Can be null.</param>
+        internal void AddSyncListeners(ItemHandler<T> addedListener, ItemHandler<T> removedListener, Action flushListener)
+        {
+            lock (content) {
+                if (addedListener != null) {
+                    syncAddedListeners.Add(addedListener);
 
                     var enumerator = content.GetEnumerator();
                     var hasNext = enumerator.MoveNext();
                     while (hasNext) {
                         var item = enumerator.Current;
                         hasNext = enumerator.MoveNext();
-                        addedItemHandler(item, hasNext);
+                        addedListener(item, hasNext);
                     }
                 }
+
+                if (removedListener != null)
+                    syncRemovedListeners.Add(removedListener);
+
+                if (flushListener != null)
+                    syncFlushListeners.Add(flushListener);
             }
         }
 
-        /// <summary>
-        /// Adds the specified weakly typed listeners to the set.
-        /// </summary>
-        private void AddListeners(Action<object, bool> addedItemHandler, Action<object, bool> removedItemHandler)
-        {
-            Action<T, bool> add = (item, moreToFollow) => addedItemHandler(item, moreToFollow);
-            Action<T, bool> remove = (item, moreToFollow) => removedItemHandler(item, moreToFollow);
-            AddListeners(add, remove);
-        }
 
         /// <summary>
         /// Indicates whether the set contains a particular item.
@@ -271,14 +394,14 @@ namespace AmbientOS.Utils
         public void Alloc()
         {
             lock (content)
-                foreach (var item in content)
+                foreach (var item in content.Concat(justRemoved))
                     item.Retain();
         }
 
         public void Free()
         {
             lock (content)
-                foreach (var item in content)
+                foreach (var item in content.Concat(justRemoved))
                     item.Release();
         }
 
@@ -289,57 +412,43 @@ namespace AmbientOS.Utils
     }
 
 
-    /// <summary>
-    /// Creates a dynamic set that represents the union of two other dynamic sets.
-    /// </summary>
-    public sealed class DynamicUnionSet<T> : DynamicSet<T>
-        where T : IRefCounted
+
+    public static class DynamicSetExtensions
     {
-        private DynamicSet<T>[] sets;
-
-        public DynamicUnionSet(params DynamicSet<T>[] sets)
+        public static int Increment<T>(this Dictionary<T, int> dict, T item, int minVal, int maxVal)
         {
-            this.sets = sets;
-            foreach (var set in sets)
-                Subscribe(set);
+            int value;
+            if (!dict.TryGetValue(item, out value))
+                value = minVal;
+
+            if (++value > maxVal)
+                throw new InvalidOperationException("value exceeded " + maxVal);
+
+            return dict[item] = value;
         }
 
-        protected override bool ShouldAdd(T item)
+        public static int Decrement<T>(this Dictionary<T, int> dict, T item, int minVal)
         {
-            return sets.Any(set => set.Contains(item));
+            int value;
+            if (!dict.TryGetValue(item, out value))
+                value = minVal;
+
+            if (--value < minVal)
+                throw new InvalidOperationException("value below " + minVal);
+
+            if (value == minVal)
+                dict.Remove(item);
+            else
+                dict[item] = value;
+
+            return value;
         }
 
-        protected override bool ShouldRemove(T item)
+        public static TSet Union<TSet, TItem>(this DynamicSet<TItem> set, params DynamicSet<TItem>[] sets)
+            where TSet : DynamicSet<TItem>, new()
+            where TItem : IRefCounted
         {
-            return !ShouldAdd(item);
-        }
-    }
-
-
-    /// <summary>
-    /// Creates a dynamic set that represents the intersection of two other dynamic sets.
-    /// If an item is removed from one set and then quickly added to the other set, there is the possibility of the item to shortly appear in this intersection.
-    /// </summary>
-    public sealed class DynamicIntersectionSet<T> : DynamicSet<T>
-        where T : IRefCounted
-    {
-        private DynamicSet<T>[] sets;
-
-        public DynamicIntersectionSet(params DynamicSet<T>[] sets)
-        {
-            this.sets = sets;
-            foreach (var set in sets)
-                Subscribe(set);
-        }
-
-        protected override bool ShouldAdd(T item)
-        {
-            return sets.All(set => set.Contains(item));
-        }
-
-        protected override bool ShouldRemove(T item)
-        {
-            return !ShouldAdd(item);
+            return DynamicSet.Union<TSet, TItem>(sets.Concat(new DynamicSet<TItem>[] { set }).ToArray());
         }
     }
 }

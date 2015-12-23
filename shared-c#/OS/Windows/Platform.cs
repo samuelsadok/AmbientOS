@@ -5,8 +5,6 @@ using System.Text;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using AppInstall.UI;
-using AppInstall.Framework;
 using AmbientOS.Environment;
 
 namespace AppInstall.OS
@@ -28,7 +26,7 @@ namespace AppInstall.OS
         /// <summary>
         /// Executes a routine in the context of the main thread (in GUI apps this is the GUI thread). This does also work when already in the main thread.
         /// </summary>
-        [Obsolete()]
+        [Obsolete("There's no obvious reason why there should be a thread with special properties. This should only be available for UI code in foreign OS abstraction layers.")]
         public static void InvokeMainThread(Action action)
         {
             mainThread.Invoke(action, new AmbientOS.Utils.TaskController());
@@ -37,7 +35,7 @@ namespace AppInstall.OS
         /// <summary>
         /// Executes a routine in the context of the main thread (in GUI apps this is the GUI thread). This does also work when already in the main thread.
         /// </summary>
-        [Obsolete()]
+        [Obsolete("There's no obvious reason why there should be a thread with special properties. This should only be available for UI code in foreign OS abstraction layers.")]
         public static T EvaluateOnMainThread<T>(Func<T> action)
         {
             return mainThread.Evaluate(action, new AmbientOS.Utils.TaskController());

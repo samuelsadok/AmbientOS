@@ -84,13 +84,13 @@ namespace AmbientOS.Environment
 
             public DynamicSet<IObjectRef> Invoke(IObjectRef obj, Context context)
             {
-                var set = method.Invoke(app.GetInstance(), new object[] { obj, context });
+                var set = (DynamicSet)method.Invoke(app.GetInstance(), new object[] { obj, context });
 
                 if (outputType == typeof(void))
                     return new DynamicSet<IObjectRef>().Retain();
 
                 var result = new DynamicSet<IObjectRef>().Retain();
-                result.Subscribe(set, o => (IObjectRef)o);
+                set.Subscribe(result);
                 return result;
             }
 

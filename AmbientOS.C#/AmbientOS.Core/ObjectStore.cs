@@ -197,7 +197,7 @@ namespace AmbientOS
                     types[typeName] = typeEntry = new AOSTypeEntry();
 
             lock (typeEntry)
-                set.Subscribe(typeEntry.set);
+                typeEntry.set.Subscribe(set);
 
             return set.Retain();
         }
@@ -318,7 +318,7 @@ namespace AmbientOS
         /// </summary>
         public static DynamicSet<IObjectRef> GetHandlers(IObjectRef obj, string verb)
         {
-            return new DynamicUnionSet<IObjectRef>(GetTypes(obj).Select(type => GetHandlers(obj, type, verb)).ToArray()).Retain();
+            return DynamicSet.Union<DynamicSet<IObjectRef>, IObjectRef>(GetTypes(obj).Select(type => GetHandlers(obj, type, verb)).ToArray()).Retain();
         }
 
 
