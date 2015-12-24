@@ -5,10 +5,8 @@ using System.Text;
 using System.Threading;
 using AmbientOS.Environment;
 
-namespace AmbientOS.Utils
+namespace AmbientOS
 {
-
-
     public class TaskController : IDisposable
     {
         public WaitHandle CancellationHandle { get { return cancellationHandle; } }

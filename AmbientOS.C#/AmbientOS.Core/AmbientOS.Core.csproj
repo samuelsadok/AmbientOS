@@ -55,6 +55,7 @@
     </Compile>
     <Compile Include="IRefCounted.cs" />
     <Compile Include="Math\DynamicGraph.cs" />
+    <Compile Include="Math\BigInt.cs" />
     <Compile Include="Math\Matrix.cs" />
     <Compile Include="Math\Calculator.cs" />
     <Compile Include="Math\MatrixExtensions.cs" />
@@ -67,9 +68,10 @@
     <Compile Include="Utils\ActivityTracker.cs" />
     <Compile Include="Utils\ByteConverter.cs" />
     <Compile Include="Math\DynamicSet.cs" />
+    <Compile Include="Utils\CancelableThread.cs" />
     <Compile Include="Utils\Extensions.cs" />
     <Compile Include="Utils\NetUtils.cs" />
-    <Compile Include="Utils\ProducerConsumerQueue.cs" />
+    <Compile Include="Utils\DynamicQueue.cs" />
     <Compile Include="Utils\SlowAction.cs" />
     <Compile Include="Utils\TaskController.cs" />
     <Compile Include="Utils\Utilities.cs" />

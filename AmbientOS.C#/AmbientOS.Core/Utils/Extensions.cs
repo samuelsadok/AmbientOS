@@ -5,9 +5,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AmbientOS.Utils
+namespace AmbientOS
 {
-    public static class Extensions
+    public static class FrameworkExtensions
     {
         /// <summary>
         /// Thread-safely raises an event that might be null
@@ -153,15 +153,14 @@ namespace AmbientOS.Utils
         }
 
 
-        
         public static async Task Write(this System.IO.Stream stream, byte[] buffer, TaskController controller)
         {
             await stream.WriteAsync(buffer, 0, buffer.Count(),  controller.CancellationToken);
         }
 
-        public static async Task Write(this System.IO.Stream stream, string buffer, TaskController controller)
+        public static async Task Write(this System.IO.Stream stream, string buffer, Encoding encoding, TaskController controller)
         {
-            await stream.Write(Encoding.ASCII.GetBytes(buffer), controller);
+            await stream.Write(encoding.GetBytes(buffer), controller);
         }
 
         #endregion

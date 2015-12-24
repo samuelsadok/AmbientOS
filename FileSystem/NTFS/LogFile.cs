@@ -275,7 +275,7 @@ namespace AmbientOS.FileSystem.NTFS
 
                 if (debugFile != null)
                     using (var file = System.IO.File.Open(debugFile, System.IO.FileMode.Create, System.IO.FileAccess.ReadWrite, System.IO.FileShare.Read))
-                        file.Write(log.ToString(), controller).Wait();
+                        file.Write(log.ToString(), Encoding.ASCII, controller).Wait();
 
                 return lastLSN;
             }
@@ -293,7 +293,7 @@ namespace AmbientOS.FileSystem.NTFS
                         if (entry.LSN == 0x005848C1)
                             Console.WriteLine("found lsn");
                         entry.Redo(true);
-                        log.Write(string.Format("{0}\r\n", entry.ToString()), controller).Wait();
+                        log.Write(string.Format("{0}\r\n", entry.ToString()), Encoding.ASCII, controller).Wait();
                     }
                 }
             }
@@ -431,14 +431,14 @@ namespace AmbientOS.FileSystem.NTFS
         private void DumpPages(byte[] rawFile, long openCount, string target, TaskController controller)
         {
             using (var log = System.IO.File.Open(target, System.IO.FileMode.Create, System.IO.FileAccess.ReadWrite, System.IO.FileShare.Read)) {
-                log.Write(string.Format("open count: {0:X8}\r\n", openCount), controller).Wait();
+                log.Write(string.Format("open count: {0:X8}\r\n", Encoding.ASCII, openCount), Encoding.ASCII, controller).Wait();
 
                 for (var offset = 0; offset < rawFile.Length; offset += 0x1000) {
                     if (rawFile.ReadInt32(offset, Endianness.LittleEndian) != 0x44524352) {
                         var block = new byte[0x1000];
                         Array.Copy(rawFile, offset, block, 0, 0x1000);
                         if (!Array.TrueForAll(block, b => b == 0xFF))
-                            log.Write(string.Format("page {0:X8} is not a page header but not all 0xFF\r\n", (offset >> 12)), controller).Wait();
+                            log.Write(string.Format("page {0:X8} is not a page header but not all 0xFF\r\n", (offset >> 12)), Encoding.ASCII, controller).Wait();
                         continue;
                     }
 
@@ -457,7 +457,7 @@ namespace AmbientOS.FileSystem.NTFS
                         pageHeader.lastEndLSN,
                         rawFile.ReadInt32(offset + 0x3C, Endianness.LittleEndian),
                         checksum);
-                    log.Write(str, controller).Wait();
+                    log.Write(str, Encoding.ASCII, controller).Wait();
                 }
             }
         }

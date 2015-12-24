@@ -5,7 +5,7 @@ using System.Text;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 
-namespace AmbientOS.Utils
+namespace AmbientOS
 {
 
     public enum Endianness
@@ -19,6 +19,7 @@ namespace AmbientOS.Utils
         LittleEndian,
 
         BigEndian,
+        NetworkByteOrder = BigEndian,
 
         /// <summary>
         /// Used to specify that the byteconverter should use whatever the endianness of the machine is.
@@ -66,22 +67,22 @@ namespace AmbientOS.Utils
 
     public enum DateFormat
     {
-        None = 0,
+        Unspecified = 0,
 
         /// <summary>
         /// Number of ticks (0.1us) since 01/01/1601 (UTC)
         /// </summary>
-        NTFS = 1,
+        NTFS,
 
         /// <summary>
         /// Windows FILETIME type, equal to NTFS file time
         /// </summary>
-        Windows = 1
+        Windows = NTFS
     }
 
     public enum StringFormat
     {
-        None = 0,
+        Unspecified = 0,
         ASCII,
         Unicode
     }
@@ -163,7 +164,7 @@ namespace AmbientOS.Utils
     {
         const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-        private static Endianness ResolveEndianness<T>(Endianness endianness)
+        private static Endianness Resolve<T>(this Endianness endianness)
         {
             switch (endianness) {
                 case Endianness.Unspecified:
@@ -184,6 +185,8 @@ namespace AmbientOS.Utils
             }
         }
 
+
+        #region Reading
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Int16 ReadInt16(this byte[] buffer, ref long offset, Endianness endianness)
@@ -482,7 +485,7 @@ namespace AmbientOS.Utils
         /// </summary>
         public static T ReadObject<T>(this byte[] buffer, long offset, Endianness endianness = Endianness.Unspecified)
         {
-            return (T)buffer.ReadObject(ref offset, typeof(T), null, null, null, ResolveEndianness<T>(endianness));
+            return (T)buffer.ReadObject(ref offset, typeof(T), null, null, null, endianness.Resolve<T>());
         }
 
         /// <summary>
@@ -609,8 +612,10 @@ namespace AmbientOS.Utils
             return result;
         }
 
+        #endregion
 
 
+        #region Writing
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long WriteVal(this byte[] buffer, long offset, Int16 value, Endianness endianness)
@@ -843,7 +848,7 @@ namespace AmbientOS.Utils
         /// </summary>
         public static long WriteVal<T>(this byte[] buffer, long offset, T value, Endianness endianness = Endianness.Unspecified)
         {
-            return buffer.WriteVal(offset, value, typeof(T), null, null, ResolveEndianness<T>(endianness));
+            return buffer.WriteVal(offset, value, typeof(T), null, null, endianness.Resolve<T>());
         }
 
 
@@ -861,9 +866,9 @@ namespace AmbientOS.Utils
         public static long WriteVal(this byte[] buffer, long offset, object value, Type type, FieldSpecsAttribute fieldSpecs, object parent, Endianness endianness)
         {
             if (type == typeof(byte)) {
-                buffer[offset++] = (byte)value; return 1;
+                buffer[offset++] = Convert.ToByte(value); return 1;
             } else if (type == typeof(sbyte)) {
-                buffer[offset++] = (byte)value; return 1;
+                buffer[offset++] = Convert.ToByte(value); return 1;
             } else if (type == typeof(Int16)) {
                 return buffer.WriteVal(offset, Convert.ToInt16(value), endianness);
             } else if (type == typeof(UInt16)) {
@@ -925,7 +930,7 @@ namespace AmbientOS.Utils
                 if (field.Name.Contains("<")) // ignore compiler generated values (hacky)
                     continue;
 
-                var fieldVal = (fieldAttr?.LengthOf == null ? field.GetValue(value) : ((Array)type.GetField(fieldAttr.LengthOf, bindingFlags).GetValue(value)).Length);
+                var fieldVal = (fieldAttr?.LengthOf == null ? field.GetValue(value) : LengthOf(type.GetField(fieldAttr.LengthOf, bindingFlags).GetValue(value)));
 
                 if (fieldAttr?.Optional ?? false && fieldVal == null)
                     continue;
@@ -945,8 +950,212 @@ namespace AmbientOS.Utils
 
             return size;
         }
-        
 
+        public static byte[] WriteVal<T>(T value, Endianness endianness = Endianness.Unspecified)
+        {
+            var buffer = new byte[SizeOf(value)];
+            buffer.WriteVal(0, value, endianness);
+            return buffer;
+        }
+
+        #endregion
+
+
+        #region Size Calculation
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(byte value)
+        {
+            return 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(sbyte value)
+        {
+            return 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(Int16 value)
+        {
+            return 2;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(UInt16 value)
+        {
+            return 2;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(Int32 value)
+        {
+            return 4;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(UInt32 value)
+        {
+            return 4;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(Int64 value)
+        {
+            return 8;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(UInt64 value)
+        {
+            return 8;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(float value)
+        {
+            return 4;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(double value)
+        {
+            return 8;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(DateTime value, DateFormat format)
+        {
+            switch (format) {
+                case DateFormat.NTFS: return 8;
+                default: throw new NotSupportedException();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(string value, StringFormat format)
+        {
+            switch (format) {
+                case StringFormat.Unicode: return value.Length * 2;
+                case StringFormat.ASCII: return value.Length;
+                default: throw new NotSupportedException();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(Guid value)
+        {
+            return 16;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SizeOf(Array value)
+        {
+            long sum = 0;
+            var elementType = value.GetType().GetElementType();
+            foreach (var val in value) {
+                sum += SizeOf(val, elementType, null, null);
+            }
+            return sum;
+        }
+
+        public static long SizeOf<T>(T value)
+        {
+            return SizeOf(value, typeof(T), null, null);
+        }
+
+        private static int LengthOf(object value)
+        {
+            if (value == null)
+                throw new ArgumentNullException($"{value}");
+
+            var str = value as string;
+            if (str != null)
+                return str.Length;
+            return ((Array)value).Length;
+        }
+
+        /// <summary>
+        /// Returns the effective number of bytes required by object to be written using WriteVal.
+        /// </summary>
+        /// <param name="value">The value to be measured.</param>
+        /// <param name="fieldSpecs">Can be null for any type other than: DateTime, string</param>
+        /// <exception cref="NotSupportedException">An unsupported type was encountered.</exception>
+        public static long SizeOf(object value, Type type, FieldSpecsAttribute fieldSpecs, object parent)
+        {
+            if (type == typeof(byte) || type == typeof(sbyte)) {
+                return 1;
+            } else if (type == typeof(Int16) || type == typeof(UInt16)) {
+                return 2;
+            } else if (type == typeof(Int32) || type == typeof(UInt32) || type == typeof(float)) {
+                return 4;
+            } else if (type == typeof(Int64) || type == typeof(UInt64) || type == typeof(double)) {
+                return 8;
+            } else if (type == typeof(DateTime)) {
+                return SizeOf(Convert.ToDateTime(value), fieldSpecs.DateFormat);
+            } else if (type == typeof(string)) {
+                return SizeOf((string)value, fieldSpecs.StringFormat);
+            } else if (type == typeof(Guid)) {
+                return 16;
+            } else if (type.IsEnum) {
+                var enumType = type.GetCustomAttribute<EnumType>()?.Type ?? typeof(Int32);
+                return SizeOf(Convert.ChangeType(value, enumType), enumType, fieldSpecs, parent);
+            } else if (type.IsArray) {
+                type = type.GetElementType();
+                if (type == typeof(byte) || type == typeof(sbyte)) {
+                    return ((Array)value).Length;
+                } else if (type == typeof(Int16) || type == typeof(UInt16)) {
+                    return ((Array)value).Length * 2;
+                } else if (type == typeof(Int32) || type == typeof(UInt32) || type == typeof(float)) {
+                    return ((Array)value).Length * 4;
+                } else if (type == typeof(Int64) || type == typeof(UInt64) || type == typeof(double)) {
+                    return ((Array)value).Length * 8;
+                }
+                if (fieldSpecs?.ElementSize != null)
+                    return ((Array)value).Length * Convert.ToInt64(parent.GetType().GetField(fieldSpecs.ElementSize).GetValue(parent));
+                return SizeOf((Array)value);
+            }
+
+            // Since none of the above types applied, we assume this is a custom class or struct
+
+            long size = 0;
+            long unionSize = 0;
+
+            if (type.GetCustomAttribute<TypeSpecs>()?.WalkBaseType ?? false)
+                size += SizeOf(value, type.BaseType, fieldSpecs, parent);
+
+            foreach (var field in type.GetFields(bindingFlags | BindingFlags.DeclaredOnly)) {
+                var fieldAttr = field.GetCustomAttribute<FieldSpecsAttribute>();
+                if (fieldAttr?.Ignore ?? false)
+                    continue;
+                if (field.Name.Contains("<")) // ignore compiler generated values (hacky)
+                    continue;
+
+                var fieldVal = (fieldAttr?.LengthOf == null ? field.GetValue(value) : LengthOf(type.GetField(fieldAttr.LengthOf, bindingFlags).GetValue(value)));
+
+                if (fieldAttr?.Optional ?? false && fieldVal == null)
+                    continue;
+
+                var length = SizeOf(fieldVal, field.FieldType, fieldAttr, value);
+
+                if (fieldAttr?.Union ?? false) {
+                    unionSize = Math.Max(unionSize, length);
+                    if (fieldAttr.EndOfUnion) {
+                        size += unionSize;
+                        unionSize = 0;
+                    }
+                } else {
+                    size += length;
+                }
+            }
+
+            return size;
+        }
+
+        #endregion
+
+
+        #region Checksum Calculation
 
         /// <summary>
         /// Returns the 16-bit sum of a range in a byte array.
@@ -991,6 +1200,8 @@ namespace AmbientOS.Utils
                 sum = unchecked((Int32)(sum - buffer[i]));
             return sum == ~buffer.ReadInt32(ref checksumOffset, endianness);
         }
+
+        #endregion
     }
 }
 

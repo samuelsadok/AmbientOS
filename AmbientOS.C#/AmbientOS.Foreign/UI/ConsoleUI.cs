@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using AmbientOS.Environment;
-using AmbientOS.Utils;
 
 namespace AmbientOS.UI
 {
@@ -14,7 +13,7 @@ namespace AmbientOS.UI
         public LogContext LogContext { get; }
 
         private readonly IConsole console;
-        private readonly ProducerConsumerQueue<Tuple<string, ConsoleColor, ConsoleColor>> queue = new ProducerConsumerQueue<Tuple<string, ConsoleColor, ConsoleColor>>();
+        private readonly DynamicQueue<Tuple<string, ConsoleColor, ConsoleColor>> queue = new DynamicQueue<Tuple<string, ConsoleColor, ConsoleColor>>();
         private readonly Stack<Dialog> dialogs = new Stack<Dialog>();
         private readonly AutoResetEvent updateDialogs = new AutoResetEvent(false);
         private readonly ManualResetEvent stackEmpty = new ManualResetEvent(true);
@@ -45,9 +44,9 @@ namespace AmbientOS.UI
             };
 
             // logging thread
-            new Thread(() => {
-                Tuple<string, ConsoleColor, ConsoleColor> item;
-                while (queue.TryDequeue(out item, controller)) {
+            new CancelableThread(() => {
+                while (true) {
+                    var item = queue.Dequeue(controller);
                     while (true) {
                         controller.WaitOne(stackEmpty);
                         lock (dialogs) {
@@ -61,7 +60,7 @@ namespace AmbientOS.UI
             }).Start();
 
             // draw dialog thread
-            new Thread(() => {
+            new CancelableThread(() => {
                 while (true) {
                     controller.WaitOne(updateDialogs);
                     Dialog dialog = topDialog();
@@ -76,7 +75,7 @@ namespace AmbientOS.UI
             }).Start();
 
             // input thread
-            new Thread(() => {
+            new CancelableThread(() => {
                 while (true) {
                     var keyPress = console.Read();
                     Dialog dialog = topDialog();
@@ -95,7 +94,7 @@ namespace AmbientOS.UI
             public int Offset { get; set; }
             public bool DetailsExpanded { get; set; }
             public long SelectedOption { get; set; }
-            public ProducerConsumerQueue<KeyPress> KeyPresses { get; set; }
+            public DynamicQueue<KeyPress> KeyPresses { get; set; }
         }
 
         private IEnumerable<Tuple<string, bool>> ToLines(Dialog dialog)
@@ -136,7 +135,7 @@ namespace AmbientOS.UI
                 SelectedOption = 0,
                 Offset = 0,
                 BufferSize = console.GetDimensions(),
-                KeyPresses = new ProducerConsumerQueue<KeyPress>()
+                KeyPresses = new DynamicQueue<KeyPress>()
             };
 
             var escapeOption = -1;
@@ -153,9 +152,9 @@ namespace AmbientOS.UI
             }
 
             try {
+                while (true) { // todo: use real task controller
+                    var keyPress = dialog.KeyPresses.Dequeue(new TaskController());
 
-                KeyPress keyPress;
-                while (dialog.KeyPresses.TryDequeue(out keyPress, new TaskController())) { // todo: use real task controller
                     if (keyPress.Key == Key.Enter)
                         break;
 

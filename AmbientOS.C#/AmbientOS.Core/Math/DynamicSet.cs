@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace AmbientOS.Utils
+namespace AmbientOS
 {
     /// <summary>
     /// The event handler type that is used to signal updates to the dynamic set.
@@ -23,7 +23,7 @@ namespace AmbientOS.Utils
         public abstract void Remove(object item, bool moreToFollow);
         internal abstract void Flush();
 
-        public abstract void Subscribe<T>(DynamicSet<T> subscriber) where T : IRefCounted;
+        public abstract void Subscribe<T>(DynamicSet<T> subscriber);
 
 
         /// <summary>
@@ -31,7 +31,6 @@ namespace AmbientOS.Utils
         /// </summary>
         public static TSet Union<TSet, TItem>(DynamicSet<TItem>[] sets)
             where TSet : DynamicSet<TItem>, new()
-            where TItem : IRefCounted
         {
             var setCount = sets.Count();
 
@@ -71,7 +70,6 @@ namespace AmbientOS.Utils
     /// All public instance members of this class are thread-safe.
     /// </summary>
     public class DynamicSet<T> : DynamicSet, IRefCounted
-        where T : IRefCounted
     {
         private readonly HashSet<T> content = new HashSet<T>();
         private readonly List<T> justAdded = new List<T>();
@@ -155,7 +153,7 @@ namespace AmbientOS.Utils
                             if (asyncRemovedListener != null)
                                 asyncRemovedListener(item, moreToFollow);
                         } finally {
-                            this.DoIfReferenced(() => { item.Release(); });
+                            this.DoIfReferenced(() => { (item as IRefCounted)?.Release(); });
                         }
                     }
                 }
@@ -193,7 +191,7 @@ namespace AmbientOS.Utils
 
         /// <summary>
         /// Adds an item to the set (if it wasn't already added and if it passes the add-filter).
-        /// If the item was not yet in the set, its reference count is incremented (except if this set itself has reference count of zero).
+        /// If the item type implements IRefCounted and the item was not yet in the set, its reference count is incremented (except if this set itself has reference count of zero).
         /// </summary>
         /// <param name="item">The item to be added.</param>
         /// <param name="moreToFollow">Set to true if more items will be added immediately after this call. This is useful to defer expensive UI updates.</param>
@@ -207,10 +205,10 @@ namespace AmbientOS.Utils
                     if (asyncThreadRunning) {
                         justAdded.Add(item);
                         if (justRemoved.Remove(item))
-                            this.DoIfReferenced(() => { item.Release(); });
+                            this.DoIfReferenced(() => { (item as IRefCounted)?.Release(); });
                     }
 
-                    this.DoIfReferenced(() => { item.Retain(); });
+                    this.DoIfReferenced(() => { (item as IRefCounted)?.Retain(); });
 
                     foreach (var subscriber in syncAddedListeners)
                         subscriber(item, moreToFollow);
@@ -225,7 +223,7 @@ namespace AmbientOS.Utils
 
         /// <summary>
         /// Removes an item from the set (if it is in the set currently and if it passes the remove-filter).
-        /// If the item was in the set, its reference count is usually decremented (except if this set itself has reference count of zero).
+        /// If the item type implements IRefCounted and the item was in the set, its reference count is usually decremented (except if this set itself has reference count of zero).
         /// However, if async events are enabled, the reference count decrement is deferred until after the async event.
         /// </summary>
         /// <param name="item">The item to be added.</param>
@@ -241,7 +239,7 @@ namespace AmbientOS.Utils
                         justRemoved.Add(item);
                         justAdded.Remove(item);
                     } else {
-                        this.DoIfReferenced(() => { item.Release(); });
+                        this.DoIfReferenced(() => { (item as IRefCounted)?.Release(); });
                     }
 
                     foreach (var subscriber in syncRemovedListeners)
@@ -377,32 +375,47 @@ namespace AmbientOS.Utils
                 if (!e.MoveNext())
                     return default(T);
                 var first = e.Current;
-                return e.MoveNext() ? default(T) : first.Retain();
+                var result = e.MoveNext() ? default(T) : first;
+                (result as IRefCounted)?.Retain();
+                return result;
             }
         }
 
         /// <summary>
         /// Returns a snapshot of the dynamic set.
-        /// The reference count of each item is incremented.
+        /// If the item type implements IRefCounted, the reference count of each item is incremented.
         /// </summary>
         public T[] Snapshot()
         {
+            T[] array;
             lock (content)
-                return content.Select(item => item.Retain()).ToArray();
+                array = content.ToArray();
+
+            if (typeof(T).IsRefCounted())
+                foreach (var item in array.Select(item => (IRefCounted)item))
+                    item.Retain();
+
+            return array;
         }
 
         public void Alloc()
         {
-            lock (content)
-                foreach (var item in content.Concat(justRemoved))
-                    item.Retain();
+            if (typeof(T).IsRefCounted()) {
+                lock (content) {
+                    foreach (var item in content.Concat(justRemoved).Select(item => (IRefCounted)item))
+                        item.Retain();
+                }
+            }
         }
 
         public void Free()
         {
-            lock (content)
-                foreach (var item in content.Concat(justRemoved))
-                    item.Release();
+            if (typeof(T).IsRefCounted()) {
+                lock (content) {
+                    foreach (var item in content.Concat(justRemoved).Select(item => (IRefCounted)item))
+                        item.Release();
+                }
+            }
         }
 
         public void Dispose()
@@ -446,7 +459,6 @@ namespace AmbientOS.Utils
 
         public static TSet Union<TSet, TItem>(this DynamicSet<TItem> set, params DynamicSet<TItem>[] sets)
             where TSet : DynamicSet<TItem>, new()
-            where TItem : IRefCounted
         {
             return DynamicSet.Union<TSet, TItem>(sets.Concat(new DynamicSet<TItem>[] { set }).ToArray());
         }

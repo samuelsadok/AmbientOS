@@ -791,4 +791,42 @@ namespace AmbientOS
             return a < b;
         }
     }
+
+    public sealed class BigIntCalculator : Calculator<BigInt>
+    {
+        public static BigIntCalculator DefaultInstance { get; } = new BigIntCalculator();
+
+        public override BigInt AdditiveNeutralElement { get; } = BigInt.Zero;
+        public override BigInt MultiplicativeNeutralElement { get; } = new BigInt(1);
+
+        public override BigInt Add(BigInt a, BigInt b)
+        {
+            return a + b;
+        }
+
+        public override BigInt Subtract(BigInt a, BigInt b)
+        {
+            return a - b;
+        }
+
+        public override BigInt Conjugate(BigInt a)
+        {
+            return a;
+        }
+
+        public override BigInt AbsoluteValue(BigInt a)
+        {
+            return a;
+        }
+
+        public override bool IsLarger(BigInt a, BigInt b)
+        {
+            return a > b;
+        }
+
+        public override bool IsSmaller(BigInt a, BigInt b)
+        {
+            return a < b;
+        }
+    }
 }

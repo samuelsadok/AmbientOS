@@ -125,5 +125,13 @@ namespace AmbientOS
             foreach (var item in array)
                 item.Release();
         }
+
+        /// <summary>
+        /// Returns true iif the specified type implements IRefCounted.
+        /// </summary>
+        public static bool IsRefCounted(this Type t)
+        {
+            return typeof(IRefCounted).IsAssignableFrom(t);
+        }
     }
 }

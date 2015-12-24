@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Foreign.Windows",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceParser", "AmbientOS.C#\InterfaceParser\InterfaceParser.csproj", "{4252A7AA-B3EF-4411-92AB-2B9E3EAEFB80}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Net", "AmbientOS.C#\AmbientOS.Net\AmbientOS.Net.csproj", "{51475512-C2FE-4BAC-A80F-E23BCF838BB4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +63,14 @@ Global
 		{4252A7AA-B3EF-4411-92AB-2B9E3EAEFB80}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4252A7AA-B3EF-4411-92AB-2B9E3EAEFB80}.Release|x64.ActiveCfg = Release|Any CPU
 		{4252A7AA-B3EF-4411-92AB-2B9E3EAEFB80}.Release|x64.Build.0 = Release|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Debug|x64.Build.0 = Debug|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Release|x64.ActiveCfg = Release|Any CPU
+		{51475512-C2FE-4BAC-A80F-E23BCF838BB4}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
