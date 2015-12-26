@@ -41,9 +41,11 @@ namespace AmbientOS
         public long count = 0;
 
         // These signals are required to synchronize calls to Alloc and Free.
-        public ManualResetEvent isFreeSignal = new ManualResetEvent(true);
-        public ManualResetEvent isAllocateSignal = new ManualResetEvent(false);
+        public readonly ManualResetEvent isFreeSignal = new ManualResetEvent(true);
+        public readonly ManualResetEvent isAllocateSignal = new ManualResetEvent(false);
         // todo: add list of stack traces for debugging
+
+        public readonly TaskController taskController = new TaskController(TaskState.Inactive);
     }
 
     public static class RefCounting
@@ -70,6 +72,7 @@ namespace AmbientOS
                 r.isFreeSignal.WaitOne();
                 r.isFreeSignal.Reset();
                 reference.Alloc();
+                r.taskController.Resume();
                 r.isAllocateSignal.Set();
             } else {
                 r.isAllocateSignal.WaitOne();
@@ -93,9 +96,22 @@ namespace AmbientOS
             } else if (i == 0) {
                 r.isAllocateSignal.WaitOne();
                 r.isAllocateSignal.Reset();
+                r.taskController.Pause();
                 reference.Free();
                 r.isFreeSignal.Set();
             }
+        }
+
+        /// <summary>
+        /// Returns a task controller that monitors the life cycle of this reference counted object.
+        /// This task controller is resumed after every Alloc call (i.e. when the reference count increments from 0 to 1)
+        /// and paused before every Free call (i.e. when the reference count decrements from 1 to 0).
+        /// </summary>
+        public static TaskController GetLifeCycleController<T>(this T reference)
+            where T : IRefCounted
+        {
+            var r = references.GetOrCreateValue(reference);
+            return r.taskController;
         }
 
         /// <summary>

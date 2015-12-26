@@ -42,7 +42,7 @@
     <Compile Include="Context.cs" />
     <Compile Include="Environment\Extensions.cs" />
     <Compile Include="Environment\PlatformType.cs" />
-    <Compile Include="Environment\Interfaces.cs" />
+    <Compile Include="Utils\LogContext.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FileSystem\Contracts.cs" />
     <Compile Include="FileSystem\Extensions.cs" />

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AmbientOS.UI;
 using AmbientOS.Utils;
 
-namespace AmbientOS.Environment
+namespace AmbientOS
 {
     public enum LogType
     {
