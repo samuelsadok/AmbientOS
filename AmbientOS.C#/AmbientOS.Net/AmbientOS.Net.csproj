@@ -58,6 +58,10 @@
     <Compile Include="ServerException.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Chaos.NaCl\Chaos.NaCl\Chaos.NaCl-Portable.csproj">
+      <Project>{992710c3-dfc9-4cc1-a38b-b3f7e4a41b1c}</Project>
+      <Name>Chaos.NaCl-Portable</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AmbientOS.Core\AmbientOS.Core.csproj">
       <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
       <Name>AmbientOS.Core</Name>

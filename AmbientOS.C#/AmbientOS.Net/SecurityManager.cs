@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Security;
 using System.Security.Cryptography;
-//using Chaos.NaCl;
+using Chaos.NaCl;
 
 namespace AmbientOS.Net
 {
