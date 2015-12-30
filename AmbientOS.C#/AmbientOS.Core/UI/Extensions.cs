@@ -25,6 +25,11 @@ namespace AmbientOS.UI
             return null;
         }*/
 
+        public static void Clear(this IConsole console)
+        {
+            console.Clear(ConsoleColor.DefaultBackground);
+        }
+
         public static void Write(this IConsole console, string text, ConsoleColor textColor = ConsoleColor.DefaultForeground, ConsoleColor backgroundColor = ConsoleColor.DefaultBackground)
         {
             console.Write(text, textColor, backgroundColor);

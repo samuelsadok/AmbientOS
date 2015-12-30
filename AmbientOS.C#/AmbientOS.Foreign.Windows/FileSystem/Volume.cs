@@ -8,7 +8,8 @@ using AmbientOS.Utils;
 
 namespace AmbientOS.FileSystem
 {
-    [AOSApplication("Windows Volume Service", Description = "Exposes the volumes managed by Windows")]
+    [AOSService("Windows Volume Service", Description = "Exposes the volumes managed by Windows")]
+    [ForPlatform(PlatformType.Windows)]
     public class WindowsVolumeService
     {
         public class WindowsVolume : IVolumeImpl

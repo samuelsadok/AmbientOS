@@ -18,6 +18,8 @@ namespace AmbientOS.UI
         private readonly AutoResetEvent updateDialogs = new AutoResetEvent(false);
         private readonly ManualResetEvent stackEmpty = new ManualResetEvent(true);
 
+        private bool inGraphicMode;
+
 
         public ConsoleUI(IConsole console)
         {
@@ -28,8 +30,10 @@ namespace AmbientOS.UI
             }, "root");
         }
 
-        public void Start(TaskController controller)
+        public void Start(Context context)
         {
+            TaskController controller = context.Controller;
+
             Func<Dialog> topDialog = () => {
                 lock (dialogs) {
                     while (dialogs.Any()) {
@@ -41,6 +45,23 @@ namespace AmbientOS.UI
                     stackEmpty.Set();
                     return null;
                 }
+            };
+
+
+            Action newPage = () => {
+                var pos = console.GetCursorPosition();
+                var size = console.GetDimensions();
+                console.Write(new string(' ', (size.X - pos.X) + (size.Y - pos.Y) * size.X));
+            };
+
+            Action reversePage = () => {
+                console.Clear();
+                console.Scroll(-console.GetDimensions().Y);
+            };
+
+            Action printAbove = () => {
+                console.CopyArea(new Vector2D<int>(0, 0), new Vector2D<int>(0, 1), console.GetDimensions() - new Vector2D<int>(0, 1));
+                console.SetCursorPosition(new Vector2D<int>(0, 0), true);
             };
 
             // logging thread
@@ -66,6 +87,9 @@ namespace AmbientOS.UI
                     Dialog dialog = topDialog();
                     if (dialog != null) {
                         lock (dialog) {
+                            if (!inGraphicMode)
+                                newPage();
+                            inGraphicMode = true;
                             Draw(dialog);
                         }
                     } else {
@@ -77,7 +101,8 @@ namespace AmbientOS.UI
             // input thread
             new CancelableThread(() => {
                 while (true) {
-                    var keyPress = console.Read();
+                    var keyPress = console.Read(context);
+                    controller.ThrowIfCancellationRequested();
                     Dialog dialog = topDialog();
                     if (dialog != null)
                         dialog.KeyPresses.Enqueue(keyPress, controller);
@@ -93,7 +118,7 @@ namespace AmbientOS.UI
             public Vector2D<int> BufferSize { get; set; }
             public int Offset { get; set; }
             public bool DetailsExpanded { get; set; }
-            public long SelectedOption { get; set; }
+            public int SelectedOption { get; set; }
             public DynamicQueue<KeyPress> KeyPresses { get; set; }
         }
 
@@ -125,7 +150,7 @@ namespace AmbientOS.UI
             }
         }
 
-        public long PresentDialog(Text message, Option[] options)
+        public int PresentDialog(Text message, Option[] options)
         {
             var dialog = new Dialog() {
                 Valid = true,

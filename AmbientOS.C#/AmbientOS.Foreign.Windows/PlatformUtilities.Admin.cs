@@ -9,13 +9,13 @@ using System.IO;
 using System.Diagnostics;
 using System.ServiceProcess;
 using System.Threading.Tasks;
-using AmbientOS.Environment;
+using AmbientOS.UI;
 
 namespace AmbientOS
 {
     /// <summary>
     /// Provides advanced system functions for the Windows platform.
-    /// These functions cannot be used in sandboxed apps.
+    /// These functions cannot be used in sandboxed (Windows Store) apps.
     /// </summary>
     static partial class PlatformUtilities
     {
@@ -32,23 +32,37 @@ namespace AmbientOS
         }
 
         /// <summary>
-        /// Restarts the application with administrator privileges if neccessary.
-        /// Returns true on success.
+        /// Restarts the application with administrator privileges.
+        /// On failure, an exception is thrown.
         /// </summary>
-        public static bool RestartWithAdminPrivileges(string[] args)
+        public static void RestartWithAdminPrivileges(string[] args)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo(System.Reflection.Assembly.GetExecutingAssembly().Location);
             if ((args?.Count() ?? 0) > 0)
                 startInfo.Arguments = string.Join(" ", (from arg in args select "\"" + arg + "\""));
             startInfo.Verb = "runas";
 
-            try {
-                Process.Start(startInfo);
-            } catch (System.ComponentModel.Win32Exception) {
-                return false;
-            }
+            Process.Start(startInfo);
+        }
 
-            return true;
+        /// <summary>
+        /// Restarts the application with administrator privileges.
+        /// On failure, a message is displayed with the specified explanation.
+        /// </summary>
+        public static void RestartWithAdminPrivileges(string[] args, string explanation, Context context)
+        {
+            try {
+                RestartWithAdminPrivileges(args);
+                return;
+            } catch (Exception ex) {
+                context.UI.Notify(
+                    new Text() {
+                        Summary = "You must grant administrator rights to this application",
+                        Details = explanation,
+                        Debug = ex.ToString()
+                    },
+                    Severity.Warning);
+            }
         }
 
 

@@ -11,6 +11,10 @@ namespace AmbientOS.FileSystem.NTFS
 {
     partial class NTFSService
     {
+
+
+        // todo: make this an AmbientOS test
+
         public class NTFSTest
         {
             public enum TestFlags
@@ -104,7 +108,6 @@ namespace AmbientOS.FileSystem.NTFS
             }
 
 
-
             public static void DoTest(IFile vhd, Context context)
             {
                 context.Log.Log("loading temp folder");
@@ -122,19 +125,32 @@ namespace AmbientOS.FileSystem.NTFS
                 context.Log.Log("running test on test file system");
                 TestFS(tstFS, true, false);
 
+
+
+                var vhdMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>() { { "app", "AmbientOS.Foreign.WindowsVHDService" } })).AsSingle()?.Cast<IAction>();
+                var diskMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>() { { "app", "AmbientOS.Foreign.WindowsDiskService" } })).AsSingle()?.Cast<IAction>();
+                var volumeMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>() { { "app", "AmbientOS.Foreign.WindowsVolumeService" } })).AsSingle()?.Cast<IAction>();
+
+                if (vhdMountAction == null)
+                    throw new Exception("Cannot continue NTFS test, native Windows VHD service is not available (this is only available on a native Windows system)");
+                if (diskMountAction == null)
+                    throw new Exception("Cannot continue NTFS test, native Windows Disk service is not available (this is only available on a native Windows system)");
+                if (volumeMountAction == null)
+                    throw new Exception("Cannot continue NTFS test, native Windows Volume service is not available (this is only available on a native Windows system)");
+
                 // mount reference VHD using Windows services (i.e. native Windows NTFS driver)
                 context.Log.Log("copying reference VHD");
                 var refVHD = vhd.Copy(destination, "vhd - reference.vhd", MergeMode.Evict);
                 context.Log.Log("mounting reference disk");
-                var refDisk = new WindowsVHDService().Mount(refVHD, false, context).AsSingle();
+                var refDisk = vhdMountAction.Invoke(refVHD, context).AsSingle()?.Cast<IDisk>();
                 if (refDisk == null)
                     throw new Exception("The reference VHD must contain one single disk");
                 context.Log.Log("mounting reference volume");
-                var refVol = new WindowsDiskService().Mount(refDisk, context).AsSingle();
+                var refVol = diskMountAction.Invoke(refDisk, context).AsSingle()?.Cast<IVolume>();
                 if (refVol == null)
                     throw new Exception("The reference disk must contain one single volume");
                 context.Log.Log("mounting reference file system");
-                var refFS = new WindowsVolumeService().Mount(refVol, context).AsSingle();
+                var refFS = volumeMountAction.Invoke(refVol, context).AsSingle()?.Cast<IFileSystem>();
                 if (refFS == null)
                     throw new Exception("The reference volume must contain one single file system");
 

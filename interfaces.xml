@@ -71,11 +71,24 @@
       <summary>
         Represents an application.
         todo: define this interface.
-        consider: application name, associated actions, update, ...
+        consider: application icon, associated actions, update, ...
       </summary>
-      <method name="Load">
+      <method name="GetName" ret="string">
         <summary>
-          Loads and initializes the application if neccessary.
+          Returns a human readable name of the application.
+          todo: make this a dynamic property
+        </summary>
+      </method>
+      <method name="GetDescription" ret="string">
+        <summary>
+          Returns a human readable description of the application.
+          todo: make this a dynamic property
+        </summary>
+      </method>
+      <method name="Run">
+        <summary>
+          Loads and runs the application if neccessary.
+          todo: if this is called multiple times for the same application, it should either start a new instance or resume the running instance, depending on whatever policy
         </summary>
         <param name="context" type="Context" />
       </method>
@@ -235,6 +248,12 @@
           The cursor is advanced to the location after the text.
           If a character is printed below the last line, the buffer is scrolled accordingly.
           This function shall accept \n as a new line character.
+          
+          todo: differentiate between the following cases:
+           1. bare input/output streams (i.e. a serial communication line)
+           2. a simple text-based screen buffer (where we can print any char anywhere)
+           3. a fully controllable terminal (where we can clear the screen and scroll)
+          case 3 can be built from case 2 or from System.Console (this works only on Windows though)
         </summary>
         <param name="text" type="string" />
         <param name="textColor" type="ConsoleColor" summary="The text color (this may be ignored by some implementations)." />
@@ -246,6 +265,7 @@
           Modifier keys are not recognized on their own.
           The pressed key is not printed to the console.
         </summary>
+        <param name="context" type="Context" />
       </method>
       <method name="Clear">
         <summary>
@@ -253,6 +273,22 @@
         </summary>
         <param name="color" type="ConsoleColor" summary="The background color" />
       </method>
+      <method name="Scroll">
+        <summary>
+          Scrolls the specified number of lines up or down.
+          This may not work on some consoles.
+        </summary>
+        <param name="lines" type="int" summary="The number of lines. Positive is down, negative is up." />
+      </method>
+      <!--
+      <method name="CopyArea">
+        <summary>
+          Copies an area of the buffer.
+        </summary>
+        <param name="source" type="Vector2D[int]" summary="The top left point of the source rectangle." />
+        <param name="destination" type="Vector2D[int]" summary="The top left point of the destination rectangle." />
+        <param name="size" type="Vector2D[int]" summary="The size area to be copied." />
+      </method>-->
       <method name="GetDimensions" ret="Vector2D[int]">
         <summary>
           Returns the size of the console in chars.
@@ -285,7 +321,7 @@
         mean that the console is used for all user interaction. The job of figuring out the right mode of
         interaction is the job of the user experience service.
       </summary>
-      <method name="PresentDialog" ret="long">
+      <method name="PresentDialog" ret="int">
         <summary>
           Presents a message to the user and allows the user to select one out of a set of possible answers.
           Depending on the setting (e.g. if the user is absent or if the shell is not interactive), the shell may decide on its own.
@@ -764,5 +800,39 @@
         </summary>
       </method>
     </interface>
+  </namespace>
+
+
+  <namespace name="Net">
+    <summary>
+      Contains interfaces related to networking and connectivity.
+    </summary>
+
+
+    <interface name="BluetoothLEScanner">
+      <summary>
+        A facility capable of receiving Bluetooth LE advertisments and exposing the discovered peripherals.
+      </summary>
+
+      <method name="Scan" ret="DynamicSet[BluetoothLEPeripheral]">
+        <summary>
+          Starts a scan for peripherals.
+          The peripherals are added and removed to a dynamic set as they are discovered and lost.
+          If the reference count of the dynamic set reaches 0, the scan is stopped. It is restarted if the set is referenced again.
+        </summary>
+        <param name="parameters" type="int" />
+        <param name="context" type="Context" />
+      </method>
+    </interface>
+    
+    <interface name="BluetoothLEPeripheral">
+      <!--<property name="SignalStrength" type="long" />-->
+      <method name="Connect">
+        <summary>
+          Establishes a connection with the peripheral.
+        </summary>
+      </method>
+    </interface>
+    
   </namespace>
 </namespace>

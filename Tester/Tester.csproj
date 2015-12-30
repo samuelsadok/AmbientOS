@@ -1,77 +1,78 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{1E1CB682-915D-452E-961E-C47BAE9863A6}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{6769D08F-E76D-4498-91EE-3F7AA6A588C9}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AmbientOS</RootNamespace>
-    <AssemblyName>AmbientOS.Foreign.Windows</AssemblyName>
+    <AssemblyName>Tester</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>Build\bin\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeAnalysisRuleSet />
+    <CodeAnalysisRuleSet>
+    </CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>Build\bin\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet />
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>Build\bin\</OutputPath>
+    <CodeAnalysisRuleSet />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>Build\bin\</OutputPath>
+    <CodeAnalysisRuleSet />
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Configuration.Install" />
-    <Reference Include="System.Management" />
-    <Reference Include="System.ServiceProcess" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Application.cs" />
-    <Compile Include="Service.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="FileSystem\File.cs" />
-    <Compile Include="FileSystem\Volume.cs" />
-    <Compile Include="FileSystem\Disk.cs" />
-    <Compile Include="FileSystem\VHD.cs" />
-    <Compile Include="Handle.cs" />
-    <Compile Include="PInvoke.cs" />
-    <Compile Include="PlatformUtilities.Admin.cs" />
-    <Compile Include="PlatformUtilities.Basic.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Main.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AmbientOS.Core\AmbientOS.Core.csproj">
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Core\AmbientOS.Core.csproj">
       <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
       <Name>AmbientOS.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.Foreign\AmbientOS.Foreign.csproj">
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.FileSystem\AmbientOS.FileSystem.csproj">
+      <Project>{5c90ab4c-ece3-4d15-a935-83eccf892e90}</Project>
+      <Name>AmbientOS.FileSystem</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign.Windows\AmbientOS.Platform.Windows.csproj">
+      <Project>{1e1cb682-915d-452e-961e-c47bae9863a6}</Project>
+      <Name>AmbientOS.Platform.Windows</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign\AmbientOS.Platform.Foreign.csproj">
       <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
-      <Name>AmbientOS.Foreign</Name>
+      <Name>AmbientOS.Platform.Foreign</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Net\AmbientOS.Net.csproj">
+      <Project>{51475512-c2fe-4bac-a80f-e23bcf838bb4}</Project>
+      <Name>AmbientOS.Net</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="UI\UI.Desktop.cs" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

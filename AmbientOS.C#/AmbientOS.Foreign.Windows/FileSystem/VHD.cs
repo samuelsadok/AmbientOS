@@ -8,17 +8,18 @@ using AmbientOS.Utils;
 
 namespace AmbientOS.FileSystem
 {
-    [AOSApplication(
+    [AOSService(
         "Windows Virtual Image Service",
         Description = "Opens virtual image files (*.vhd) and makes them available as a disk. The differencing disk image part of the specification is not yet implemented."
         )]
+    [ForPlatform(PlatformType.Windows)]
     public class WindowsVHDService
     {
         /// <summary>
         /// Opens the specified file as a virtual hard disk and makes it available as a disk object.
         /// </summary>
         [AOSAction("mount", "ext=vhd")]
-        public DynamicSet<IDisk> Mount(IFile file, bool deliberate, Context context)
+        public DynamicSet<IDisk> Mount(IFile file, Context context)
         {
             var foreignFile = file.AsImplementation<Foreign.InteropFile>();
             if (foreignFile == null)

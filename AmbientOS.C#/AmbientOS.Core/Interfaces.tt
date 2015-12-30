@@ -18,7 +18,7 @@
 var proc = new Process {
 	StartInfo = new ProcessStartInfo {
 		FileName = Host.ResolvePath(@".\..\InterfaceParser\bin\Debug\InterfaceParser.exe"),
-		Arguments = Host.ResolvePath(@".\..\interfaces.xml"),
+		Arguments = Host.ResolvePath(@".\..\..\interfaces.xml"),
 		UseShellExecute = false,
 		RedirectStandardOutput = true,
 		CreateNoWindow = true

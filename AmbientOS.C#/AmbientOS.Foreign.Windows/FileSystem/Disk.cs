@@ -9,7 +9,8 @@ using AmbientOS.Utils;
 
 namespace AmbientOS.FileSystem
 {
-    [AOSApplication("Windows Disk Service", Description = "Exposes the disks managed by Windows")]
+    [AOSService("Windows Disk Service", Description = "Exposes the disks managed by Windows")]
+    [ForPlatform(PlatformType.Windows)]
     public class WindowsDiskService
     {
         public class WindowsDisk : IDiskImpl, IDisposable

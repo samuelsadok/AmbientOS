@@ -34,7 +34,7 @@ namespace AmbientOS.Net.DHT
                 if (!peers.TryGetValue(hash, out list)) {
                     list = new DynamicSet<IPEndPoint>().Retain();
                     if (persist) {
-                        var controller = list.GetLifeCycleController();
+                        var controller = list.GetLifecycleController();
 
                         var subscriber = new DynamicSet<IPEndPoint>((item, moreToFollow) => {
                             dht.Consider(item);

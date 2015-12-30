@@ -9,11 +9,11 @@ using AmbientOS.Utils;
 
 namespace AmbientOS.FileSystem.NTFS
 {
-    [AOSApplication(
+    [AOSService(
         "NTFS driver",
         Description = "Mounts the file system contained on an NTFS-formatted volume."
         )]
-    partial class NTFSService
+    public partial class NTFSService
     {
 
         /// <summary>

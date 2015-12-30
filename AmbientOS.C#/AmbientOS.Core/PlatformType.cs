@@ -1,6 +1,6 @@
 using System;
 
-namespace AmbientOS.Environment
+namespace AmbientOS
 {
     /// <summary>
     /// Identifies different platforms.
@@ -9,9 +9,10 @@ namespace AmbientOS.Environment
     public enum PlatformType {
 
         /// <summary>
-        /// The platform could not be determined (why on earth would this ever happen?)
+        /// The platform is unspecified.
+        /// This may be the case in platform independent environments.
         /// </summary>
-        Unknown,
+        Unspecified,
 
         /// <summary>
         /// The application is running on a native AmbientOS kernel.

@@ -9,7 +9,7 @@ using AmbientOS.Utils;
 
 namespace AmbientOS.FileSystem
 {
-    [AOSApplication(
+    [AOSService(
         "Partition Service",
         Description = "Exposes the volumes found on disks that are partitioned by the MBR or GPT scheme (GPT yet to be implemented)."
         )]

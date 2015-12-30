@@ -41,7 +41,8 @@
     <Compile Include="Attributes.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="Environment\Extensions.cs" />
-    <Compile Include="Environment\PlatformType.cs" />
+    <Compile Include="PlatformType.cs" />
+    <Compile Include="IPlatform.cs" />
     <Compile Include="Utils\LogContext.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FileSystem\Contracts.cs" />

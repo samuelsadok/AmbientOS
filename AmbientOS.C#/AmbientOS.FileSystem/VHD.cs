@@ -12,7 +12,7 @@ namespace AmbientOS.FileSystem
     /// <remarks>
     /// Official VHD and VHDX specifications are available from Microsoft.
     /// </remarks>
-    [AOSApplication(
+    [AOSService(
         "VHD Image Service",
         Description="Opens VHD image files (*.vhd) and makes them available as a disk. The differencing disk image part of the specification is not yet implemented."
         )]

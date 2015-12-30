@@ -12,13 +12,13 @@ namespace AmbientOS.Environment
         private class ActionStub : IActionImpl, ICustomAppearance
         {
             public IAction ActionRef { get; }
-            ApplicationStub app;
+            ApplicationLifecycleManager app;
             MethodInfo method;
             AOSActionAttribute attr;
             Type inputType;
             Type outputType;
 
-            public ActionStub(ApplicationStub app, MethodInfo method, AOSActionAttribute attr)
+            public ActionStub(ApplicationLifecycleManager app, MethodInfo method, AOSActionAttribute attr)
             {
                 ActionRef = new ActionRef(this);
 
@@ -103,45 +103,21 @@ namespace AmbientOS.Environment
         }
 
 
-
-        private abstract class ApplicationStub : IApplicationImpl
+        private class ApplicationLifecycleManager
         {
-            public abstract IApplication ApplicationRef { get; }
-            public abstract void Load(Context context);
-            public abstract object GetInstance();
-        }
+            // todo: maybe we should make these kinds of classes static and then we can remove this instance creation
 
+            private AOSServiceAttribute info;
+            private Func<object> instanceConstructor;
+            private List<object> runningInstances = new List<object>();
 
-        private class ApplicationStub<T> : ApplicationStub
-        {
-            public override IApplication ApplicationRef { get; }
-            private AOSApplicationAttribute info;
-            private Func<T> instanceConstructor;
-            private List<T> runningInstances = new List<T>();
-
-            public ApplicationStub(Func<T> instanceConstructor)
+            public ApplicationLifecycleManager(Type type, Func<object> instanceConstructor)
             {
-                ApplicationRef = new ApplicationRef(this);
-                info = (AOSApplicationAttribute)typeof(T).GetCustomAttribute(typeof(AOSApplicationAttribute));
+                info = (AOSServiceAttribute)type.GetCustomAttribute(typeof(AOSServiceAttribute));
                 this.instanceConstructor = instanceConstructor;
             }
 
-            /*public IAOSObject Invoke(IAOSObject obj, string verb, string returnType, IShell shell, bool deliberate, LogContext logContext)
-            {
-                MethodInfo action = null;
-                foreach (var type in ObjectStore.GetTypeNames(obj))
-                    if (actions.TryGetValue(new Tuple<string, string>(verb, type), out action)) // first we look for the more specific action
-                        break;
-
-                if (action == null)
-                    if (!actions.TryGetValue(new Tuple<string, string>(verb, null), out action)) // then for the more general (that accepts all types)
-                        throw new AOSRejectException("The application \"" + this + "\" can't execute the verb " + verb + " on any interfaces of " + obj, verb, obj);
-
-
-                return (IAOSObject)action.Invoke(instance, new object[] { obj, shell, deliberate, logContext });
-            }*/
-
-            public override object GetInstance()
+            public object GetInstance()
             {
                 lock (runningInstances) { // todo: select application instance heuristically based on proximity
                     if ((info.MultipleInstances.HasValue ? info.MultipleInstances.Value : false) || !runningInstances.Any()) {
@@ -151,32 +127,25 @@ namespace AmbientOS.Environment
                     return runningInstances.First();
                 }
             }
-
-            public override void Load(Context context)
-            {
-                throw new NotImplementedException();
-            }
         }
 
         /// <summary>
-        /// Installs a class as an application.
-        /// When another application on the system decides to make use of the application, a new instance is created (if neccessary) and the specified intent is sent to a suitable instance.
+        /// Installs the object actions available in the specified type.
+        /// When another application on the system decides to make use of the service, a new instance of the type is created (if neccessary) and the specified intent is sent to a suitable instance.
         /// </summary>
-        /// <typeparam name="T">The class that should be registered as an application.</typeparam>
-        /// <param name="constructor">A function that constructs instances of the application.</param>
-        public static void InstallApp<T>(Func<T> constructor)
+        /// <param name="type">The type, of which the actions should be registered as object action.</typeparam>
+        /// <param name="constructor">A function that constructs instances of the application. Maybe this will be removed if it seems sensible to make service classes static.</param>
+        public static void InstallService(Type type, Func<object> constructor)
         {
             // Extract all method-attribute pairs in T, for which the attribute is an AOSActionAttribute.
             // If a method has multiple attributes, a tuple is returned for each of them.
-            var actions = typeof(T).GetMethods().SelectMany(
+            var actions = type.GetMethods().SelectMany(
                 m => m.GetCustomAttributes(typeof(AOSActionAttribute), true)
                 .Cast<AOSActionAttribute>()
                 .Select(a => new { method = m, attribute = a })
                 ).ToArray();
 
-            // publish the app so that it can be found
-            var app = new ApplicationStub<T>(constructor);
-            ObjectStore.PublishObject(app.ApplicationRef.Retain());
+            var app = new ApplicationLifecycleManager(type, constructor);
 
             foreach (var a in actions) {
                 var action = new ActionStub(app, a.method, a.attribute);
@@ -189,10 +158,15 @@ namespace AmbientOS.Environment
             //}
         }
 
-        public static void InstallApp<T>()
+        public static void InstallService(Type type)
         {
-            var constructor = typeof(T).GetConstructor(new Type[0]);
-            InstallApp(() => (T)constructor.Invoke(new object[0]));
+            var constructor = type.GetConstructor(new Type[0]);
+            InstallService(type, () => constructor.Invoke(new object[0]));
+        }
+
+        public static void InstallService<T>()
+        {
+            InstallService(typeof(T));
         }
     }
 }

@@ -53,8 +53,7 @@ namespace AmbientOS
         /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        public Application Application { get; set; }
-        public Context Context { get; set; }
+        public TaskController Controller { get; set; }
 
         /// <summary>
         /// Required method for Designer support - do not modify 
@@ -87,40 +86,43 @@ namespace AmbientOS
 
         /// <summary>
         /// Returns the name of the service run by the current process.
+        /// Returns null if the name cannot be determined or if the current process is not a service.
         /// </summary>
-        private string GetServiceName()
+        private static string GetServiceName()
         {
+            if (System.Environment.UserInteractive)
+                return null;
+
             int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
             using (var searcher = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_Service where ProcessId = " + pid))
                 foreach (System.Management.ManagementObject queryObj in searcher.Get())
                     return queryObj["Name"].ToString();
-            return Application.Name;
+
+            return null;
         }
 
         protected override void OnStart(string[] args)
         {
-            Application.Name = GetServiceName();
-            new Task(() => {
-                Application.Run(Context);
-            }).Start();
-            Context.Controller.OnCancellation(() => {
+            Controller.OnCancellation(() => {
                 Stop();
             });
+
+            Controller.Resume();
         }
 
         protected override void OnPause()
         {
-            Application.Controller.Pause();
+            Controller.Pause();
         }
 
         protected override void OnContinue()
         {
-            Application.Controller.Resume();
+            Controller.Resume();
         }
 
         protected override void OnStop()
         {
-            Application.Controller.Cancel();
+            Controller.Cancel();
         }
     }
 
@@ -131,17 +133,21 @@ namespace AmbientOS
     [System.ComponentModel.RunInstaller(true)]
     public class WindowsServiceInstaller : System.Configuration.Install.Installer
     {
-        public static Application Application { get; set; }
-
         public WindowsServiceInstaller()
         {
+            string name, description;
+            using (var app = Platform.Platform.GetMainApp()) {
+                name = app.GetName();
+                description = app.GetDescription();
+            }
+
             ServiceProcessInstaller p = new ServiceProcessInstaller();
             ServiceInstaller s = new ServiceInstaller();
 
             p.Account = ServiceAccount.LocalSystem;
             s.StartType = ServiceStartMode.Automatic;
-            s.ServiceName = Application.Name;
-            s.Description = Application.Description;
+            s.ServiceName = name;
+            s.Description = description;
 
             Installers.Add(p);
             Installers.Add(s);

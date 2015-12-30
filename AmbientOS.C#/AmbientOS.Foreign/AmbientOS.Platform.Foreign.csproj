@@ -8,7 +8,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AmbientOS</RootNamespace>
-    <AssemblyName>AmbientOS.Foreign</AssemblyName>
+    <AssemblyName>AmbientOS.Platform.Foreign</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -34,15 +34,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Environment\ForeignEnvironment.cs" />
+    <Compile Include="Platform.cs" />
+    <Compile Include="PlatformIndependentContext.cs" />
     <Compile Include="UI\ConsoleUI.cs" />
     <Compile Include="UI\SystemConsole.cs" />
     <Compile Include="FileSystem\Foreign.cs" />

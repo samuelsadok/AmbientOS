@@ -18,19 +18,19 @@ namespace AmbientOS.UI
 
         private readonly object lockRef = new object();
 
-        private static System.ConsoleColor ToSystemColor(ConsoleColor color, bool foreground)
+        private static System.ConsoleColor ToSystemColor(ConsoleColor color)
         {
             switch (color) {
                 case ConsoleColor.DefaultForeground: return defaultForegroundColor;
-                   case ConsoleColor.DefaultBackground: return defaultBackgroundColor;
-                case ConsoleColor.Red : return System.ConsoleColor.Red;
-                case ConsoleColor.Yellow : return System.ConsoleColor.Yellow;
+                case ConsoleColor.DefaultBackground: return defaultBackgroundColor;
+                case ConsoleColor.Red: return System.ConsoleColor.Red;
+                case ConsoleColor.Yellow: return System.ConsoleColor.Yellow;
                 case ConsoleColor.Green: return System.ConsoleColor.Green;
                 case ConsoleColor.White: return System.ConsoleColor.White;
                 case ConsoleColor.Gray: return System.ConsoleColor.Gray;
                 case ConsoleColor.DarkGray: return System.ConsoleColor.DarkGray;
                 case ConsoleColor.Black: return System.ConsoleColor.Black;
-                default : throw new Exception("invalid console color");
+                default: throw new Exception("invalid console color");
             }
         }
 
@@ -42,8 +42,14 @@ namespace AmbientOS.UI
         public void Write(string text, ConsoleColor textColor, ConsoleColor backgroundColor)
         {
             lock (lockRef) {
-                System.Console.ForegroundColor = ToSystemColor(textColor, true);
-                System.Console.BackgroundColor = ToSystemColor(backgroundColor, false);
+                if (textColor == ConsoleColor.DefaultForeground || backgroundColor == ConsoleColor.DefaultBackground)
+                    System.Console.ResetColor();
+
+                if (textColor != ConsoleColor.DefaultForeground)
+                    System.Console.ForegroundColor = ToSystemColor(textColor);
+                if (backgroundColor != ConsoleColor.DefaultBackground)
+                    System.Console.BackgroundColor = ToSystemColor(backgroundColor);
+
                 System.Console.Write(text);
                 System.Console.ResetColor();
             }
@@ -79,9 +85,32 @@ namespace AmbientOS.UI
             return result;
         }
 
-        public KeyPress Read()
+        public KeyPress Read(Context context)
         {
-            var key = System.Console.ReadKey(true);
+
+            ConsoleKeyInfo key = default(ConsoleKeyInfo);
+
+
+            var s = new System.Threading.ManualResetEvent(false);
+            var t = new System.Threading.Thread(() => {
+                key = System.Console.ReadKey(true);
+                s.Set();
+            });
+            t.Start();
+
+
+            System.Console.Title = "lol this is a title";
+            context.Controller.OnCancellation(() => {
+
+                // todo: this works like this but it's not great, we need to unsubscribe the handler if readkey succeeds
+
+                t.Abort();
+                s.Set();
+            });
+
+            s.WaitOne();
+            context.Controller.ThrowIfCancellationRequested();
+
             return new KeyPress() {
                 Key = Convert(key.Key),
                 Modifiers = Convert(key.Modifiers),
@@ -91,12 +120,25 @@ namespace AmbientOS.UI
 
         public void Clear(ConsoleColor color)
         {
-            System.Console.Clear();
+            //System.Console.Clear();
+            SetCursorPosition(new Vector2D<int>(0, 0), false);
+            Write(new string(Enumerable.Repeat(' ', System.Console.WindowWidth * System.Console.WindowHeight).ToArray()), ConsoleColor.DefaultForeground, ConsoleColor.DefaultBackground);
+            SetCursorPosition(new Vector2D<int>(0, 0), false);
+        }
+
+        public void Scroll(int lines)
+        {
+            System.Console.SetWindowPosition(0, Math.Max(0, System.Console.WindowTop + lines));
+        }
+
+        public void CopyArea(Vector2D<int> source, Vector2D<int> destination, Vector2D<int> size)
+        {
+            System.Console.MoveBufferArea(source.X, source.Y, size.X, size.Y, destination.X, destination.Y);
         }
 
         public Vector2D<int> GetDimensions()
         {
-            return new Vector2D<int>(System.Console.BufferWidth, System.Console.BufferHeight);
+            return new Vector2D<int>(System.Console.WindowWidth, System.Console.WindowHeight);
         }
 
         public Vector2D<int> GetCursorPosition()

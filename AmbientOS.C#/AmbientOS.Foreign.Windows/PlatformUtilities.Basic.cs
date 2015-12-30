@@ -5,7 +5,8 @@ using AmbientOS.FileSystem;
 namespace AmbientOS
 {
     /// <summary>
-    /// Provides basic utility functions for the Windows platform
+    /// Provides basic utility functions for the Windows platform.
+    /// These features are also available in sandboxed (Windows Store) apps.
     /// </summary>
     static partial class PlatformUtilities
     {
