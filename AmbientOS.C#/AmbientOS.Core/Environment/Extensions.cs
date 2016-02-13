@@ -13,12 +13,7 @@ namespace AmbientOS.Environment
         /// </summary>
         public static bool CanHandle(this IAction handler, IObjectRef obj)
         {
-            var handlerAppearances = new ObjectAppearance[] { handler.GetAppearance() };
-            return new ObjectAppearance[] { obj.GetAppearance() }.Select(set => {
-                var dict = set.attributes.ToDictionary(a => "obj." + a.Key, a => a.Value);
-                dict["input"] = obj.GetTypeName();
-                return new ObjectAppearance(dict);
-            }).Any(constraints => handlerAppearances.Any(appearance => appearance.CompliesTo(constraints)));
+            return handler.CompliesTo(obj.GetHandlerConstraints());
         }
     }
 }

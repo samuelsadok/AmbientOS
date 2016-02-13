@@ -9,6 +9,7 @@ namespace AmbientOS.FileSystem.NTFS
     class NTFSVolume : IFileSystemImpl
     {
         public IFileSystem FileSystemRef { get; }
+        public DynamicEndpoint<string> Name { get; }
 
         /// <summary>
         /// The NTFS volume boot record
@@ -170,7 +171,7 @@ namespace AmbientOS.FileSystem.NTFS
             var file = GetRoot().NavigateToFile(path, OpenMode.Existing).AsImplementation<NTFSFile>();
             foreach (var attr in file.FileRecord.attributes)
                 log.Debug("  attribute: 0x{0:X8} \"{1}\"", Utilities.EnumToInt(attr.type), attr.name);
-            var buffer = file.FileRef.Read(0, file.GetSize().Value);
+            var buffer = file.FileRef.Read(0, file.Size.Get().Value);
             using (var logFile = System.IO.File.OpenWrite(target))
                 logFile.Write(buffer, 0, buffer.Count());
             log.Debug("dump succeeded, length was {0}", buffer.Length);
@@ -184,19 +185,20 @@ namespace AmbientOS.FileSystem.NTFS
             issues = new List<string>();
 
             this.rawVolume = rawVolume;
-            var info = rawVolume.GetInfo();
+            var info = rawVolume.Info;
+            var rawSize = rawVolume.Size;
 
             var vbrBuffer = new byte[512]; // The VBR is 512 bytes long, period. Even on a 4k sector disk.
             rawVolume.Read(0, vbrBuffer.Length, vbrBuffer, 0);
             var vbr = vbrBuffer.ReadObject<VBR>(0);
-            rawVolume.Read(rawVolume.GetSize() - vbrBuffer.Length, vbrBuffer.Length, vbrBuffer, 0);
+            rawVolume.Read(rawSize.GetValue() - vbrBuffer.Length, vbrBuffer.Length, vbrBuffer, 0);
             var vbrMirr = vbrBuffer.ReadObject<VBR>(0);
 
             if (vbr.magicNumber != "NTFS    ")
                 throw new AOSRejectException("The volume does not contain an NTFS file system", verb, rawVolume);
 
-            if (vbr.volumeLength * vbr.bytesPerSector != rawVolume.GetSize())
-                issues.Add(string.Format("the filesystem reports a volume size different from the actual volume size (expected: {0} bytes, actual: {1} bytes)", vbr.volumeLength * vbr.bytesPerSector, rawVolume.GetSize()));
+            if (vbr.volumeLength * vbr.bytesPerSector != rawSize.GetValue())
+                issues.Add(string.Format("the filesystem reports a volume size different from the actual volume size (expected: {0} bytes, actual: {1} bytes)", vbr.volumeLength * vbr.bytesPerSector, rawSize.GetValue()));
 
             bytesPerSector = vbr.bytesPerSector;
             sectorsPerCluster = vbr.sectorsPerCluster;
@@ -240,6 +242,25 @@ namespace AmbientOS.FileSystem.NTFS
                 Volume = MFTMir.GetFile(3, null);
             }
 
+
+            Name = new DynamicEndpoint<string>(
+                () => {
+                    var attr = Volume.FileRecord.ReadAttribute(NTFSAttributeType.VolumeName, null);
+                    return attr.ReadString(0, attr.Length / 2, StringFormat.Unicode, Endianness.LittleEndian); ;
+                },
+                val => {
+                    if (val == null)
+                        throw new ArgumentNullException($"{val}");
+
+                    var buffer = new byte[val.Length * 2];
+                    buffer.WriteVal(0, val, StringFormat.Unicode, Endianness.LittleEndian);
+
+                    var attr = Volume.FileRecord.GetAttributes(NTFSAttributeType.VolumeName, null).First();
+                    attr.ChangeSize(buffer.Length);
+                    attr.Write(0, buffer.Length, buffer, 0);
+                });
+
+
             // load some more basic NTFS files
             AttrDef = MFT.GetFile(4, null);
             RootDir = MFT.GetFile(5, null);
@@ -250,7 +271,7 @@ namespace AmbientOS.FileSystem.NTFS
             // the remaining entries are only available on higher NTFS versions
 
 
-            context.Log.Debug("Volume name: \"{0}\"", GetName());
+            context.Log.Debug("Volume name: \"{0}\"", Name.Get());
 
             var ntfsVolInfo = Volume.FileRecord.ReadAttribute(NTFSAttributeType.VolumeInformation, null);
             var flags = ntfsVolInfo.ReadInt16(0, Endianness.LittleEndian);
@@ -267,7 +288,7 @@ namespace AmbientOS.FileSystem.NTFS
 
             if (ntfsVolInfo[8] >= 3) {
                 var upcaseFile = MFT.GetFile(0xA, RootDir);
-                var upcaseFileSize = upcaseFile.GetSize().Value;
+                var upcaseFileSize = upcaseFile.Size.Get().Value;
                 long temp = 0;
                 if (upcaseFileSize == 2 * (1 << 16))
                     UpCase = upcaseFile.FileRef.Read(0, upcaseFileSize).ReadUInt16Arr(ref temp, 1 << 16, Endianness.LittleEndian);
@@ -277,7 +298,7 @@ namespace AmbientOS.FileSystem.NTFS
 
 
             foreach (var f in GetRoot().NavigateToFolder("$Extend/$RmMetadata/$TxfLog", OpenMode.Existing).GetChildren())
-                context.Log.Debug("{0}: {1}", f.Cast<IFile>() != null ? "f" : "d", f.GetName());
+                context.Log.Debug("{0}: {1}", f.Cast<IFile>() != null ? "f" : "d", f.Name.GetValue());
 
 
             //for (long i = 0; i < MFT.DataAttribute.GetSize() / bytesPerMFTRecord; i++) {
@@ -321,25 +342,6 @@ namespace AmbientOS.FileSystem.NTFS
             return namingConventions;
         }
 
-        public string GetName()
-        {
-            var attr = Volume.FileRecord.ReadAttribute(NTFSAttributeType.VolumeName, null);
-            return attr.ReadString(0, attr.Length / 2, StringFormat.Unicode, Endianness.LittleEndian); ;
-        }
-
-        public void SetName(string name)
-        {
-            if (name == null)
-                throw new ArgumentNullException($"{name}");
-
-            var buffer = new byte[name.Length * 2];
-            buffer.WriteVal(0, name, StringFormat.Unicode, Endianness.LittleEndian);
-
-            var attr = Volume.FileRecord.GetAttributes(NTFSAttributeType.VolumeName, null).First();
-            attr.ChangeSize(buffer.Length);
-            attr.Write(0, buffer.Length, buffer, 0);
-        }
-
         public IFolder GetRoot()
         {
             return RootDir.FolderRef.Retain();
@@ -347,7 +349,7 @@ namespace AmbientOS.FileSystem.NTFS
 
         public long? GetTotalSpace()
         {
-            return rawVolume.GetSize();
+            return rawVolume.Size.GetValue();
         }
 
         public long? GetFreeSpace()
@@ -355,7 +357,7 @@ namespace AmbientOS.FileSystem.NTFS
             long freeClusters = 0;
 
             var buffer = new byte[16777216];
-            var length = Math.Min(Bitmap.Data.GetSize(), (rawVolume.GetSize() / bytesPerCluster + 7) / 8);
+            var length = Math.Min(Bitmap.Data.GetSize(), (rawVolume.Size.GetValue() / bytesPerCluster + 7) / 8);
             long offset = 0;
 
             while (length > 0) {

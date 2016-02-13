@@ -22,19 +22,12 @@ namespace AmbientOS
 
         public IApplication ApplicationRef { get; }
 
+        public DynamicEndpoint<string> Name { get; } = new DynamicEndpoint<string>("AmbientOS Testing Tool", PropertyAccess.ReadOnly);
+        public DynamicEndpoint<string> Description { get; } = new DynamicEndpoint<string>("Facility to test AmbientOS core components and different kinds of services.", PropertyAccess.ReadOnly);
+
         public Tester()
         {
             ApplicationRef = new ApplicationRef(this);
-        }
-
-        public string GetName()
-        {
-            return "AmbientOS Testing Tool";
-        }
-
-        public string GetDescription()
-        {
-            return "Facility to test AmbientOS core components and different kinds of services.";
         }
 
         public void Run(Context context)
@@ -61,34 +54,34 @@ namespace AmbientOS
             //
             //});
 
-            var answer = 0;
-            //var answer = context.UI.PresentDialog(new Text() {
-            //    Summary = "This is a summary",
-            //    Details = "and these are the details"
-            //}, new Option[] {
-            //new Option() {
-            //    Text = new Text() {
-            //        Summary = "This is an option",
-            //        Details = "And here are some details"
-            //    },
-            //    Level = Level.Easy
-            //},
-            //new Option() {
-            //    Text = new Text() {
-            //        Summary = "Another option",
-            //        Details = "And more details"
-            //    },
-            //    Level = Level.Recommended
-            //},
-            //new Option() {
-            //    Text = new Text() {
-            //        Summary = "And a third option",
-            //        Details = "And even more details"
-            //    },
-            //    Level = Level.Escape
-            //}
-            //}
-            //);
+            //var answer = 0;
+            var answer = context.UI.PresentDialog(new Text() {
+                Summary = "This is a summary",
+                Details = "and these are the details"
+            }, new Option[] {
+            new Option() {
+                Text = new Text() {
+                    Summary = "This is an option",
+                    Details = "And here are some details"
+                },
+                Level = Level.Easy
+            },
+            new Option() {
+                Text = new Text() {
+                    Summary = "Another option",
+                    Details = "And more details"
+                },
+                Level = Level.Recommended
+            },
+            new Option() {
+                Text = new Text() {
+                    Summary = "And a third option",
+                    Details = "And even more details"
+                },
+                Level = Level.Escape
+            }
+            }
+            );
 
             context.Log.Log("selected option: " + answer);
 

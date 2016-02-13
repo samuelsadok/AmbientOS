@@ -12,6 +12,9 @@ namespace AmbientOS.UI
         static System.ConsoleColor defaultBackgroundColor = System.Console.BackgroundColor;
 
         public IConsole ConsoleRef { get; }
+        public DynamicEndpoint<Vector2D<int>> WindowSize { get; }
+        public DynamicEndpoint<Vector2D<int>> CursorPosition { get; }
+        public DynamicEndpoint<bool> CursorVisibility { get; }
 
         private static IConsole console = new SystemConsole().ConsoleRef.Retain();
         public static IConsole Console { get { return console; } }
@@ -37,6 +40,21 @@ namespace AmbientOS.UI
         public SystemConsole()
         {
             ConsoleRef = new ConsoleRef(this);
+
+            WindowSize = new DynamicEndpoint<Vector2D<int>>(
+                () => new Vector2D<int>(System.Console.WindowWidth, System.Console.WindowHeight),
+                val => System.Console.SetWindowSize(val.X, val.Y)
+                );
+
+            CursorPosition = new DynamicEndpoint<Vector2D<int>>(
+                () => new Vector2D<int>(System.Console.CursorLeft, System.Console.CursorTop),
+                val => System.Console.SetCursorPosition(val.X, val.Y)
+                );
+
+            CursorVisibility = new DynamicEndpoint<bool>(
+                () => System.Console.CursorVisible,
+                val => System.Console.CursorVisible = val
+                );
         }
 
         public void Write(string text, ConsoleColor textColor, ConsoleColor backgroundColor)
@@ -120,10 +138,11 @@ namespace AmbientOS.UI
 
         public void Clear(ConsoleColor color)
         {
-            //System.Console.Clear();
-            SetCursorPosition(new Vector2D<int>(0, 0), false);
+            //System.Console.Clear(); // this scrolls down on Unix (which we don't want)
+
+            System.Console.SetCursorPosition(0, 0);
             Write(new string(Enumerable.Repeat(' ', System.Console.WindowWidth * System.Console.WindowHeight).ToArray()), ConsoleColor.DefaultForeground, ConsoleColor.DefaultBackground);
-            SetCursorPosition(new Vector2D<int>(0, 0), false);
+            System.Console.SetCursorPosition(0, 0);
         }
 
         public void Scroll(int lines)
@@ -134,22 +153,6 @@ namespace AmbientOS.UI
         public void CopyArea(Vector2D<int> source, Vector2D<int> destination, Vector2D<int> size)
         {
             System.Console.MoveBufferArea(source.X, source.Y, size.X, size.Y, destination.X, destination.Y);
-        }
-
-        public Vector2D<int> GetDimensions()
-        {
-            return new Vector2D<int>(System.Console.WindowWidth, System.Console.WindowHeight);
-        }
-
-        public Vector2D<int> GetCursorPosition()
-        {
-            return new Vector2D<int>(System.Console.CursorLeft, System.Console.CursorTop);
-        }
-
-        public void SetCursorPosition(Vector2D<int> position, bool visible)
-        {
-            System.Console.SetCursorPosition(position.X, position.Y);
-            System.Console.CursorVisible = visible;
         }
     }
 }

@@ -39,9 +39,6 @@ namespace AmbientOS
             FileSystem.IFolder GetTempFolder();
         }
 
-        /// <summary>
-        /// Represents the environment in which an action is executed.
-        /// </summary>
         [AOSInterface("AmbientOS.Environment.Environment", typeof(IEnvironmentImpl), typeof(EnvironmentRef))]
         public interface IEnvironmentImpl : IObjectImpl
         {
@@ -56,9 +53,6 @@ namespace AmbientOS
             FileSystem.IFolder GetTempFolder();
         }
 
-        /// <summary>
-        /// Represents the environment in which an action is executed.
-        /// </summary>
         public class EnvironmentRef : ObjectRef<IEnvironmentImpl>, IEnvironment
         {
             public EnvironmentRef(IEnvironmentImpl implementation)
@@ -67,14 +61,22 @@ namespace AmbientOS
                 baseReferences = new IObjectRef[] { };
             }
 
+            protected override void DeliverPropertiesTo(IEnvironmentImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IEnvironmentImpl implementation)
+            {
+            }
+
             /// <summary>
             /// todo: rework this concept
             /// what properties does a temp folder have? in what context does it exist (application? any object?), when will it be cleared?
             /// maybe this should be combined with access to other kinds of folders (application data, ...)
             /// and the thought seems to go a similar way with storing settings
             /// </summary>
-            FileSystem.IFolder IEnvironment.GetTempFolder()
+            public FileSystem.IFolder GetTempFolder()
             {
+                Barrier();
                 return implementation.GetTempFolder();
             }
         }
@@ -90,15 +92,13 @@ namespace AmbientOS
         {
             /// <summary>
             /// Returns a human readable name of the application.
-            /// todo: make this a dynamic property
             /// </summary>
-            string GetName();
+            DynamicProperty<string> Name { get; }
 
             /// <summary>
             /// Returns a human readable description of the application.
-            /// todo: make this a dynamic property
             /// </summary>
-            string GetDescription();
+            DynamicProperty<string> Description { get; }
 
             /// <summary>
             /// Loads and runs the application if neccessary.
@@ -107,11 +107,6 @@ namespace AmbientOS
             void Run(Context context);
         }
 
-        /// <summary>
-        /// Represents an application.
-        /// todo: define this interface.
-        /// consider: application icon, associated actions, update, ...
-        /// </summary>
         [AOSInterface("AmbientOS.Environment.Application", typeof(IApplicationImpl), typeof(ApplicationRef))]
         public interface IApplicationImpl : IObjectImpl
         {
@@ -119,15 +114,13 @@ namespace AmbientOS
 
             /// <summary>
             /// Returns a human readable name of the application.
-            /// todo: make this a dynamic property
             /// </summary>
-            string GetName();
+            DynamicEndpoint<string> Name { get; }
 
             /// <summary>
             /// Returns a human readable description of the application.
-            /// todo: make this a dynamic property
             /// </summary>
-            string GetDescription();
+            DynamicEndpoint<string> Description { get; }
 
             /// <summary>
             /// Loads and runs the application if neccessary.
@@ -136,43 +129,46 @@ namespace AmbientOS
             void Run(Context context);
         }
 
-        /// <summary>
-        /// Represents an application.
-        /// todo: define this interface.
-        /// consider: application icon, associated actions, update, ...
-        /// </summary>
         public class ApplicationRef : ObjectRef<IApplicationImpl>, IApplication
         {
             public ApplicationRef(IApplicationImpl implementation)
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IApplication_Name = new DynamicProperty<string>(communicationSignal);
+                IApplication_Description = new DynamicProperty<string>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IApplicationImpl implementation)
+            {
+                IApplication_Name.DeliverTo(implementation.Name);
+                IApplication_Description.DeliverTo(implementation.Description);
+            }
+            protected override void FetchPropertiesFrom(IApplicationImpl implementation)
+            {
+                IApplication_Name.FetchFrom(implementation.Name);
+                IApplication_Description.FetchFrom(implementation.Description);
             }
 
             /// <summary>
             /// Returns a human readable name of the application.
-            /// todo: make this a dynamic property
             /// </summary>
-            string IApplication.GetName()
-            {
-                return implementation.GetName();
-            }
+            DynamicProperty<string> IApplication.Name { get { return IApplication_Name.Get(); } }
+            readonly DynamicProperty<string> IApplication_Name;
 
             /// <summary>
             /// Returns a human readable description of the application.
-            /// todo: make this a dynamic property
             /// </summary>
-            string IApplication.GetDescription()
-            {
-                return implementation.GetDescription();
-            }
+            DynamicProperty<string> IApplication.Description { get { return IApplication_Description.Get(); } }
+            readonly DynamicProperty<string> IApplication_Description;
 
             /// <summary>
             /// Loads and runs the application if neccessary.
             /// todo: if this is called multiple times for the same application, it should either start a new instance or resume the running instance, depending on whatever policy
             /// </summary>
-            void IApplication.Run(Context context)
+            public void Run(Context context)
             {
+                Barrier();
                 implementation.Run(context);
             }
         }
@@ -187,27 +183,27 @@ namespace AmbientOS
             /// <summary>
             /// Returns the verb that this action represents.
             /// </summary>
-            string GetVerb();
-
-            /// <summary>
-            /// Indicates the name of the type that this action expects as an input.
-            /// </summary>
-            string GetInputTypeName();
+            DynamicProperty<string> Verb { get; }
 
             /// <summary>
             /// Returns the type that this action expects as an input.
             /// </summary>
-            Type GetInputType();
-
-            /// <summary>
-            /// Indicates the name of the type that this action returns as an output.
-            /// </summary>
-            string GetOutputTypeName();
+            DynamicProperty<Type> InputType { get; }
 
             /// <summary>
             /// Returns the type that this action returns as an output.
             /// </summary>
-            Type GetOutputType();
+            DynamicProperty<Type> OutputType { get; }
+
+            /// <summary>
+            /// Indicates the name of the type that this action expects as an input.
+            /// </summary>
+            DynamicProperty<string> InputTypeName { get; }
+
+            /// <summary>
+            /// Indicates the name of the type that this action returns as an output.
+            /// </summary>
+            DynamicProperty<string> OutputTypeName { get; }
 
             /// <summary>
             /// Excecutes this action on the specified object.
@@ -219,13 +215,7 @@ namespace AmbientOS
             DynamicSet<IObjectRef> Invoke(IObjectRef obj, Context context);
         }
 
-        /// <summary>
-        /// Represents an action that can execute a verb on specific kinds of objects.
-        /// </summary>
         [AOSInterface("AmbientOS.Environment.Action", typeof(IActionImpl), typeof(ActionRef))]
-        [AOSAttribute("verb", "GetVerb")]
-        [AOSAttribute("input", "GetInputTypeName")]
-        [AOSAttribute("output", "GetOutputTypeName")]
         public interface IActionImpl : IObjectImpl
         {
             IAction ActionRef { get; }
@@ -233,27 +223,27 @@ namespace AmbientOS
             /// <summary>
             /// Returns the verb that this action represents.
             /// </summary>
-            string GetVerb();
-
-            /// <summary>
-            /// Indicates the name of the type that this action expects as an input.
-            /// </summary>
-            string GetInputTypeName();
+            DynamicEndpoint<string> Verb { get; }
 
             /// <summary>
             /// Returns the type that this action expects as an input.
             /// </summary>
-            Type GetInputType();
-
-            /// <summary>
-            /// Indicates the name of the type that this action returns as an output.
-            /// </summary>
-            string GetOutputTypeName();
+            DynamicEndpoint<Type> InputType { get; }
 
             /// <summary>
             /// Returns the type that this action returns as an output.
             /// </summary>
-            Type GetOutputType();
+            DynamicEndpoint<Type> OutputType { get; }
+
+            /// <summary>
+            /// Indicates the name of the type that this action expects as an input.
+            /// </summary>
+            DynamicEndpoint<string> InputTypeName { get; }
+
+            /// <summary>
+            /// Indicates the name of the type that this action returns as an output.
+            /// </summary>
+            DynamicEndpoint<string> OutputTypeName { get; }
 
             /// <summary>
             /// Excecutes this action on the specified object.
@@ -265,56 +255,65 @@ namespace AmbientOS
             DynamicSet<IObjectRef> Invoke(IObjectRef obj, Context context);
         }
 
-        /// <summary>
-        /// Represents an action that can execute a verb on specific kinds of objects.
-        /// </summary>
         public class ActionRef : ObjectRef<IActionImpl>, IAction
         {
             public ActionRef(IActionImpl implementation)
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IAction_Verb = new DynamicProperty<string>(communicationSignal);
+                IAction_InputType = new DynamicProperty<Type>(communicationSignal);
+                IAction_OutputType = new DynamicProperty<Type>(communicationSignal);
+                IAction_InputTypeName = new DynamicProperty<string>(communicationSignal);
+                IAction_OutputTypeName = new DynamicProperty<string>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IActionImpl implementation)
+            {
+                IAction_Verb.DeliverTo(implementation.Verb);
+                IAction_InputType.DeliverTo(implementation.InputType);
+                IAction_OutputType.DeliverTo(implementation.OutputType);
+                IAction_InputTypeName.DeliverTo(implementation.InputTypeName);
+                IAction_OutputTypeName.DeliverTo(implementation.OutputTypeName);
+            }
+            protected override void FetchPropertiesFrom(IActionImpl implementation)
+            {
+                IAction_Verb.FetchFrom(implementation.Verb);
+                IAction_InputType.FetchFrom(implementation.InputType);
+                IAction_OutputType.FetchFrom(implementation.OutputType);
+                IAction_InputTypeName.FetchFrom(implementation.InputTypeName);
+                IAction_OutputTypeName.FetchFrom(implementation.OutputTypeName);
             }
 
             /// <summary>
             /// Returns the verb that this action represents.
             /// </summary>
-            string IAction.GetVerb()
-            {
-                return implementation.GetVerb();
-            }
-
-            /// <summary>
-            /// Indicates the name of the type that this action expects as an input.
-            /// </summary>
-            string IAction.GetInputTypeName()
-            {
-                return implementation.GetInputTypeName();
-            }
+            DynamicProperty<string> IAction.Verb { get { return IAction_Verb.Get(); } }
+            readonly DynamicProperty<string> IAction_Verb;
 
             /// <summary>
             /// Returns the type that this action expects as an input.
             /// </summary>
-            Type IAction.GetInputType()
-            {
-                return implementation.GetInputType();
-            }
-
-            /// <summary>
-            /// Indicates the name of the type that this action returns as an output.
-            /// </summary>
-            string IAction.GetOutputTypeName()
-            {
-                return implementation.GetOutputTypeName();
-            }
+            DynamicProperty<Type> IAction.InputType { get { return IAction_InputType.Get(); } }
+            readonly DynamicProperty<Type> IAction_InputType;
 
             /// <summary>
             /// Returns the type that this action returns as an output.
             /// </summary>
-            Type IAction.GetOutputType()
-            {
-                return implementation.GetOutputType();
-            }
+            DynamicProperty<Type> IAction.OutputType { get { return IAction_OutputType.Get(); } }
+            readonly DynamicProperty<Type> IAction_OutputType;
+
+            /// <summary>
+            /// Indicates the name of the type that this action expects as an input.
+            /// </summary>
+            DynamicProperty<string> IAction.InputTypeName { get { return IAction_InputTypeName.Get(); } }
+            readonly DynamicProperty<string> IAction_InputTypeName;
+
+            /// <summary>
+            /// Indicates the name of the type that this action returns as an output.
+            /// </summary>
+            DynamicProperty<string> IAction.OutputTypeName { get { return IAction_OutputTypeName.Get(); } }
+            readonly DynamicProperty<string> IAction_OutputTypeName;
 
             /// <summary>
             /// Excecutes this action on the specified object.
@@ -323,8 +322,9 @@ namespace AmbientOS
             /// </summary>
             /// <param name="obj">The object on which to execute the action</param>
             /// <param name="context">The context in which to execute the action</param>
-            DynamicSet<IObjectRef> IAction.Invoke(IObjectRef obj, Context context)
+            public DynamicSet<IObjectRef> Invoke(IObjectRef obj, Context context)
             {
+                Barrier();
                 return implementation.Invoke(obj, context);
             }
         }
@@ -507,10 +507,31 @@ namespace AmbientOS
         public interface IConsole : IObjectRef
         {
             /// <summary>
+            /// The size of the console in chars.
+            /// </summary>
+            DynamicProperty<Vector2D<int>> WindowSize { get; }
+
+            /// <summary>
+            /// Gets or sets the current cursor position. (0, 0) denotes the top left corner of the console.
+            /// </summary>
+            DynamicProperty<Vector2D<int>> CursorPosition { get; }
+
+            /// <summary>
+            /// Gets or sets the visibility of the cursor.
+            /// </summary>
+            DynamicProperty<bool> CursorVisibility { get; }
+
+            /// <summary>
             /// Prints the specified text on the console starting at the current cursor position.
             /// The cursor is advanced to the location after the text.
             /// If a character is printed below the last line, the buffer is scrolled accordingly.
             /// This function shall accept \n as a new line character.
+            /// 
+            /// todo: differentiate between the following cases:
+            /// 1. bare input/output streams (i.e. a serial communication line)
+            /// 2. a simple text-based screen buffer (where we can print any char anywhere)
+            /// 3. a fully controllable terminal (where we can clear the screen and scroll)
+            /// case 3 can be built from case 2 or from System.Console (this works only on Windows though)
             /// </summary>
             /// <param name="textColor">The text color (this may be ignored by some implementations).</param>
             /// <param name="backgroundColor">The background color (this may be ignored by some implementations).</param>
@@ -535,32 +556,6 @@ namespace AmbientOS
             /// </summary>
             /// <param name="lines">The number of lines. Positive is down, negative is up.</param>
             void Scroll(int lines);
-
-            /// <summary>
-            /// Copies an area of the buffer.
-            /// </summary>
-            /// <param name="source">The top left point of the source rectangle.</param>
-            /// <param name="destination">The top left point of the destination rectangle.</param>
-            /// <param name="size">The size area to be copied.</param>
-            void CopyArea(Vector2D<int> source, Vector2D<int> destination, Vector2D<int> size);
-
-            /// <summary>
-            /// Returns the size of the console in chars.
-            /// </summary>
-            Vector2D<int> GetDimensions();
-
-            /// <summary>
-            /// Returns the current cursor position.
-            /// </summary>
-            Vector2D<int> GetCursorPosition();
-
-            /// <summary>
-            /// Sets the cursor position.
-            /// (0, 0) denotes the top left corner of the buffer.
-            /// </summary>
-            /// <param name="position">The new cursor position</param>
-            /// <param name="visible">Indicates whether the cursor should be visible</param>
-            void SetCursorPosition(Vector2D<int> position, bool visible);
         }
 
         [AOSInterface("AmbientOS.UI.Console", typeof(IConsoleImpl), typeof(ConsoleRef))]
@@ -569,10 +564,31 @@ namespace AmbientOS
             IConsole ConsoleRef { get; }
 
             /// <summary>
+            /// The size of the console in chars.
+            /// </summary>
+            DynamicEndpoint<Vector2D<int>> WindowSize { get; }
+
+            /// <summary>
+            /// Gets or sets the current cursor position. (0, 0) denotes the top left corner of the console.
+            /// </summary>
+            DynamicEndpoint<Vector2D<int>> CursorPosition { get; }
+
+            /// <summary>
+            /// Gets or sets the visibility of the cursor.
+            /// </summary>
+            DynamicEndpoint<bool> CursorVisibility { get; }
+
+            /// <summary>
             /// Prints the specified text on the console starting at the current cursor position.
             /// The cursor is advanced to the location after the text.
             /// If a character is printed below the last line, the buffer is scrolled accordingly.
             /// This function shall accept \n as a new line character.
+            /// 
+            /// todo: differentiate between the following cases:
+            /// 1. bare input/output streams (i.e. a serial communication line)
+            /// 2. a simple text-based screen buffer (where we can print any char anywhere)
+            /// 3. a fully controllable terminal (where we can clear the screen and scroll)
+            /// case 3 can be built from case 2 or from System.Console (this works only on Windows though)
             /// </summary>
             /// <param name="textColor">The text color (this may be ignored by some implementations).</param>
             /// <param name="backgroundColor">The background color (this may be ignored by some implementations).</param>
@@ -597,32 +613,6 @@ namespace AmbientOS
             /// </summary>
             /// <param name="lines">The number of lines. Positive is down, negative is up.</param>
             void Scroll(int lines);
-
-            /// <summary>
-            /// Copies an area of the buffer.
-            /// </summary>
-            /// <param name="source">The top left point of the source rectangle.</param>
-            /// <param name="destination">The top left point of the destination rectangle.</param>
-            /// <param name="size">The size area to be copied.</param>
-            void CopyArea(Vector2D<int> source, Vector2D<int> destination, Vector2D<int> size);
-
-            /// <summary>
-            /// Returns the size of the console in chars.
-            /// </summary>
-            Vector2D<int> GetDimensions();
-
-            /// <summary>
-            /// Returns the current cursor position.
-            /// </summary>
-            Vector2D<int> GetCursorPosition();
-
-            /// <summary>
-            /// Sets the cursor position.
-            /// (0, 0) denotes the top left corner of the buffer.
-            /// </summary>
-            /// <param name="position">The new cursor position</param>
-            /// <param name="visible">Indicates whether the cursor should be visible</param>
-            void SetCursorPosition(Vector2D<int> position, bool visible);
         }
 
         public class ConsoleRef : ObjectRef<IConsoleImpl>, IConsole
@@ -631,18 +621,59 @@ namespace AmbientOS
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IConsole_WindowSize = new DynamicProperty<Vector2D<int>>(communicationSignal);
+                IConsole_CursorPosition = new DynamicProperty<Vector2D<int>>(communicationSignal);
+                IConsole_CursorVisibility = new DynamicProperty<bool>(communicationSignal);
             }
+
+            protected override void DeliverPropertiesTo(IConsoleImpl implementation)
+            {
+                IConsole_WindowSize.DeliverTo(implementation.WindowSize);
+                IConsole_CursorPosition.DeliverTo(implementation.CursorPosition);
+                IConsole_CursorVisibility.DeliverTo(implementation.CursorVisibility);
+            }
+            protected override void FetchPropertiesFrom(IConsoleImpl implementation)
+            {
+                IConsole_WindowSize.FetchFrom(implementation.WindowSize);
+                IConsole_CursorPosition.FetchFrom(implementation.CursorPosition);
+                IConsole_CursorVisibility.FetchFrom(implementation.CursorVisibility);
+            }
+
+            /// <summary>
+            /// The size of the console in chars.
+            /// </summary>
+            DynamicProperty<Vector2D<int>> IConsole.WindowSize { get { return IConsole_WindowSize.Get(); } }
+            readonly DynamicProperty<Vector2D<int>> IConsole_WindowSize;
+
+            /// <summary>
+            /// Gets or sets the current cursor position. (0, 0) denotes the top left corner of the console.
+            /// </summary>
+            DynamicProperty<Vector2D<int>> IConsole.CursorPosition { get { return IConsole_CursorPosition.Get(); } }
+            readonly DynamicProperty<Vector2D<int>> IConsole_CursorPosition;
+
+            /// <summary>
+            /// Gets or sets the visibility of the cursor.
+            /// </summary>
+            DynamicProperty<bool> IConsole.CursorVisibility { get { return IConsole_CursorVisibility.Get(); } }
+            readonly DynamicProperty<bool> IConsole_CursorVisibility;
 
             /// <summary>
             /// Prints the specified text on the console starting at the current cursor position.
             /// The cursor is advanced to the location after the text.
             /// If a character is printed below the last line, the buffer is scrolled accordingly.
             /// This function shall accept \n as a new line character.
+            /// 
+            /// todo: differentiate between the following cases:
+            /// 1. bare input/output streams (i.e. a serial communication line)
+            /// 2. a simple text-based screen buffer (where we can print any char anywhere)
+            /// 3. a fully controllable terminal (where we can clear the screen and scroll)
+            /// case 3 can be built from case 2 or from System.Console (this works only on Windows though)
             /// </summary>
             /// <param name="textColor">The text color (this may be ignored by some implementations).</param>
             /// <param name="backgroundColor">The background color (this may be ignored by some implementations).</param>
-            void IConsole.Write(string text, ConsoleColor textColor, ConsoleColor backgroundColor)
+            public void Write(string text, ConsoleColor textColor, ConsoleColor backgroundColor)
             {
+                Barrier();
                 implementation.Write(text, textColor, backgroundColor);
             }
 
@@ -651,8 +682,9 @@ namespace AmbientOS
             /// Modifier keys are not recognized on their own.
             /// The pressed key is not printed to the console.
             /// </summary>
-            KeyPress IConsole.Read(Context context)
+            public KeyPress Read(Context context)
             {
+                Barrier();
                 return implementation.Read(context);
             }
 
@@ -660,8 +692,9 @@ namespace AmbientOS
             /// Clears the visible console buffer.
             /// </summary>
             /// <param name="color">The background color</param>
-            void IConsole.Clear(ConsoleColor color)
+            public void Clear(ConsoleColor color)
             {
+                Barrier();
                 implementation.Clear(color);
             }
 
@@ -670,47 +703,10 @@ namespace AmbientOS
             /// This may not work on some consoles.
             /// </summary>
             /// <param name="lines">The number of lines. Positive is down, negative is up.</param>
-            void IConsole.Scroll(int lines)
+            public void Scroll(int lines)
             {
+                Barrier();
                 implementation.Scroll(lines);
-            }
-
-            /// <summary>
-            /// Copies an area of the buffer.
-            /// </summary>
-            /// <param name="source">The top left point of the source rectangle.</param>
-            /// <param name="destination">The top left point of the destination rectangle.</param>
-            /// <param name="size">The size area to be copied.</param>
-            void IConsole.CopyArea(Vector2D<int> source, Vector2D<int> destination, Vector2D<int> size)
-            {
-                implementation.CopyArea(source, destination, size);
-            }
-
-            /// <summary>
-            /// Returns the size of the console in chars.
-            /// </summary>
-            Vector2D<int> IConsole.GetDimensions()
-            {
-                return implementation.GetDimensions();
-            }
-
-            /// <summary>
-            /// Returns the current cursor position.
-            /// </summary>
-            Vector2D<int> IConsole.GetCursorPosition()
-            {
-                return implementation.GetCursorPosition();
-            }
-
-            /// <summary>
-            /// Sets the cursor position.
-            /// (0, 0) denotes the top left corner of the buffer.
-            /// </summary>
-            /// <param name="position">The new cursor position</param>
-            /// <param name="visible">Indicates whether the cursor should be visible</param>
-            void IConsole.SetCursorPosition(Vector2D<int> position, bool visible)
-            {
-                implementation.SetCursorPosition(position, visible);
             }
         }
 
@@ -746,17 +742,6 @@ namespace AmbientOS
             void Notify(Text message, Severity severity);
         }
 
-        /// <summary>
-        /// A shell is the environment in which an action is executed.
-        /// A shell may be a console, a graphical user interface, a speech based
-        /// interface or anything else that allows for interaction with the user.
-        /// 
-        /// Actually, let's refine that:
-        /// A shell is just an environment for the action, that can be used by the action
-        /// to interact with the platform. If, e.g. an action is executed in a console, that doesn't
-        /// mean that the console is used for all user interaction. The job of figuring out the right mode of
-        /// interaction is the job of the user experience service.
-        /// </summary>
         [AOSInterface("AmbientOS.UI.UI", typeof(IUIImpl), typeof(UIRef))]
         public interface IUIImpl : IObjectImpl
         {
@@ -779,23 +764,19 @@ namespace AmbientOS
             void Notify(Text message, Severity severity);
         }
 
-        /// <summary>
-        /// A shell is the environment in which an action is executed.
-        /// A shell may be a console, a graphical user interface, a speech based
-        /// interface or anything else that allows for interaction with the user.
-        /// 
-        /// Actually, let's refine that:
-        /// A shell is just an environment for the action, that can be used by the action
-        /// to interact with the platform. If, e.g. an action is executed in a console, that doesn't
-        /// mean that the console is used for all user interaction. The job of figuring out the right mode of
-        /// interaction is the job of the user experience service.
-        /// </summary>
         public class UIRef : ObjectRef<IUIImpl>, IUI
         {
             public UIRef(IUIImpl implementation)
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+            }
+
+            protected override void DeliverPropertiesTo(IUIImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IUIImpl implementation)
+            {
             }
 
             /// <summary>
@@ -806,8 +787,9 @@ namespace AmbientOS
             /// If there is are recommended options, the first one shall be selected.
             /// If there is no recommended option, the first option shall be selected.
             /// </summary>
-            int IUI.PresentDialog(Text message, Option[] options)
+            public int PresentDialog(Text message, Option[] options)
             {
+                Barrier();
                 return implementation.PresentDialog(message, options);
             }
 
@@ -815,8 +797,9 @@ namespace AmbientOS
             /// Notifies the user about something, e.g. a success or error message.
             /// Depending on the setting and severity, the message may disappear after some time or not be shown at all.
             /// </summary>
-            void IUI.Notify(Text message, Severity severity)
+            public void Notify(Text message, Severity severity)
             {
+                Barrier();
                 implementation.Notify(message, severity);
             }
         }
@@ -936,6 +919,7 @@ namespace AmbientOS
 
             /// <summary>
             /// The total number of sectors on one track of the disk.
+            /// Each track has the same number of sectors.
             /// </summary>
             public long Sectors;
 
@@ -966,7 +950,7 @@ namespace AmbientOS
             /// </summary>
             public Guid Type;
 
-            public FileSystemFlags flags;
+            public FileSystemFlags Flags;
         }
 
         public class VolumeExtent : IRefCounted
@@ -1078,18 +1062,9 @@ namespace AmbientOS
         public interface IDisk : IObjectRef
         {
             /// <summary>
-            /// Returns information about the disk.
+            /// Indicates information about the disk. It may be possible for virtual disks to change some of this information.
             /// </summary>
-            DiskInfo GetInfo();
-
-            /// <summary>
-            /// Changes the number of sectors in the disk.
-            /// This may be possible for virtual disks.
-            /// This affects all tracks equally.
-            /// Returns the actual size that was set. This may be different from the requested size if it's too large.
-            /// </summary>
-            /// <param name="sectorCount">New size in bytes.</param>
-            long SetSize(long sectorCount);
+            DynamicProperty<DiskInfo> Info { get; }
 
             /// <summary>
             /// Reads the specified sectors.
@@ -1109,7 +1084,7 @@ namespace AmbientOS
 
             /// <summary>
             /// Flushes any cached write operations to this disk to the device.
-            /// The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file shoud also be flushed.
+            /// The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file should also be flushed.
             /// The method must not return until the changes are committed to non-volatile storage.
             /// </summary>
             void Flush();
@@ -1121,18 +1096,9 @@ namespace AmbientOS
             IDisk DiskRef { get; }
 
             /// <summary>
-            /// Returns information about the disk.
+            /// Indicates information about the disk. It may be possible for virtual disks to change some of this information.
             /// </summary>
-            DiskInfo GetInfo();
-
-            /// <summary>
-            /// Changes the number of sectors in the disk.
-            /// This may be possible for virtual disks.
-            /// This affects all tracks equally.
-            /// Returns the actual size that was set. This may be different from the requested size if it's too large.
-            /// </summary>
-            /// <param name="sectorCount">New size in bytes.</param>
-            long SetSize(long sectorCount);
+            DynamicEndpoint<DiskInfo> Info { get; }
 
             /// <summary>
             /// Reads the specified sectors.
@@ -1152,7 +1118,7 @@ namespace AmbientOS
 
             /// <summary>
             /// Flushes any cached write operations to this disk to the device.
-            /// The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file shoud also be flushed.
+            /// The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file should also be flushed.
             /// The method must not return until the changes are committed to non-volatile storage.
             /// </summary>
             void Flush();
@@ -1164,27 +1130,23 @@ namespace AmbientOS
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IDisk_Info = new DynamicProperty<DiskInfo>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IDiskImpl implementation)
+            {
+                IDisk_Info.DeliverTo(implementation.Info);
+            }
+            protected override void FetchPropertiesFrom(IDiskImpl implementation)
+            {
+                IDisk_Info.FetchFrom(implementation.Info);
             }
 
             /// <summary>
-            /// Returns information about the disk.
+            /// Indicates information about the disk. It may be possible for virtual disks to change some of this information.
             /// </summary>
-            DiskInfo IDisk.GetInfo()
-            {
-                return implementation.GetInfo();
-            }
-
-            /// <summary>
-            /// Changes the number of sectors in the disk.
-            /// This may be possible for virtual disks.
-            /// This affects all tracks equally.
-            /// Returns the actual size that was set. This may be different from the requested size if it's too large.
-            /// </summary>
-            /// <param name="sectorCount">New size in bytes.</param>
-            long IDisk.SetSize(long sectorCount)
-            {
-                return implementation.SetSize(sectorCount);
-            }
+            DynamicProperty<DiskInfo> IDisk.Info { get { return IDisk_Info.Get(); } }
+            readonly DynamicProperty<DiskInfo> IDisk_Info;
 
             /// <summary>
             /// Reads the specified sectors.
@@ -1192,8 +1154,9 @@ namespace AmbientOS
             /// </summary>
             /// <param name="offset">The sector number (starting at 0).</param>
             /// <param name="count">The number of sectors to read.</param>
-            void IDisk.Read(int track, long offset, long count, byte[] buffer, long bufferOffset)
+            public void Read(int track, long offset, long count, byte[] buffer, long bufferOffset)
             {
+                Barrier();
                 implementation.Read(track, offset, count, buffer, bufferOffset);
             }
 
@@ -1203,18 +1166,20 @@ namespace AmbientOS
             /// </summary>
             /// <param name="offset">The sector number (starting at 0).</param>
             /// <param name="count">The number of sectors to write.</param>
-            void IDisk.Write(int track, long offset, long count, byte[] buffer, long bufferOffset)
+            public void Write(int track, long offset, long count, byte[] buffer, long bufferOffset)
             {
+                Barrier();
                 implementation.Write(track, offset, count, buffer, bufferOffset);
             }
 
             /// <summary>
             /// Flushes any cached write operations to this disk to the device.
-            /// The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file shoud also be flushed.
+            /// The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file should also be flushed.
             /// The method must not return until the changes are committed to non-volatile storage.
             /// </summary>
-            void IDisk.Flush()
+            public void Flush()
             {
+                Barrier();
                 implementation.Flush();
             }
         }
@@ -1224,9 +1189,15 @@ namespace AmbientOS
         public interface IVolume : IObjectRef
         {
             /// <summary>
-            /// Returns information about the volume.
+            /// Indicates information about the disk. It may be possible for some volumes to change this information.
             /// </summary>
-            VolumeInfo GetInfo();
+            DynamicProperty<VolumeInfo> Info { get; }
+
+            /// <summary>
+            /// Indicates the size of the volume in bytes.
+            /// It may be possible to change the size of a virtual volume or if there is unused disk space following the last volume extent.
+            /// </summary>
+            DynamicProperty<long> Size { get; }
 
             /// <summary>
             /// Returns the extents that make up this volume.
@@ -1234,19 +1205,6 @@ namespace AmbientOS
             /// The result may be incomplete, for instance if the volume is partially virtual.
             /// </summary>
             VolumeExtent[] GetExtents();
-
-            /// <summary>
-            /// Returns size of the volume in bytes.
-            /// </summary>
-            long GetSize();
-
-            /// <summary>
-            /// Changes size of the volume.
-            /// This may be possible on a virtual volume or if there is unused disk space following the last volume extent.
-            /// Returns the actual size that was set. This may be different from the requested size if it's too large or not sector-aligned.
-            /// </summary>
-            /// <param name="size">New size in bytes.</param>
-            long SetSize(long size);
 
             /// <summary>
             /// Reads data from the volume.
@@ -1262,7 +1220,7 @@ namespace AmbientOS
 
             /// <summary>
             /// Flushes any cached write operations to this volume to disk.
-            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
+            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
             /// The method must not return until the changes are committed to non-volatile storage.
             /// </summary>
             void Flush();
@@ -1274,9 +1232,15 @@ namespace AmbientOS
             IVolume VolumeRef { get; }
 
             /// <summary>
-            /// Returns information about the volume.
+            /// Indicates information about the disk. It may be possible for some volumes to change this information.
             /// </summary>
-            VolumeInfo GetInfo();
+            DynamicEndpoint<VolumeInfo> Info { get; }
+
+            /// <summary>
+            /// Indicates the size of the volume in bytes.
+            /// It may be possible to change the size of a virtual volume or if there is unused disk space following the last volume extent.
+            /// </summary>
+            DynamicEndpoint<long> Size { get; }
 
             /// <summary>
             /// Returns the extents that make up this volume.
@@ -1284,19 +1248,6 @@ namespace AmbientOS
             /// The result may be incomplete, for instance if the volume is partially virtual.
             /// </summary>
             VolumeExtent[] GetExtents();
-
-            /// <summary>
-            /// Returns size of the volume in bytes.
-            /// </summary>
-            long GetSize();
-
-            /// <summary>
-            /// Changes size of the volume.
-            /// This may be possible on a virtual volume or if there is unused disk space following the last volume extent.
-            /// Returns the actual size that was set. This may be different from the requested size if it's too large or not sector-aligned.
-            /// </summary>
-            /// <param name="size">New size in bytes.</param>
-            long SetSize(long size);
 
             /// <summary>
             /// Reads data from the volume.
@@ -1312,7 +1263,7 @@ namespace AmbientOS
 
             /// <summary>
             /// Flushes any cached write operations to this volume to disk.
-            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
+            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
             /// The method must not return until the changes are committed to non-volatile storage.
             /// </summary>
             void Flush();
@@ -1324,51 +1275,52 @@ namespace AmbientOS
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IVolume_Info = new DynamicProperty<VolumeInfo>(communicationSignal);
+                IVolume_Size = new DynamicProperty<long>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IVolumeImpl implementation)
+            {
+                IVolume_Info.DeliverTo(implementation.Info);
+                IVolume_Size.DeliverTo(implementation.Size);
+            }
+            protected override void FetchPropertiesFrom(IVolumeImpl implementation)
+            {
+                IVolume_Info.FetchFrom(implementation.Info);
+                IVolume_Size.FetchFrom(implementation.Size);
             }
 
             /// <summary>
-            /// Returns information about the volume.
+            /// Indicates information about the disk. It may be possible for some volumes to change this information.
             /// </summary>
-            VolumeInfo IVolume.GetInfo()
-            {
-                return implementation.GetInfo();
-            }
+            DynamicProperty<VolumeInfo> IVolume.Info { get { return IVolume_Info.Get(); } }
+            readonly DynamicProperty<VolumeInfo> IVolume_Info;
+
+            /// <summary>
+            /// Indicates the size of the volume in bytes.
+            /// It may be possible to change the size of a virtual volume or if there is unused disk space following the last volume extent.
+            /// </summary>
+            DynamicProperty<long> IVolume.Size { get { return IVolume_Size.Get(); } }
+            readonly DynamicProperty<long> IVolume_Size;
 
             /// <summary>
             /// Returns the extents that make up this volume.
             /// In most cases, the result contains a single element.
             /// The result may be incomplete, for instance if the volume is partially virtual.
             /// </summary>
-            VolumeExtent[] IVolume.GetExtents()
+            public VolumeExtent[] GetExtents()
             {
+                Barrier();
                 return implementation.GetExtents();
-            }
-
-            /// <summary>
-            /// Returns size of the volume in bytes.
-            /// </summary>
-            long IVolume.GetSize()
-            {
-                return implementation.GetSize();
-            }
-
-            /// <summary>
-            /// Changes size of the volume.
-            /// This may be possible on a virtual volume or if there is unused disk space following the last volume extent.
-            /// Returns the actual size that was set. This may be different from the requested size if it's too large or not sector-aligned.
-            /// </summary>
-            /// <param name="size">New size in bytes.</param>
-            long IVolume.SetSize(long size)
-            {
-                return implementation.SetSize(size);
             }
 
             /// <summary>
             /// Reads data from the volume.
             /// The method shall fail if the requested range is out of bounds.
             /// </summary>
-            void IVolume.Read(long offset, long count, byte[] buffer, long bufferOffset)
+            public void Read(long offset, long count, byte[] buffer, long bufferOffset)
             {
+                Barrier();
                 implementation.Read(offset, count, buffer, bufferOffset);
             }
 
@@ -1376,18 +1328,20 @@ namespace AmbientOS
             /// Writes data to the volume.
             /// The method shall fail if the requested range is out of bounds.
             /// </summary>
-            void IVolume.Write(long offset, long count, byte[] buffer, long bufferOffset)
+            public void Write(long offset, long count, byte[] buffer, long bufferOffset)
             {
+                Barrier();
                 implementation.Write(offset, count, buffer, bufferOffset);
             }
 
             /// <summary>
             /// Flushes any cached write operations to this volume to disk.
-            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
+            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
             /// The method must not return until the changes are committed to non-volatile storage.
             /// </summary>
-            void IVolume.Flush()
+            public void Flush()
             {
+                Barrier();
                 implementation.Flush();
             }
         }
@@ -1400,16 +1354,9 @@ namespace AmbientOS
         public interface IFileSystem : IObjectRef
         {
             /// <summary>
-            /// Returns the human-readable volume name.
-            /// Shall return null if there is no name available.
+            /// Gets or sets the human-readable volume name. Returns null if there is no name available.
             /// </summary>
-            string GetName();
-
-            /// <summary>
-            /// Sets the volume name.
-            /// </summary>
-            /// <param name="file">The new volume name</param>
-            void SetName(string file);
+            DynamicProperty<string> Name { get; }
 
             /// <summary>
             /// Returns the naming conventions for this file system.
@@ -1468,25 +1415,15 @@ namespace AmbientOS
             IFileSystemObject Copy(IFileSystemObject file, IFolder destination, string newName, MergeMode mode);
         }
 
-        /// <summary>
-        /// Exposes a file system.
-        /// </summary>
         [AOSInterface("AmbientOS.FileSystem.FileSystem", typeof(IFileSystemImpl), typeof(FileSystemRef))]
         public interface IFileSystemImpl : IObjectImpl
         {
             IFileSystem FileSystemRef { get; }
 
             /// <summary>
-            /// Returns the human-readable volume name.
-            /// Shall return null if there is no name available.
+            /// Gets or sets the human-readable volume name. Returns null if there is no name available.
             /// </summary>
-            string GetName();
-
-            /// <summary>
-            /// Sets the volume name.
-            /// </summary>
-            /// <param name="file">The new volume name</param>
-            void SetName(string file);
+            DynamicEndpoint<string> Name { get; }
 
             /// <summary>
             /// Returns the naming conventions for this file system.
@@ -1545,48 +1482,45 @@ namespace AmbientOS
             IFileSystemObject Copy(IFileSystemObject file, IFolder destination, string newName, MergeMode mode);
         }
 
-        /// <summary>
-        /// Exposes a file system.
-        /// </summary>
         public class FileSystemRef : ObjectRef<IFileSystemImpl>, IFileSystem
         {
             public FileSystemRef(IFileSystemImpl implementation)
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IFileSystem_Name = new DynamicProperty<string>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IFileSystemImpl implementation)
+            {
+                IFileSystem_Name.DeliverTo(implementation.Name);
+            }
+            protected override void FetchPropertiesFrom(IFileSystemImpl implementation)
+            {
+                IFileSystem_Name.FetchFrom(implementation.Name);
             }
 
             /// <summary>
-            /// Returns the human-readable volume name.
-            /// Shall return null if there is no name available.
+            /// Gets or sets the human-readable volume name. Returns null if there is no name available.
             /// </summary>
-            string IFileSystem.GetName()
-            {
-                return implementation.GetName();
-            }
-
-            /// <summary>
-            /// Sets the volume name.
-            /// </summary>
-            /// <param name="file">The new volume name</param>
-            void IFileSystem.SetName(string file)
-            {
-                implementation.SetName(file);
-            }
+            DynamicProperty<string> IFileSystem.Name { get { return IFileSystem_Name.Get(); } }
+            readonly DynamicProperty<string> IFileSystem_Name;
 
             /// <summary>
             /// Returns the naming conventions for this file system.
             /// </summary>
-            NamingConventions IFileSystem.GetNamingConventions()
+            public NamingConventions GetNamingConventions()
             {
+                Barrier();
                 return implementation.GetNamingConventions();
             }
 
             /// <summary>
             /// Returns the root folder of this file system.
             /// </summary>
-            IFolder IFileSystem.GetRoot()
+            public IFolder GetRoot()
             {
+                Barrier();
                 return implementation.GetRoot();
             }
 
@@ -1594,8 +1528,9 @@ namespace AmbientOS
             /// Returns the total size of the volume in bytes.
             /// Shall return null if this is not applicable.
             /// </summary>
-            long? IFileSystem.GetTotalSpace()
+            public long? GetTotalSpace()
             {
+                Barrier();
                 return implementation.GetTotalSpace();
             }
 
@@ -1603,8 +1538,9 @@ namespace AmbientOS
             /// Returns the free space on the volume in bytes.
             /// Shall return null if this is not applicable.
             /// </summary>
-            long? IFileSystem.GetFreeSpace()
+            public long? GetFreeSpace()
             {
+                Barrier();
                 return implementation.GetFreeSpace();
             }
 
@@ -1622,8 +1558,9 @@ namespace AmbientOS
             /// todo: rethink this - implemantation probably too complicated
             /// </summary>
             /// <param name="query">The query string (see remarks).</param>
-            IEnumerable<string> IFileSystem.GetFiles(string query)
+            public IEnumerable<string> GetFiles(string query)
             {
+                Barrier();
                 return implementation.GetFiles(query);
             }
 
@@ -1633,8 +1570,9 @@ namespace AmbientOS
             /// <param name="file">The file or folder being moved. If this doesn't belong to this file system, the method shall fail.</param>
             /// <param name="destination">The destination of the move operation. If this doesn't belong to this file system, the method shall fail.</param>
             /// <param name="newName">The new name of the file or folder being moved.</param>
-            void IFileSystem.Move(IFileSystemObject file, IFolder destination, string newName)
+            public void Move(IFileSystemObject file, IFolder destination, string newName)
             {
+                Barrier();
                 implementation.Move(file, destination, newName);
             }
 
@@ -1646,8 +1584,9 @@ namespace AmbientOS
             /// <param name="destination">The destination of the copy operation. If this doesn't belong to this file system, the method shall fail.</param>
             /// <param name="newName">The new name of the file or folder being copied.</param>
             /// <param name="mode">The behavior in case of conflicts</param>
-            IFileSystemObject IFileSystem.Copy(IFileSystemObject file, IFolder destination, string newName, MergeMode mode)
+            public IFileSystemObject Copy(IFileSystemObject file, IFolder destination, string newName, MergeMode mode)
             {
+                Barrier();
                 return implementation.Copy(file, destination, newName, mode);
             }
         }
@@ -1657,10 +1596,12 @@ namespace AmbientOS
         public interface IFileSystemObject : IObjectRef
         {
             /// <summary>
-            /// Returns the file system that contains this file or folder.
-            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            IFileSystem GetFileSystem();
+            DynamicProperty<string> Name { get; }
 
             /// <summary>
             /// todo: think about what we really want
@@ -1676,37 +1617,20 @@ namespace AmbientOS
             /// which one it wants to use.
             /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            string GetPath();
+            DynamicProperty<string> Path { get; }
 
             /// <summary>
-            /// Returns the name of the file or folder.
-            /// Returns null if the name is not available.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            string GetName();
+            DynamicProperty<FileTimes> Times { get; }
 
             /// <summary>
-            /// Renames the file or folder.
-            /// Caution should be taken when allowing this: it may be possible to misuse this to query the existance of files in the parent folder.
-            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
-            /// </summary>
-            void SetName(string name);
-
-            /// <summary>
-            /// Returns various times about the file.
-            /// </summary>
-            FileTimes GetTimes();
-
-            /// <summary>
-            /// Updates the time fields of this file.
-            /// </summary>
-            void SetTimes(FileTimes times);
-
-            /// <summary>
-            /// Returns the total size of the file or folder in bytes.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
             /// For folders the size is determined recursively.
-            /// Returns null if the size value is not available.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
             /// </summary>
-            long? GetSize();
+            DynamicProperty<long?> Size { get; }
 
             /// <summary>
             /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
@@ -1715,6 +1639,12 @@ namespace AmbientOS
             /// Returns null if the size cannot be determined.
             /// </summary>
             long? GetSizeOnDisk();
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+            IFileSystem GetFileSystem();
 
             /// <summary>
             /// Deletes the file or folder.
@@ -1736,16 +1666,17 @@ namespace AmbientOS
         }
 
         [AOSInterface("AmbientOS.FileSystem.FileSystemObject", typeof(IFileSystemObjectImpl), typeof(FileSystemObjectRef))]
-        [AOSAttribute("name", "GetName")]
         public interface IFileSystemObjectImpl : IObjectImpl
         {
             IFileSystemObject FileSystemObjectRef { get; }
 
             /// <summary>
-            /// Returns the file system that contains this file or folder.
-            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            IFileSystem GetFileSystem();
+            DynamicEndpoint<string> Name { get; }
 
             /// <summary>
             /// todo: think about what we really want
@@ -1761,37 +1692,20 @@ namespace AmbientOS
             /// which one it wants to use.
             /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            string GetPath();
+            DynamicEndpoint<string> Path { get; }
 
             /// <summary>
-            /// Returns the name of the file or folder.
-            /// Returns null if the name is not available.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            string GetName();
+            DynamicEndpoint<FileTimes> Times { get; }
 
             /// <summary>
-            /// Renames the file or folder.
-            /// Caution should be taken when allowing this: it may be possible to misuse this to query the existance of files in the parent folder.
-            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
-            /// </summary>
-            void SetName(string name);
-
-            /// <summary>
-            /// Returns various times about the file.
-            /// </summary>
-            FileTimes GetTimes();
-
-            /// <summary>
-            /// Updates the time fields of this file.
-            /// </summary>
-            void SetTimes(FileTimes times);
-
-            /// <summary>
-            /// Returns the total size of the file or folder in bytes.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
             /// For folders the size is determined recursively.
-            /// Returns null if the size value is not available.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
             /// </summary>
-            long? GetSize();
+            DynamicEndpoint<long?> Size { get; }
 
             /// <summary>
             /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
@@ -1800,6 +1714,12 @@ namespace AmbientOS
             /// Returns null if the size cannot be determined.
             /// </summary>
             long? GetSizeOnDisk();
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+            IFileSystem GetFileSystem();
 
             /// <summary>
             /// Deletes the file or folder.
@@ -1826,16 +1746,35 @@ namespace AmbientOS
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
+                IFileSystemObject_Name = new DynamicProperty<string>(communicationSignal);
+                IFileSystemObject_Path = new DynamicProperty<string>(communicationSignal);
+                IFileSystemObject_Times = new DynamicProperty<FileTimes>(communicationSignal);
+                IFileSystemObject_Size = new DynamicProperty<long?>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IFileSystemObjectImpl implementation)
+            {
+                IFileSystemObject_Name.DeliverTo(implementation.Name);
+                IFileSystemObject_Path.DeliverTo(implementation.Path);
+                IFileSystemObject_Times.DeliverTo(implementation.Times);
+                IFileSystemObject_Size.DeliverTo(implementation.Size);
+            }
+            protected override void FetchPropertiesFrom(IFileSystemObjectImpl implementation)
+            {
+                IFileSystemObject_Name.FetchFrom(implementation.Name);
+                IFileSystemObject_Path.FetchFrom(implementation.Path);
+                IFileSystemObject_Times.FetchFrom(implementation.Times);
+                IFileSystemObject_Size.FetchFrom(implementation.Size);
             }
 
             /// <summary>
-            /// Returns the file system that contains this file or folder.
-            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            IFileSystem IFileSystemObject.GetFileSystem()
-            {
-                return implementation.GetFileSystem();
-            }
+            DynamicProperty<string> IFileSystemObject.Name { get { return IFileSystemObject_Name.Get(); } }
+            readonly DynamicProperty<string> IFileSystemObject_Name;
 
             /// <summary>
             /// todo: think about what we really want
@@ -1851,55 +1790,23 @@ namespace AmbientOS
             /// which one it wants to use.
             /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            string IFileSystemObject.GetPath()
-            {
-                return implementation.GetPath();
-            }
+            DynamicProperty<string> IFileSystemObject.Path { get { return IFileSystemObject_Path.Get(); } }
+            readonly DynamicProperty<string> IFileSystemObject_Path;
 
             /// <summary>
-            /// Returns the name of the file or folder.
-            /// Returns null if the name is not available.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            string IFileSystemObject.GetName()
-            {
-                return implementation.GetName();
-            }
+            DynamicProperty<FileTimes> IFileSystemObject.Times { get { return IFileSystemObject_Times.Get(); } }
+            readonly DynamicProperty<FileTimes> IFileSystemObject_Times;
 
             /// <summary>
-            /// Renames the file or folder.
-            /// Caution should be taken when allowing this: it may be possible to misuse this to query the existance of files in the parent folder.
-            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
-            /// </summary>
-            void IFileSystemObject.SetName(string name)
-            {
-                implementation.SetName(name);
-            }
-
-            /// <summary>
-            /// Returns various times about the file.
-            /// </summary>
-            FileTimes IFileSystemObject.GetTimes()
-            {
-                return implementation.GetTimes();
-            }
-
-            /// <summary>
-            /// Updates the time fields of this file.
-            /// </summary>
-            void IFileSystemObject.SetTimes(FileTimes times)
-            {
-                implementation.SetTimes(times);
-            }
-
-            /// <summary>
-            /// Returns the total size of the file or folder in bytes.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
             /// For folders the size is determined recursively.
-            /// Returns null if the size value is not available.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
             /// </summary>
-            long? IFileSystemObject.GetSize()
-            {
-                return implementation.GetSize();
-            }
+            DynamicProperty<long?> IFileSystemObject.Size { get { return IFileSystemObject_Size.Get(); } }
+            readonly DynamicProperty<long?> IFileSystemObject_Size;
 
             /// <summary>
             /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
@@ -1907,9 +1814,20 @@ namespace AmbientOS
             /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
             /// Returns null if the size cannot be determined.
             /// </summary>
-            long? IFileSystemObject.GetSizeOnDisk()
+            public long? GetSizeOnDisk()
             {
+                Barrier();
                 return implementation.GetSizeOnDisk();
+            }
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+            public IFileSystem GetFileSystem()
+            {
+                Barrier();
+                return implementation.GetFileSystem();
             }
 
             /// <summary>
@@ -1917,8 +1835,9 @@ namespace AmbientOS
             /// todo: change semantics of this to be insecure,
             /// make a separate SecureDelete(int passes) method
             /// </summary>
-            void IFileSystemObject.Delete(DeleteMode mode)
+            public void Delete(DeleteMode mode)
             {
+                Barrier();
                 implementation.Delete(mode);
             }
 
@@ -1931,8 +1850,9 @@ namespace AmbientOS
             /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
             /// </summary>
             /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
-            void IFileSystemObject.SecureDelete(int passes)
+            public void SecureDelete(int passes)
             {
+                Barrier();
                 implementation.SecureDelete(passes);
             }
         }
@@ -1945,112 +1865,11 @@ namespace AmbientOS
         public interface IFolder : IObjectRef, IFileSystemObject
         {
             /// <summary>
-            /// Returns the list of files and folders that are direct children of this folder.
-            /// The caller can check for each item, which interface it implements to distinguish between files and folders.
-            /// The list is not required to be in any particular order.
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            IEnumerable<IFileSystemObject> GetChildren();
-
-            /// <summary>
-            /// Returns the file or folder with the specified name.
-            /// </summary>
-            /// <param name="name">the name of the child</param>
-            /// <param name="file">todo: remove this arg</param>
-            /// <param name="mode">the policy to use when retrieving the child</param>
-            IFileSystemObject GetChild(string name, bool file, OpenMode mode);
-
-            /// <summary>
-            /// Indicates whether this folder has a direct child with the specified name.
-            /// </summary>
-            /// <param name="name">the name of the child</param>
-            /// <param name="file">todo: remove this arg</param>
-            bool ChildExists(string name, bool file);
-        }
-
-        /// <summary>
-        /// Exposes a container of file system object (i.e. files and folders).
-        /// </summary>
-        [AOSInterface("AmbientOS.FileSystem.Folder", typeof(IFolderImpl), typeof(FolderRef))]
-        public interface IFolderImpl : IObjectImpl, IFileSystemObjectImpl
-        {
-            IFolder FolderRef { get; }
-
-            /// <summary>
-            /// Returns the list of files and folders that are direct children of this folder.
-            /// The caller can check for each item, which interface it implements to distinguish between files and folders.
-            /// The list is not required to be in any particular order.
-            /// </summary>
-            IEnumerable<IFileSystemObject> GetChildren();
-
-            /// <summary>
-            /// Returns the file or folder with the specified name.
-            /// </summary>
-            /// <param name="name">the name of the child</param>
-            /// <param name="file">todo: remove this arg</param>
-            /// <param name="mode">the policy to use when retrieving the child</param>
-            IFileSystemObject GetChild(string name, bool file, OpenMode mode);
-
-            /// <summary>
-            /// Indicates whether this folder has a direct child with the specified name.
-            /// </summary>
-            /// <param name="name">the name of the child</param>
-            /// <param name="file">todo: remove this arg</param>
-            bool ChildExists(string name, bool file);
-        }
-
-        /// <summary>
-        /// Exposes a container of file system object (i.e. files and folders).
-        /// </summary>
-        public class FolderRef : ObjectRef<IFolderImpl>, IFolder, IFileSystemObject
-        {
-            IFileSystemObject FileSystemObjectRef { get; }
-            public FolderRef(IFolderImpl implementation)
-                : base(implementation)
-            {
-                baseReferences = new IObjectRef[] {
-                    FileSystemObjectRef = new FileSystemObjectRef(implementation)
-                };
-            }
-
-            /// <summary>
-            /// Returns the list of files and folders that are direct children of this folder.
-            /// The caller can check for each item, which interface it implements to distinguish between files and folders.
-            /// The list is not required to be in any particular order.
-            /// </summary>
-            IEnumerable<IFileSystemObject> IFolder.GetChildren()
-            {
-                return implementation.GetChildren();
-            }
-
-            /// <summary>
-            /// Returns the file or folder with the specified name.
-            /// </summary>
-            /// <param name="name">the name of the child</param>
-            /// <param name="file">todo: remove this arg</param>
-            /// <param name="mode">the policy to use when retrieving the child</param>
-            IFileSystemObject IFolder.GetChild(string name, bool file, OpenMode mode)
-            {
-                return implementation.GetChild(name, file, mode);
-            }
-
-            /// <summary>
-            /// Indicates whether this folder has a direct child with the specified name.
-            /// </summary>
-            /// <param name="name">the name of the child</param>
-            /// <param name="file">todo: remove this arg</param>
-            bool IFolder.ChildExists(string name, bool file)
-            {
-                return implementation.ChildExists(name, file);
-            }
-
-            /// <summary>
-            /// Returns the file system that contains this file or folder.
-            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
-            /// </summary>
-            IFileSystem IFileSystemObject.GetFileSystem()
-            {
-                return FileSystemObjectRef.GetFileSystem();
-            }
 
             /// <summary>
             /// todo: think about what we really want
@@ -2066,54 +1885,261 @@ namespace AmbientOS
             /// which one it wants to use.
             /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            string IFileSystemObject.GetPath()
-            {
-                return FileSystemObjectRef.GetPath();
-            }
 
             /// <summary>
-            /// Returns the name of the file or folder.
-            /// Returns null if the name is not available.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            string IFileSystemObject.GetName()
-            {
-                return FileSystemObjectRef.GetName();
-            }
 
             /// <summary>
-            /// Renames the file or folder.
-            /// Caution should be taken when allowing this: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
+            /// For folders the size is determined recursively.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
+            /// </summary>
+
+            /// <summary>
+            /// Returns the list of files and folders that are direct children of this folder.
+            /// The caller can check for each item, which interface it implements to distinguish between files and folders.
+            /// The list is not guaranteed to be in any particular order.
+            /// </summary>
+            IEnumerable<IFileSystemObject> GetChildren();
+
+            /// <summary>
+            /// Returns the file or folder with the specified name.
+            /// </summary>
+            /// <param name="name">the name of the child</param>
+            /// <param name="file">todo: remove this arg</param>
+            /// <param name="mode">the policy to use when retrieving the child</param>
+            IFileSystemObject GetChild(string name, bool file, OpenMode mode);
+
+            /// <summary>
+            /// Indicates whether this folder has a direct child with the specified name.
+            /// </summary>
+            /// <param name="name">the name of the child</param>
+            /// <param name="file">todo: remove this arg</param>
+            bool ChildExists(string name, bool file);
+
+            /// <summary>
+            /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
+            /// For folders the size is determined recursively.
+            /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
+            /// Returns null if the size cannot be determined.
+            /// </summary>
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder.
+            /// todo: change semantics of this to be insecure,
+            /// make a separate SecureDelete(int passes) method
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder securely.
+            /// The associated disk space shall be overwritten with the output of a computationally secure pseudorandom generator.
+            /// The associated disk space must at least include file content, times, names and size.
+            /// A solid implementation would scramble the entire file record and any logs where this file may occur.
+            /// This method must not return until the operation is committed to disk.
+            /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
+            /// </summary>
+            /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
+        }
+
+        [AOSInterface("AmbientOS.FileSystem.Folder", typeof(IFolderImpl), typeof(FolderRef))]
+        public interface IFolderImpl : IObjectImpl, IFileSystemObjectImpl
+        {
+            IFolder FolderRef { get; }
+
+            /// <summary>
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
             /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            void IFileSystemObject.SetName(string name)
-            {
-                FileSystemObjectRef.SetName(name);
-            }
 
             /// <summary>
-            /// Returns various times about the file.
+            /// todo: think about what we really want
+            /// do we want a path that uniquely identifies the object value?
+            /// relative to what? another object reference? the current kernel realm? globally?
+            /// or do we just want a path that looks nice to a user?
+            /// 
+            /// to what else can this be applied? any type of object?
+            /// an object reference?
+            /// can this be combined with a more complex path class, that
+            /// would also allow estimation of (different metrics of) cost?
+            /// maybe an object reference can contain multiple paths and the client can select
+            /// which one it wants to use.
+            /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            FileTimes IFileSystemObject.GetTimes()
-            {
-                return FileSystemObjectRef.GetTimes();
-            }
 
             /// <summary>
-            /// Updates the time fields of this file.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            void IFileSystemObject.SetTimes(FileTimes times)
-            {
-                FileSystemObjectRef.SetTimes(times);
-            }
 
             /// <summary>
-            /// Returns the total size of the file or folder in bytes.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
             /// For folders the size is determined recursively.
-            /// Returns null if the size value is not available.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
             /// </summary>
-            long? IFileSystemObject.GetSize()
+
+            /// <summary>
+            /// Returns the list of files and folders that are direct children of this folder.
+            /// The caller can check for each item, which interface it implements to distinguish between files and folders.
+            /// The list is not guaranteed to be in any particular order.
+            /// </summary>
+            IEnumerable<IFileSystemObject> GetChildren();
+
+            /// <summary>
+            /// Returns the file or folder with the specified name.
+            /// </summary>
+            /// <param name="name">the name of the child</param>
+            /// <param name="file">todo: remove this arg</param>
+            /// <param name="mode">the policy to use when retrieving the child</param>
+            IFileSystemObject GetChild(string name, bool file, OpenMode mode);
+
+            /// <summary>
+            /// Indicates whether this folder has a direct child with the specified name.
+            /// </summary>
+            /// <param name="name">the name of the child</param>
+            /// <param name="file">todo: remove this arg</param>
+            bool ChildExists(string name, bool file);
+
+            /// <summary>
+            /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
+            /// For folders the size is determined recursively.
+            /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
+            /// Returns null if the size cannot be determined.
+            /// </summary>
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder.
+            /// todo: change semantics of this to be insecure,
+            /// make a separate SecureDelete(int passes) method
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder securely.
+            /// The associated disk space shall be overwritten with the output of a computationally secure pseudorandom generator.
+            /// The associated disk space must at least include file content, times, names and size.
+            /// A solid implementation would scramble the entire file record and any logs where this file may occur.
+            /// This method must not return until the operation is committed to disk.
+            /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
+            /// </summary>
+            /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
+        }
+
+        public class FolderRef : ObjectRef<IFolderImpl>, IFolder, IFileSystemObject
+        {
+            IFileSystemObject FileSystemObjectRef { get; }
+            public FolderRef(IFolderImpl implementation)
+                : base(implementation)
             {
-                return FileSystemObjectRef.GetSize();
+                baseReferences = new IObjectRef[] {
+                    FileSystemObjectRef = new FileSystemObjectRef(implementation)
+                };
+                IFileSystemObject_Name = new DynamicProperty<string>(communicationSignal);
+                IFileSystemObject_Path = new DynamicProperty<string>(communicationSignal);
+                IFileSystemObject_Times = new DynamicProperty<FileTimes>(communicationSignal);
+                IFileSystemObject_Size = new DynamicProperty<long?>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IFolderImpl implementation)
+            {
+                IFileSystemObject_Name.DeliverTo(implementation.Name);
+                IFileSystemObject_Path.DeliverTo(implementation.Path);
+                IFileSystemObject_Times.DeliverTo(implementation.Times);
+                IFileSystemObject_Size.DeliverTo(implementation.Size);
+            }
+            protected override void FetchPropertiesFrom(IFolderImpl implementation)
+            {
+                IFileSystemObject_Name.FetchFrom(implementation.Name);
+                IFileSystemObject_Path.FetchFrom(implementation.Path);
+                IFileSystemObject_Times.FetchFrom(implementation.Times);
+                IFileSystemObject_Size.FetchFrom(implementation.Size);
+            }
+
+            /// <summary>
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
+            /// </summary>
+            DynamicProperty<string> IFileSystemObject.Name { get { return IFileSystemObject_Name.Get(); } }
+            readonly DynamicProperty<string> IFileSystemObject_Name;
+
+            /// <summary>
+            /// todo: think about what we really want
+            /// do we want a path that uniquely identifies the object value?
+            /// relative to what? another object reference? the current kernel realm? globally?
+            /// or do we just want a path that looks nice to a user?
+            /// 
+            /// to what else can this be applied? any type of object?
+            /// an object reference?
+            /// can this be combined with a more complex path class, that
+            /// would also allow estimation of (different metrics of) cost?
+            /// maybe an object reference can contain multiple paths and the client can select
+            /// which one it wants to use.
+            /// (e.g. the same file may be reachable via bluetooth but also via USB)
+            /// </summary>
+            DynamicProperty<string> IFileSystemObject.Path { get { return IFileSystemObject_Path.Get(); } }
+            readonly DynamicProperty<string> IFileSystemObject_Path;
+
+            /// <summary>
+            /// Gets or sets various time fields of this file.
+            /// </summary>
+            DynamicProperty<FileTimes> IFileSystemObject.Times { get { return IFileSystemObject_Times.Get(); } }
+            readonly DynamicProperty<FileTimes> IFileSystemObject_Times;
+
+            /// <summary>
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
+            /// For folders the size is determined recursively.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
+            /// </summary>
+            DynamicProperty<long?> IFileSystemObject.Size { get { return IFileSystemObject_Size.Get(); } }
+            readonly DynamicProperty<long?> IFileSystemObject_Size;
+
+            /// <summary>
+            /// Returns the list of files and folders that are direct children of this folder.
+            /// The caller can check for each item, which interface it implements to distinguish between files and folders.
+            /// The list is not guaranteed to be in any particular order.
+            /// </summary>
+            public IEnumerable<IFileSystemObject> GetChildren()
+            {
+                Barrier();
+                return implementation.GetChildren();
+            }
+
+            /// <summary>
+            /// Returns the file or folder with the specified name.
+            /// </summary>
+            /// <param name="name">the name of the child</param>
+            /// <param name="file">todo: remove this arg</param>
+            /// <param name="mode">the policy to use when retrieving the child</param>
+            public IFileSystemObject GetChild(string name, bool file, OpenMode mode)
+            {
+                Barrier();
+                return implementation.GetChild(name, file, mode);
+            }
+
+            /// <summary>
+            /// Indicates whether this folder has a direct child with the specified name.
+            /// </summary>
+            /// <param name="name">the name of the child</param>
+            /// <param name="file">todo: remove this arg</param>
+            public bool ChildExists(string name, bool file)
+            {
+                Barrier();
+                return implementation.ChildExists(name, file);
             }
 
             /// <summary>
@@ -2122,9 +2148,20 @@ namespace AmbientOS
             /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
             /// Returns null if the size cannot be determined.
             /// </summary>
-            long? IFileSystemObject.GetSizeOnDisk()
+            public long? GetSizeOnDisk()
             {
-                return FileSystemObjectRef.GetSizeOnDisk();
+                Barrier();
+                return implementation.GetSizeOnDisk();
+            }
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+            public IFileSystem GetFileSystem()
+            {
+                Barrier();
+                return implementation.GetFileSystem();
             }
 
             /// <summary>
@@ -2132,9 +2169,10 @@ namespace AmbientOS
             /// todo: change semantics of this to be insecure,
             /// make a separate SecureDelete(int passes) method
             /// </summary>
-            void IFileSystemObject.Delete(DeleteMode mode)
+            public void Delete(DeleteMode mode)
             {
-                FileSystemObjectRef.Delete(mode);
+                Barrier();
+                implementation.Delete(mode);
             }
 
             /// <summary>
@@ -2146,9 +2184,10 @@ namespace AmbientOS
             /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
             /// </summary>
             /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
-            void IFileSystemObject.SecureDelete(int passes)
+            public void SecureDelete(int passes)
             {
-                FileSystemObjectRef.SecureDelete(passes);
+                Barrier();
+                implementation.SecureDelete(passes);
             }
         }
 
@@ -2160,124 +2199,11 @@ namespace AmbientOS
         public interface IFile : IObjectRef, IFileSystemObject
         {
             /// <summary>
-            /// Reads data from the file.
-            /// The method shall fail if the requested range is out of bounds.
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            void Read(long offset, long count, byte[] buffer, long bufferOffset);
-
-            /// <summary>
-            /// Writes data to the file.
-            /// The method shall fail if the requested range is out of bounds.
-            /// </summary>
-            void Write(long offset, long count, byte[] buffer, long bufferOffset);
-
-            /// <summary>
-            /// Changes the size of the file.
-            /// If the new size is larger than the current size, the slack space should be initialized to 0.
-            /// </summary>
-            void ChangeSize(long newSize);
-
-            /// <summary>
-            /// Flushes any cached write operations to this file to disk.
-            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
-            /// The method must not return until the changes are committed to non-volatile storage.
-            /// </summary>
-            void Flush();
-        }
-
-        /// <summary>
-        /// Exposes raw read and write operations.
-        /// </summary>
-        [AOSInterface("AmbientOS.FileSystem.File", typeof(IFileImpl), typeof(FileRef))]
-        public interface IFileImpl : IObjectImpl, IFileSystemObjectImpl
-        {
-            IFile FileRef { get; }
-
-            /// <summary>
-            /// Reads data from the file.
-            /// The method shall fail if the requested range is out of bounds.
-            /// </summary>
-            void Read(long offset, long count, byte[] buffer, long bufferOffset);
-
-            /// <summary>
-            /// Writes data to the file.
-            /// The method shall fail if the requested range is out of bounds.
-            /// </summary>
-            void Write(long offset, long count, byte[] buffer, long bufferOffset);
-
-            /// <summary>
-            /// Changes the size of the file.
-            /// If the new size is larger than the current size, the slack space should be initialized to 0.
-            /// </summary>
-            void ChangeSize(long newSize);
-
-            /// <summary>
-            /// Flushes any cached write operations to this file to disk.
-            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
-            /// The method must not return until the changes are committed to non-volatile storage.
-            /// </summary>
-            void Flush();
-        }
-
-        /// <summary>
-        /// Exposes raw read and write operations.
-        /// </summary>
-        public class FileRef : ObjectRef<IFileImpl>, IFile, IFileSystemObject
-        {
-            IFileSystemObject FileSystemObjectRef { get; }
-            public FileRef(IFileImpl implementation)
-                : base(implementation)
-            {
-                baseReferences = new IObjectRef[] {
-                    FileSystemObjectRef = new FileSystemObjectRef(implementation)
-                };
-            }
-
-            /// <summary>
-            /// Reads data from the file.
-            /// The method shall fail if the requested range is out of bounds.
-            /// </summary>
-            void IFile.Read(long offset, long count, byte[] buffer, long bufferOffset)
-            {
-                implementation.Read(offset, count, buffer, bufferOffset);
-            }
-
-            /// <summary>
-            /// Writes data to the file.
-            /// The method shall fail if the requested range is out of bounds.
-            /// </summary>
-            void IFile.Write(long offset, long count, byte[] buffer, long bufferOffset)
-            {
-                implementation.Write(offset, count, buffer, bufferOffset);
-            }
-
-            /// <summary>
-            /// Changes the size of the file.
-            /// If the new size is larger than the current size, the slack space should be initialized to 0.
-            /// </summary>
-            void IFile.ChangeSize(long newSize)
-            {
-                implementation.ChangeSize(newSize);
-            }
-
-            /// <summary>
-            /// Flushes any cached write operations to this file to disk.
-            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
-            /// The method must not return until the changes are committed to non-volatile storage.
-            /// </summary>
-            void IFile.Flush()
-            {
-                implementation.Flush();
-            }
-
-            /// <summary>
-            /// Returns the file system that contains this file or folder.
-            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
-            /// </summary>
-            IFileSystem IFileSystemObject.GetFileSystem()
-            {
-                return FileSystemObjectRef.GetFileSystem();
-            }
 
             /// <summary>
             /// todo: think about what we really want
@@ -2293,54 +2219,252 @@ namespace AmbientOS
             /// which one it wants to use.
             /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            string IFileSystemObject.GetPath()
-            {
-                return FileSystemObjectRef.GetPath();
-            }
 
             /// <summary>
-            /// Returns the name of the file or folder.
-            /// Returns null if the name is not available.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            string IFileSystemObject.GetName()
-            {
-                return FileSystemObjectRef.GetName();
-            }
 
             /// <summary>
-            /// Renames the file or folder.
-            /// Caution should be taken when allowing this: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
+            /// For folders the size is determined recursively.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
+            /// </summary>
+
+            /// <summary>
+            /// Reads data from the file.
+            /// The method shall fail if the requested range is out of bounds.
+            /// </summary>
+            void Read(long offset, long count, byte[] buffer, long bufferOffset);
+
+            /// <summary>
+            /// Writes data to the file.
+            /// The method shall fail if the requested range is out of bounds.
+            /// </summary>
+            void Write(long offset, long count, byte[] buffer, long bufferOffset);
+
+            /// <summary>
+            /// Flushes any cached write operations to this file to disk.
+            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
+            /// The method must not return until the changes are committed to non-volatile storage.
+            /// </summary>
+            void Flush();
+
+            /// <summary>
+            /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
+            /// For folders the size is determined recursively.
+            /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
+            /// Returns null if the size cannot be determined.
+            /// </summary>
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder.
+            /// todo: change semantics of this to be insecure,
+            /// make a separate SecureDelete(int passes) method
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder securely.
+            /// The associated disk space shall be overwritten with the output of a computationally secure pseudorandom generator.
+            /// The associated disk space must at least include file content, times, names and size.
+            /// A solid implementation would scramble the entire file record and any logs where this file may occur.
+            /// This method must not return until the operation is committed to disk.
+            /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
+            /// </summary>
+            /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
+        }
+
+        [AOSInterface("AmbientOS.FileSystem.File", typeof(IFileImpl), typeof(FileRef))]
+        public interface IFileImpl : IObjectImpl, IFileSystemObjectImpl
+        {
+            IFile FileRef { get; }
+
+            /// <summary>
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
             /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
             /// </summary>
-            void IFileSystemObject.SetName(string name)
-            {
-                FileSystemObjectRef.SetName(name);
-            }
 
             /// <summary>
-            /// Returns various times about the file.
+            /// todo: think about what we really want
+            /// do we want a path that uniquely identifies the object value?
+            /// relative to what? another object reference? the current kernel realm? globally?
+            /// or do we just want a path that looks nice to a user?
+            /// 
+            /// to what else can this be applied? any type of object?
+            /// an object reference?
+            /// can this be combined with a more complex path class, that
+            /// would also allow estimation of (different metrics of) cost?
+            /// maybe an object reference can contain multiple paths and the client can select
+            /// which one it wants to use.
+            /// (e.g. the same file may be reachable via bluetooth but also via USB)
             /// </summary>
-            FileTimes IFileSystemObject.GetTimes()
-            {
-                return FileSystemObjectRef.GetTimes();
-            }
 
             /// <summary>
-            /// Updates the time fields of this file.
+            /// Gets or sets various time fields of this file.
             /// </summary>
-            void IFileSystemObject.SetTimes(FileTimes times)
-            {
-                FileSystemObjectRef.SetTimes(times);
-            }
 
             /// <summary>
-            /// Returns the total size of the file or folder in bytes.
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
             /// For folders the size is determined recursively.
-            /// Returns null if the size value is not available.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
             /// </summary>
-            long? IFileSystemObject.GetSize()
+
+            /// <summary>
+            /// Reads data from the file.
+            /// The method shall fail if the requested range is out of bounds.
+            /// </summary>
+            void Read(long offset, long count, byte[] buffer, long bufferOffset);
+
+            /// <summary>
+            /// Writes data to the file.
+            /// The method shall fail if the requested range is out of bounds.
+            /// </summary>
+            void Write(long offset, long count, byte[] buffer, long bufferOffset);
+
+            /// <summary>
+            /// Flushes any cached write operations to this file to disk.
+            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
+            /// The method must not return until the changes are committed to non-volatile storage.
+            /// </summary>
+            void Flush();
+
+            /// <summary>
+            /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
+            /// For folders the size is determined recursively.
+            /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
+            /// Returns null if the size cannot be determined.
+            /// </summary>
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder.
+            /// todo: change semantics of this to be insecure,
+            /// make a separate SecureDelete(int passes) method
+            /// </summary>
+
+            /// <summary>
+            /// Deletes the file or folder securely.
+            /// The associated disk space shall be overwritten with the output of a computationally secure pseudorandom generator.
+            /// The associated disk space must at least include file content, times, names and size.
+            /// A solid implementation would scramble the entire file record and any logs where this file may occur.
+            /// This method must not return until the operation is committed to disk.
+            /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
+            /// </summary>
+            /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
+        }
+
+        public class FileRef : ObjectRef<IFileImpl>, IFile, IFileSystemObject
+        {
+            IFileSystemObject FileSystemObjectRef { get; }
+            public FileRef(IFileImpl implementation)
+                : base(implementation)
             {
-                return FileSystemObjectRef.GetSize();
+                baseReferences = new IObjectRef[] {
+                    FileSystemObjectRef = new FileSystemObjectRef(implementation)
+                };
+                IFileSystemObject_Name = new DynamicProperty<string>(communicationSignal);
+                IFileSystemObject_Path = new DynamicProperty<string>(communicationSignal);
+                IFileSystemObject_Times = new DynamicProperty<FileTimes>(communicationSignal);
+                IFileSystemObject_Size = new DynamicProperty<long?>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IFileImpl implementation)
+            {
+                IFileSystemObject_Name.DeliverTo(implementation.Name);
+                IFileSystemObject_Path.DeliverTo(implementation.Path);
+                IFileSystemObject_Times.DeliverTo(implementation.Times);
+                IFileSystemObject_Size.DeliverTo(implementation.Size);
+            }
+            protected override void FetchPropertiesFrom(IFileImpl implementation)
+            {
+                IFileSystemObject_Name.FetchFrom(implementation.Name);
+                IFileSystemObject_Path.FetchFrom(implementation.Path);
+                IFileSystemObject_Times.FetchFrom(implementation.Times);
+                IFileSystemObject_Size.FetchFrom(implementation.Size);
+            }
+
+            /// <summary>
+            /// Gets or sets the name of the file or folder.
+            /// Returns null if the name is not available.
+            /// Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+            /// todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
+            /// </summary>
+            DynamicProperty<string> IFileSystemObject.Name { get { return IFileSystemObject_Name.Get(); } }
+            readonly DynamicProperty<string> IFileSystemObject_Name;
+
+            /// <summary>
+            /// todo: think about what we really want
+            /// do we want a path that uniquely identifies the object value?
+            /// relative to what? another object reference? the current kernel realm? globally?
+            /// or do we just want a path that looks nice to a user?
+            /// 
+            /// to what else can this be applied? any type of object?
+            /// an object reference?
+            /// can this be combined with a more complex path class, that
+            /// would also allow estimation of (different metrics of) cost?
+            /// maybe an object reference can contain multiple paths and the client can select
+            /// which one it wants to use.
+            /// (e.g. the same file may be reachable via bluetooth but also via USB)
+            /// </summary>
+            DynamicProperty<string> IFileSystemObject.Path { get { return IFileSystemObject_Path.Get(); } }
+            readonly DynamicProperty<string> IFileSystemObject_Path;
+
+            /// <summary>
+            /// Gets or sets various time fields of this file.
+            /// </summary>
+            DynamicProperty<FileTimes> IFileSystemObject.Times { get { return IFileSystemObject_Times.Get(); } }
+            readonly DynamicProperty<FileTimes> IFileSystemObject_Times;
+
+            /// <summary>
+            /// Returns the total size of the file or folder in bytes or null if the value cannot be determined.
+            /// For folders the size is determined recursively.
+            /// For files, the size may be altered if write access is available.
+            /// If increasing the size of a file, the slack space is filled with zeros.
+            /// </summary>
+            DynamicProperty<long?> IFileSystemObject.Size { get { return IFileSystemObject_Size.Get(); } }
+            readonly DynamicProperty<long?> IFileSystemObject_Size;
+
+            /// <summary>
+            /// Reads data from the file.
+            /// The method shall fail if the requested range is out of bounds.
+            /// </summary>
+            public void Read(long offset, long count, byte[] buffer, long bufferOffset)
+            {
+                Barrier();
+                implementation.Read(offset, count, buffer, bufferOffset);
+            }
+
+            /// <summary>
+            /// Writes data to the file.
+            /// The method shall fail if the requested range is out of bounds.
+            /// </summary>
+            public void Write(long offset, long count, byte[] buffer, long bufferOffset)
+            {
+                Barrier();
+                implementation.Write(offset, count, buffer, bufferOffset);
+            }
+
+            /// <summary>
+            /// Flushes any cached write operations to this file to disk.
+            /// The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
+            /// The method must not return until the changes are committed to non-volatile storage.
+            /// </summary>
+            public void Flush()
+            {
+                Barrier();
+                implementation.Flush();
             }
 
             /// <summary>
@@ -2349,9 +2473,20 @@ namespace AmbientOS
             /// When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
             /// Returns null if the size cannot be determined.
             /// </summary>
-            long? IFileSystemObject.GetSizeOnDisk()
+            public long? GetSizeOnDisk()
             {
-                return FileSystemObjectRef.GetSizeOnDisk();
+                Barrier();
+                return implementation.GetSizeOnDisk();
+            }
+
+            /// <summary>
+            /// Returns the file system that contains this file or folder.
+            /// Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+            /// </summary>
+            public IFileSystem GetFileSystem()
+            {
+                Barrier();
+                return implementation.GetFileSystem();
             }
 
             /// <summary>
@@ -2359,9 +2494,10 @@ namespace AmbientOS
             /// todo: change semantics of this to be insecure,
             /// make a separate SecureDelete(int passes) method
             /// </summary>
-            void IFileSystemObject.Delete(DeleteMode mode)
+            public void Delete(DeleteMode mode)
             {
-                FileSystemObjectRef.Delete(mode);
+                Barrier();
+                implementation.Delete(mode);
             }
 
             /// <summary>
@@ -2373,9 +2509,10 @@ namespace AmbientOS
             /// Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
             /// </summary>
             /// <param name="passes">On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply.</param>
-            void IFileSystemObject.SecureDelete(int passes)
+            public void SecureDelete(int passes)
             {
-                FileSystemObjectRef.SecureDelete(passes);
+                Barrier();
+                implementation.SecureDelete(passes);
             }
         }
 
@@ -2400,9 +2537,6 @@ namespace AmbientOS
             DynamicSet<IBluetoothLEPeripheral> Scan(int parameters, Context context);
         }
 
-        /// <summary>
-        /// A facility capable of receiving Bluetooth LE advertisments and exposing the discovered peripherals.
-        /// </summary>
         [AOSInterface("AmbientOS.Net.BluetoothLEScanner", typeof(IBluetoothLEScannerImpl), typeof(BluetoothLEScannerRef))]
         public interface IBluetoothLEScannerImpl : IObjectImpl
         {
@@ -2416,9 +2550,6 @@ namespace AmbientOS
             DynamicSet<IBluetoothLEPeripheral> Scan(int parameters, Context context);
         }
 
-        /// <summary>
-        /// A facility capable of receiving Bluetooth LE advertisments and exposing the discovered peripherals.
-        /// </summary>
         public class BluetoothLEScannerRef : ObjectRef<IBluetoothLEScannerImpl>, IBluetoothLEScanner
         {
             public BluetoothLEScannerRef(IBluetoothLEScannerImpl implementation)
@@ -2427,13 +2558,21 @@ namespace AmbientOS
                 baseReferences = new IObjectRef[] { };
             }
 
+            protected override void DeliverPropertiesTo(IBluetoothLEScannerImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IBluetoothLEScannerImpl implementation)
+            {
+            }
+
             /// <summary>
             /// Starts a scan for peripherals.
             /// The peripherals are added and removed to a dynamic set as they are discovered and lost.
             /// If the reference count of the dynamic set reaches 0, the scan is stopped. It is restarted if the set is referenced again.
             /// </summary>
-            DynamicSet<IBluetoothLEPeripheral> IBluetoothLEScanner.Scan(int parameters, Context context)
+            public DynamicSet<IBluetoothLEPeripheral> Scan(int parameters, Context context)
             {
+                Barrier();
                 return implementation.Scan(parameters, context);
             }
         }
@@ -2467,11 +2606,19 @@ namespace AmbientOS
                 baseReferences = new IObjectRef[] { };
             }
 
+            protected override void DeliverPropertiesTo(IBluetoothLEPeripheralImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IBluetoothLEPeripheralImpl implementation)
+            {
+            }
+
             /// <summary>
             /// Establishes a connection with the peripheral.
             /// </summary>
-            void IBluetoothLEPeripheral.Connect()
+            public void Connect()
             {
+                Barrier();
                 implementation.Connect();
             }
         }

@@ -15,9 +15,9 @@ namespace AmbientOS.Platform
     {
         Text Text { get; }
         
-        Context Init(string[] args, string name, string description, Context preContext);
-        void Install(string[] args, string name, string description, Context context);
-        void Uninstall(string[] args, string name, string description, Context context);
+        Context Init(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context preContext);
+        void Install(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context context);
+        void Uninstall(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context context);
     }
 
     public enum LaunchMode

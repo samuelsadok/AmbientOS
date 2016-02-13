@@ -48,8 +48,8 @@ namespace AmbientOS.Platform
         {
             // retrieve details about the main app that is launching
             var mainApp = GetMainApp();
-            var name = mainApp.GetName();
-            var description = mainApp.GetDescription();
+            var name = mainApp.Name;
+            var description = mainApp.Description;
 
 
             // create an initial platform independent context

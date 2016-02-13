@@ -994,7 +994,7 @@ namespace AmbientOS.FileSystem.NTFS
                     LogRecord.targetAttribute,
                     name == "" ? "unnamed" : name,
                     attr.type.ToEnumName(),
-                    file.GetName());
+                    file.Name.Get());
             }
         }
 
@@ -1362,7 +1362,7 @@ namespace AmbientOS.FileSystem.NTFS
                 return string.Format("blocksize: {3:X8}, dirty {4:X1}, {0} {1} in {2}",
                     attrName == "" ? "unnamed" : attrName,
                     attr.type.ToEnumName(),
-                    client.LogFile.Volume.MFT.GetFile(attr.fileRef, null).GetName(),
+                    client.LogFile.Volume.MFT.GetFile(attr.fileRef, null).Name.Get(),
                     attr.blocksize,
                     attr.flags
                     );

@@ -137,8 +137,7 @@ namespace AmbientOS
         {
             string name, description;
             using (var app = Platform.Platform.GetMainApp()) {
-                name = app.GetName();
-                description = app.GetDescription();
+                DynamicProperty.GetValues(app.Name, out name, app.Description, out description);
             }
 
             ServiceProcessInstaller p = new ServiceProcessInstaller();

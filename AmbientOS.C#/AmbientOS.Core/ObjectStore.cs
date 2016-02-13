@@ -32,16 +32,16 @@ namespace AmbientOS
     
     public class ObjectSet : DynamicSet<IObjectRef>
     {
-        readonly ObjectAppearance constraints;
+        readonly ObjectConstraints constraints;
 
-        public ObjectSet(ObjectAppearance constraints)
+        public ObjectSet(ObjectConstraints constraints)
         {
             this.constraints = constraints;
         }
 
         protected override bool ShouldAdd(IObjectRef item)
         {
-            return item.GetAppearance().CompliesTo(constraints);
+            return item.CompliesTo(constraints);
         }
     }
 
@@ -56,34 +56,22 @@ namespace AmbientOS
 
 
 
-    public class ObjectAppearance
+    public class ObjectConstraints
     {
         /// <summary>
         /// A dictionary with attributes and their values.
         /// A value of null means is equivalent to a wildcard, e.g. all values apply.
         /// </summary>
-        public Dictionary<string, string> attributes;
+        public Dictionary<string, object> properties;
 
-        public ObjectAppearance(Dictionary<string, string> attributes)
+        public ObjectConstraints(Dictionary<string, object> properties)
         {
-            this.attributes = attributes;
+            this.properties = properties;
         }
 
         public override string ToString()
         {
-            return string.Join(", ", attributes.Select(a => a.Key + ": " + a.Value));
-        }
-
-        public bool CompliesTo(ObjectAppearance constraints)
-        {
-            return constraints.attributes.All(constraint => {
-                string value;
-                if (constraint.Value == null)
-                    return true;
-                if (!attributes.TryGetValue(constraint.Key, out value))
-                    return true;
-                return value == constraint.Value;
-            });
+            return string.Join(", ", properties.Select(a => a.Key + ": " + a.Value));
         }
     }
 
@@ -109,11 +97,9 @@ namespace AmbientOS
         static Dictionary<string, AOSTypeEntry> types = new Dictionary<string, AOSTypeEntry>();
 
         /// <summary>
-        /// Publishes an object on the system, associating it with the specified attribute set.
-        /// Note that the same object can have multiple attribute sets, so you can call this function on the same object multiple times.
-        /// For now, please be nice and don't add the same object with the same type and appearance twice (it will still work though, just waste memory).
+        /// Publishes an object on the system.
         /// </summary>
-        public static void PublishObject(IObjectRef obj, ObjectAppearance appearance)
+        public static void PublishObject(IObjectRef obj)
         {
             var type = obj.GetTypeName();
 
@@ -143,11 +129,6 @@ namespace AmbientOS
         PublishObject(objRef, appearance);
     }
     */
-        public static void PublishObject(IObjectRef objRef)
-        {
-            var appearance = objRef.GetAppearance();
-            PublishObject(objRef, appearance);
-        }
 
         /*
         /// <summary>
@@ -185,7 +166,7 @@ namespace AmbientOS
         }
         */
 
-        public static ObjectSet FindObjects(Type type, ObjectAppearance constraints)
+        public static ObjectSet FindObjects(Type type, ObjectConstraints constraints)
         {
             var typeName = GetTypeName(type);
             var set = new ObjectSet(constraints);
@@ -260,8 +241,8 @@ namespace AmbientOS
             lock (types) {
                 foreach (var type in types) {
                     foreach (var obj in type.Value.set.Snapshot()) {
-                        foreach (var appearance in obj.GetAppearance().attributes)
-                            logContext.Log("[" + obj + "." + type.Key + "] " + appearance);
+                        foreach (var property in obj.GetHandlerConstraints().properties)
+                            logContext.Log("[" + obj + "." + type.Key + "] " + property);
                     }
                 }
             }
@@ -272,9 +253,9 @@ namespace AmbientOS
     {
         static DynamicGraph<string, IObjectRef> graph =
             new DynamicGraph<string, IObjectRef>(
-                FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>())),
-                edge => ((IAction)edge).GetInputTypeName(),
-                edge => ((IAction)edge).GetOutputTypeName());
+                FindObjects(typeof(IAction), new ObjectConstraints(new Dictionary<string, object>())),
+                edge => ((IAction)edge).InputTypeName.GetValue(),
+                edge => ((IAction)edge).OutputTypeName.GetValue());
 
 
         //public static string[] GetTypeNames<T>()
@@ -327,11 +308,9 @@ namespace AmbientOS
         /// </summary>
         public static DynamicSet<IObjectRef> GetHandlers(IObjectRef obj, Type type, string verb)
         {
-            var dict = obj.GetAppearance().attributes.ToDictionary(a => "obj." + a.Key, a => a.Value);
-            dict["verb"] = verb;
-            dict["input"] = obj.GetTypeName();
-
-            return FindObjects(typeof(IAction), new ObjectAppearance(dict));
+            var constraints = obj.GetHandlerConstraints();
+            constraints.properties["Verb"] = verb;
+            return FindObjects(typeof(IAction), constraints);
         }
 
 

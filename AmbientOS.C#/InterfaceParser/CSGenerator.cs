@@ -94,27 +94,29 @@ namespace InterfaceParser
             return typeName.ResolveTypeCS(ns).GenerateCS(ns.Type);
         }
 
-        public static void GenerateSummary(this Definition def, string indent, StringBuilder builder)
+        public static void GenerateSummary(this Definition def, string indent, params StringBuilder[] builders)
         {
             if (def.Summary == null)
                 return;
 
-            builder.AppendLine(indent + "<summary>");
+            foreach (var builder in builders) {
+                builder.AppendLine(indent + "<summary>");
 
-            var s = new System.IO.StringReader(def.Summary);
-            int skippedEmptyLines = -1;
-            for (var line = ""; line != null; line = s.ReadLine()) {
-                if (string.IsNullOrWhiteSpace(line)) {
-                    if (skippedEmptyLines != -1)
-                        skippedEmptyLines++;
-                } else {
-                    for (int i = 0; i < Math.Max(skippedEmptyLines, 0); i++)
-                        builder.AppendLine(indent);
-                    skippedEmptyLines = 0;
-                    builder.AppendLine(indent + line.Trim());
+                var s = new System.IO.StringReader(def.Summary);
+                int skippedEmptyLines = -1;
+                for (var line = ""; line != null; line = s.ReadLine()) {
+                    if (string.IsNullOrWhiteSpace(line)) {
+                        if (skippedEmptyLines != -1)
+                            skippedEmptyLines++;
+                    } else {
+                        for (int i = 0; i < Math.Max(skippedEmptyLines, 0); i++)
+                            builder.AppendLine(indent);
+                        skippedEmptyLines = 0;
+                        builder.AppendLine(indent + line.Trim());
+                    }
                 }
+                builder.AppendLine(indent + "</summary>");
             }
-            builder.AppendLine(indent + "</summary>");
         }
 
         public static void GenerateCS(this NamespaceDefinition def, string indent, StringBuilder builder)
@@ -238,132 +240,173 @@ namespace InterfaceParser
 
         public static void GenerateCS(this InterfaceDefinition def, string indent, StringBuilder builder)
         {
-            def.GenerateCS(indent, builder, Variant.Interface);
-            builder.AppendLine();
-            def.GenerateCS(indent, builder, Variant.Implementation);
-            builder.AppendLine();
-            def.GenerateCS(indent, builder, Variant.Reference);
-            builder.AppendLine();
-        }
-
-        public static void GenerateCS(this InterfaceDefinition def, string indent, StringBuilder builder, Variant variant)
-        {
             def.GenerateSummary(indent + DEFAULT_COMMENT_INDENT, builder);
 
-            if (variant != Variant.Reference)
-                builder.AppendLine(indent + string.Format("[AOSInterface(\"{0}\", typeof(I{1}Impl), typeof({1}Ref))]", def.Type.FullName, def.Name));
+            var intBuilder = new StringBuilder();
+            var impBuilder = new StringBuilder();
+            var refBuilder = new StringBuilder();
 
-            if (variant == Variant.Implementation)
-                foreach (var attr in def.Attributes)
-                    attr.GenerateCS(indent, builder);
 
             var baseInterfaces = def.BaseInterfaces.Select(i => def.Namespace.Type.ResolveType(i, "C#")).ToArray();
 
-            builder.AppendLine(indent + string.Format(variant == Variant.Reference ? "public class {0}Ref : ObjectRef<I{0}Impl>, I{0}" : "public interface I{0}{1} : IObject{2}", def.Name, variant == Variant.Implementation ? "Impl" : "", variant == Variant.Implementation ? "Impl" : "Ref") + string.Join("", baseInterfaces.Select(i => ", " + i.GenerateCS(def.Namespace.Type) + (variant == Variant.Implementation ? "Impl" : ""))));
-            builder.AppendLine(indent + "{");
+            foreach (var i in baseInterfaces)
+                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("I{0} {0}Ref {{ get; }}", i.Name));
+
+            var allProperties = def.Properties.Select(p => new { def = def, property = p });
+            var allMethods = def.Methods.Select(m => new { def = def, method = m });
+
+            foreach (var baseInterface in baseInterfaces.Select(i => ((InterfaceDefinition)((TypeWithDefinition)i).Definition))) {
+                allProperties = allProperties.Concat(baseInterface.Properties.Select(p => new { def = baseInterface, property = p }));
+                allMethods = allMethods.Concat(baseInterface.Methods.Select(m => new { def = baseInterface, method = m }));
+            }
+
+
+            // *** emit constructor ***
+
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("public {0}Ref(I{0}Impl implementation)", def.Name));
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + ": base(implementation)");
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "{");
+            refBuilder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + "baseReferences = new IObjectRef[] {");
+
+            var firstItem = true;
+            foreach (var i in baseInterfaces) {
+                refBuilder.AppendLine();
+                if (!firstItem)
+                    refBuilder.Append(",");
+                firstItem = false;
+                refBuilder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("{0}Ref = new {0}Ref(implementation)", i.Name));
+            }
+
+            if (!firstItem)
+                refBuilder.AppendLine();
+            refBuilder.AppendLine((firstItem ? " " : indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT) + "};");
+
+
+            foreach (var i in allProperties)
+                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("I{0}_{1} = new DynamicProperty<{2}>(communicationSignal);", i.def.Name, i.property.Name, i.property.PropertyType.ResolveTypeNameCS(def.Namespace)));
+
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "}");
+            refBuilder.AppendLine();
+
+
+            // *** emit override functions ***
+
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("protected override void DeliverPropertiesTo(I{0}Impl implementation)", def.Name));
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "{");
+            foreach (var i in allProperties)
+                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("I{0}_{1}.DeliverTo(implementation.{1});", i.def.Name, i.property.Name));
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "}");
+
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("protected override void FetchPropertiesFrom(I{0}Impl implementation)", def.Name));
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "{");
+            foreach (var i in allProperties)
+                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("I{0}_{1}.FetchFrom(implementation.{1});", i.def.Name, i.property.Name));
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "}");
+
+
+            // *** emit properties & methods ***
 
             bool first = true;
 
-            if (variant == Variant.Reference) {
-                foreach (var i in baseInterfaces)
-                    builder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("I{0} {0}Ref {{ get; }}", i.Name));
-
-                builder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("public {0}Ref(I{0}Impl implementation)", def.Name));
-                builder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + ": base(implementation)");
-                builder.AppendLine(indent + DEFAULT_CS_INDENT + "{");
-                builder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + "baseReferences = new IObjectRef[] {");
-
-                var firstItem = true;
-                foreach (var i in baseInterfaces) {
-                    builder.AppendLine();
-                    if (!firstItem)
-                        builder.Append(",");
-                    firstItem = false;
-                    builder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("{0}Ref = new {0}Ref(implementation)", i.Name));
-                }
-
-                if (!firstItem)
-                    builder.AppendLine();
-                builder.AppendLine((firstItem ? " " : indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT) + "};");
-                builder.AppendLine(indent + DEFAULT_CS_INDENT + "}");
+            foreach (var child in allProperties) {
+                impBuilder.AppendLine();
+                refBuilder.AppendLine();
+                if (!first)
+                    intBuilder.AppendLine();
                 first = false;
-            } else if (variant == Variant.Implementation) {
-                builder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("I{0} {0}Ref {{ get; }}", def.Name));
-                first = false;
+
+                child.property.GenerateCS(indent + DEFAULT_CS_INDENT, intBuilder, impBuilder, refBuilder, child.def.Name, child.def != def);
             }
-
-            var allMethods = def.Methods.Select(m => new { def = def, method = m });
-
-            if (variant == Variant.Reference)
-                foreach (var baseInterface in baseInterfaces.Select(i => ((InterfaceDefinition)((TypeWithDefinition)i).Definition)))
-                    allMethods = allMethods.Concat(baseInterface.Methods.Select(i => new { def = baseInterface, method = i }));
 
             foreach (var child in allMethods) {
+                impBuilder.AppendLine();
+                refBuilder.AppendLine();
                 if (!first)
-                    builder.AppendLine();
+                    intBuilder.AppendLine();
                 first = false;
 
-                child.method.GenerateCS(indent + DEFAULT_CS_INDENT, builder, child.def.Name, child.def != def, variant);
+                child.method.GenerateCS(indent + DEFAULT_CS_INDENT, intBuilder, impBuilder, refBuilder, child.def.Name, child.def != def);
             }
 
+
+            // *** concat all versions ***
+            
+            builder.AppendLine(indent + string.Format("[AOSInterface(\"{0}\", typeof(I{1}Impl), typeof({1}Ref))]", def.Type.FullName, def.Name));
+            builder.AppendLine(indent + string.Format("public interface I{0} : IObjectRef", def.Name) + string.Join("", baseInterfaces.Select(i => ", " + i.GenerateCS(def.Namespace.Type))));
+            builder.AppendLine(indent + "{");
+            builder.Append(intBuilder);
             builder.AppendLine(indent + "}");
+            builder.AppendLine();
+
+            foreach (var attr in def.Attributes)
+                attr.GenerateCS(indent, builder);
+            builder.AppendLine(indent + string.Format("[AOSInterface(\"{0}\", typeof(I{1}Impl), typeof({1}Ref))]", def.Type.FullName, def.Name)); // it's not yet clear if this attribute is actually required in both the interface and the implementation
+            builder.AppendLine(indent + string.Format("public interface I{0}Impl : IObjectImpl", def.Name) + string.Join("", baseInterfaces.Select(i => ", " + i.GenerateCS(def.Namespace.Type) + "Impl")));
+            builder.AppendLine(indent + "{");
+            builder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("I{0} {0}Ref {{ get; }}", def.Name));
+            builder.Append(impBuilder);
+            builder.AppendLine(indent + "}");
+            builder.AppendLine();
+
+            builder.AppendLine(indent + string.Format("public class {0}Ref : ObjectRef<I{0}Impl>, I{0}", def.Name) + string.Join("", baseInterfaces.Select(i => ", " + i.GenerateCS(def.Namespace.Type))));
+            builder.AppendLine(indent + "{");
+            builder.Append(refBuilder);
+            builder.AppendLine(indent + "}");
+            builder.AppendLine();
         }
 
         public static void GenerateCS(this AttributeDefinition def, string indent, StringBuilder builder)
         {
-            builder.AppendLine(indent + string.Format("[AOSAttribute(\"{0}\", \"{1}\"{2})]", def.Name , def.Method, def.Field == null ? "" : string.Format(", Field = \"{0}\"", def.Field)));
+            builder.AppendLine(indent + string.Format("[AOSAttribute(\"{0}\", \"{1}\"{2})]", def.Name, def.Method, def.Field == null ? "" : string.Format(", Field = \"{0}\"", def.Field)));
         }
 
-        public static void GenerateCS(this MethodDefinition def, string indent, StringBuilder builder, string interfaceName, bool forward, Variant variant)
+        public static void GenerateCS(this PropertyDefinition def, string indent, StringBuilder intBuilder, StringBuilder impBuilder, StringBuilder refBuilder, string interfaceName, bool inherited)
         {
-            if (variant != Variant.LocalCall && variant != Variant.RemoteCall && variant != Variant.BaseCall) {
-                def.GenerateSummary(indent + DEFAULT_COMMENT_INDENT, builder);
+            def.GenerateSummary(indent + DEFAULT_COMMENT_INDENT, intBuilder, impBuilder, refBuilder);
 
-                foreach (var child in def.Parameters)
-                    child.GenerateSummaryCS(indent + DEFAULT_COMMENT_INDENT, builder);
+            if (!inherited) {
+                intBuilder.AppendLine(indent + string.Format("DynamicProperty<{1}> {0} {{ get; }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
+                impBuilder.AppendLine(indent + string.Format("DynamicEndpoint<{1}> {0} {{ get; }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
             }
 
-            string format;
-            if (variant == Variant.Reference)
-                format = "{0} I" + interfaceName + ".{1}";
-            else if (variant == Variant.LocalCall)
-                format = "{2}implementation.{1}";
-            else if (variant == Variant.BaseCall)
-                format = "{2}{3}Ref.{1}";
-            else
-                format = "{0} {1}";
-
-            builder.Append(indent + string.Format(format, def.ReturnType.ResolveTypeNameCS(def.Namespace), def.Name, def.ReturnType == "void" ? "" : "return ", interfaceName) + "(");
-
-            bool first = true;
-            foreach (var child in def.Parameters) {
-                if (!first)
-                    builder.Append(", ");
-                first = false;
-
-                child.GenerateCS(builder, variant);
-            }
-
-            if (variant == Variant.Reference) {
-                builder.AppendLine(")");
-                builder.AppendLine(indent + "{");
-                def.GenerateCS(indent + DEFAULT_CS_INDENT, builder, interfaceName, forward, forward ? Variant.BaseCall : Variant.LocalCall);
-                builder.AppendLine(indent + "}");
-            } else {
-                builder.AppendLine(");");
-            }
+            refBuilder.AppendLine(indent + string.Format("DynamicProperty<{1}> I{2}.{0} {{ get {{ return I{2}_{0}.Get(); }} }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
+            refBuilder.AppendLine(indent + string.Format("readonly DynamicProperty<{1}> I{2}_{0};", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
         }
 
-        public static void GenerateCS(this ParamDefinition def, StringBuilder builder, Variant variant)
+        public static void GenerateCS(this MethodDefinition def, string indent, StringBuilder intBuilder, StringBuilder impBuilder, StringBuilder refBuilder, string interfaceName, bool inherited)
         {
-            if (variant != Variant.LocalCall && variant != Variant.RemoteCall && variant != Variant.BaseCall)
-                builder.Append(def.ParamType.ResolveTypeNameCS(def.Namespace) + " ");
-            builder.Append(def.Name);
+            def.GenerateSummary(indent + DEFAULT_COMMENT_INDENT, intBuilder, impBuilder, refBuilder);
+
+            foreach (var child in def.Parameters)
+                child.GenerateSummaryCS(indent + DEFAULT_COMMENT_INDENT, intBuilder, impBuilder, refBuilder);
+
+            var returnType = def.ReturnType.ResolveTypeNameCS(def.Namespace);
+            var paramList1 = string.Join(", ", def.Parameters.Select(param => param.GenerateCS(true)));
+            var paramList2 = string.Join(", ", def.Parameters.Select(param => param.GenerateCS(false)));
+
+            if (!inherited) {
+                intBuilder.AppendLine(indent + string.Format("{0} {1}({2});", returnType, def.Name, paramList1));
+                impBuilder.AppendLine(indent + string.Format("{0} {1}({2});", returnType, def.Name, paramList1));
+            }
+
+            refBuilder.AppendLine(indent + string.Format("public {0} {1}({2})", returnType, def.Name, paramList1));
+            refBuilder.AppendLine(indent + "{");
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("Barrier();"));
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("{0}implementation.{1}({2});", def.ReturnType == "void" ? "" : "return ", def.Name, paramList2));
+            refBuilder.AppendLine(indent + "}");
         }
 
-        public static void GenerateSummaryCS(this ParamDefinition def, string indent, StringBuilder builder)
+        public static string GenerateCS(this ParamDefinition def, bool includeType)
         {
-            if (def.Summary != null)
+            return (includeType ? def.ParamType.ResolveTypeNameCS(def.Namespace) + " " : "") + def.Name;
+        }
+
+        public static void GenerateSummaryCS(this ParamDefinition def, string indent, params StringBuilder[] builders)
+        {
+            if (def.Summary == null)
+                return;
+
+            foreach (var builder in builders)
                 builder.AppendLine(indent + string.Format("<param name=\"{0}\">{1}</param>", def.Name, def.Summary));
         }
     }

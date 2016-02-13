@@ -527,7 +527,7 @@ namespace AmbientOS.FileSystem.NTFS
             return string.Format("{0} {1} of {2}",
                 (name == "" ? null : name) ?? "unnamed",
                 Utilities.EnumToString(type),
-                File.GetPath());
+                File.Path.Get());
         }
     }
 }

@@ -18,10 +18,11 @@ namespace AmbientOS.FileSystem
         )]
     class VHDService
     {
-        
+
         public class VHD : IDiskImpl
         {
             public IDisk DiskRef { get; }
+            public DynamicEndpoint<DiskInfo> Info { get; }
 
             private IFile file;
             private Guid guid;
@@ -38,20 +39,16 @@ namespace AmbientOS.FileSystem
                 this.sectorCount = sectorCount;
                 BAT = bat;
                 this.sectorsPerBlock = sectorsPerBlock;
-            }
 
-
-            public DiskInfo GetInfo()
-            {
-                return new DiskInfo() {
+                Info = new DynamicEndpoint<DiskInfo>(() => new DiskInfo() {
                     BytesPerSector = 512,
                     ID = guid,
                     Tracks = 1,
                     Sectors = sectorCount,
                     MaxSectors = sectorCount
-                };
+                },
+                val => { throw new NotImplementedException(); });
             }
-
 
             public void DoOperation(int track, long offset, long count, byte[] buffer, long bufferOffset, bool read)
             {
@@ -108,12 +105,6 @@ namespace AmbientOS.FileSystem
             public void Write(int track, long offset, long count, byte[] buffer, long bufferOffset)
             {
                 DoOperation(track, offset, count, buffer, bufferOffset, false);
-            }
-
-
-            public long SetSize(long sectorCount)
-            {
-                throw new NotImplementedException();
             }
 
             public void Flush()
@@ -179,7 +170,7 @@ namespace AmbientOS.FileSystem
         /// <param name="info">If not null, receives human readable information about the VHD image.</param>
         private VHD ParseHeader(IFile file, LogContext info, out List<string> issues)
         {
-            var fileLength = file.GetSize();
+            var fileLength = file.Size.GetValue();
             if (fileLength.HasValue)
                 if (fileLength.Value < 2 * 511)
                     throw new AOSRejectException("The file is too short to be a VHD image. A sane VHD image has at least header and a footer of 511 or 512 bytes length.", null, file);

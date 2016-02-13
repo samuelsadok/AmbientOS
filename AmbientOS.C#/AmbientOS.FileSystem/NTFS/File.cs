@@ -260,6 +260,46 @@ namespace AmbientOS.FileSystem.NTFS
             //    }
             //    throw exc;
             //}
+
+            Name = new DynamicEndpoint<string>(() => FileName.fileName, val => FileName.fileName = val);
+            Path = new DynamicEndpoint<string>(() => (parent != null ? parent.Path.Get() : "") + "/" + Name.Get().EscapeForURL());
+
+            Times = new DynamicEndpoint<FileTimes>(
+                () => new FileTimes() {
+                    CreatedTime = StandardInformation.creationTime,
+                    ReadTime = StandardInformation.readTime,
+                    ModifiedTime = StandardInformation.alteredTime
+                },
+                val => {
+                    if (val.CreatedTime.HasValue)
+                        StandardInformation.creationTime = val.CreatedTime.Value;
+                    if (val.ReadTime.HasValue)
+                        StandardInformation.readTime = val.ReadTime.Value;
+                    if (val.ModifiedTime.HasValue)
+                        StandardInformation.alteredTime = val.ModifiedTime.Value;
+                });
+
+            Size = new DynamicEndpoint<long?>(
+                () => {
+                    long? size = 0;
+
+                    if (Data != null)
+                        size += Data.GetSize();
+
+                    if (I30 != null)
+                        size += I30.GetAllValues()
+                            .Select(file => Volume.MFT.GetFile(file.Value, this))
+                            .Select(file => file.Size.Get()).Sum();
+
+                    return size;
+                },
+                val => {
+                    if (Data == null)
+                        throw new InvalidOperationException();
+                    if (val == null)
+                        throw new ArgumentNullException($"{val}");
+                    Data.ChangeSize(val.Value);
+                });
         }
 
         /// <summary>
@@ -297,54 +337,10 @@ namespace AmbientOS.FileSystem.NTFS
             return Volume.FileSystemRef.Retain();
         }
 
-        public string GetPath()
-        {
-            return (parent != null ? parent.GetName() : "") + "/" + GetName();
-        }
-
-        public string GetName()
-        {
-            return FileName.fileName;
-        }
-
-        public void SetName(string name)
-        {
-            FileName.fileName = name;
-        }
-
-        public FileTimes GetTimes()
-        {
-            return new FileTimes() {
-                CreatedTime = StandardInformation.creationTime,
-                ReadTime = StandardInformation.readTime,
-                ModifiedTime = StandardInformation.alteredTime
-            };
-        }
-
-        public void SetTimes(FileTimes times)
-        {
-            if (times.CreatedTime.HasValue)
-                StandardInformation.creationTime = times.CreatedTime.Value;
-            if (times.ReadTime.HasValue)
-                StandardInformation.readTime = times.ReadTime.Value;
-            if (times.ModifiedTime.HasValue)
-                StandardInformation.alteredTime = times.ModifiedTime.Value;
-        }
-
-        public long? GetSize()
-        {
-            long? size = 0;
-
-            if (Data != null)
-                size += Data.GetSize();
-
-            if (I30 != null)
-                size += I30.GetAllValues()
-                    .Select(file => Volume.MFT.GetFile(file.Value, this))
-                    .Select(file => file.GetSize()).Sum();
-
-            return size;
-        }
+        public DynamicEndpoint<string> Name { get; }
+        public DynamicEndpoint<string> Path { get; }
+        public DynamicEndpoint<FileTimes> Times { get; }
+        public DynamicEndpoint<long?> Size { get; }
 
         /// <summary>
         /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
@@ -454,13 +450,6 @@ namespace AmbientOS.FileSystem.NTFS
             if (Data == null)
                 throw new InvalidOperationException();
             Data.Write(offset, count, buffer, bufferOffset);
-        }
-
-        public void ChangeSize(long newSize)
-        {
-            if (Data == null)
-                throw new InvalidOperationException();
-            Data.ChangeSize(newSize);
         }
 
         public void AddCustomAppearance(Dictionary<string, string> dict, Type type)

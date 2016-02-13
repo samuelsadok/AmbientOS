@@ -49,20 +49,22 @@ namespace AmbientOS.UI
 
 
             Action newPage = () => {
-                var pos = console.GetCursorPosition();
-                var size = console.GetDimensions();
+                var windowSize = console.WindowSize;
+                var pos = console.CursorPosition.GetValue();
+                var size = windowSize.GetValue();
                 console.Write(new string(' ', (size.X - pos.X) + (size.Y - pos.Y) * size.X));
             };
 
             Action reversePage = () => {
+                var windowSize = console.WindowSize;
                 console.Clear();
-                console.Scroll(-console.GetDimensions().Y);
+                console.Scroll(-windowSize.GetValue().Y);
             };
 
-            Action printAbove = () => {
-                console.CopyArea(new Vector2D<int>(0, 0), new Vector2D<int>(0, 1), console.GetDimensions() - new Vector2D<int>(0, 1));
-                console.SetCursorPosition(new Vector2D<int>(0, 0), true);
-            };
+            //Action printAbove = () => {
+            //    console.CopyArea(new Vector2D<int>(0, 0), new Vector2D<int>(0, 1), console.WindowSize.GetValue() - new Vector2D<int>(0, 1));
+            //    console.SetCursorPosition(new Vector2D<int>(0, 0), true);
+            //};
 
             // logging thread
             new CancelableThread(() => {
@@ -145,7 +147,7 @@ namespace AmbientOS.UI
             console.Clear(ConsoleColor.DefaultBackground);
             var lines = ToLines(dialog).Skip(dialog.Offset).Take(dialog.BufferSize.Y).ToArray();
             for (int i = 0; i < lines.Count(); i++) {
-                console.SetCursorPosition(new Vector2D<int>(0, i), false);
+                console.CursorPosition.SetValue(new Vector2D<int>(0, i));
                 console.Write(lines[i].Item1, lines[i].Item2 ? ConsoleColor.DefaultBackground : ConsoleColor.DefaultForeground, lines[i].Item2 ? ConsoleColor.DefaultForeground : ConsoleColor.DefaultBackground);
             }
         }
@@ -159,7 +161,7 @@ namespace AmbientOS.UI
                 DetailsExpanded = false, // todo: set according to user preference
                 SelectedOption = 0,
                 Offset = 0,
-                BufferSize = console.GetDimensions(),
+                BufferSize = console.WindowSize.GetValue(),
                 KeyPresses = new DynamicQueue<KeyPress>()
             };
 

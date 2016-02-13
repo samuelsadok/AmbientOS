@@ -15,6 +15,8 @@ namespace AmbientOS.FileSystem
         public class WindowsVolume : IVolumeImpl
         {
             public IVolume VolumeRef { get; }
+            public DynamicEndpoint<VolumeInfo> Info { get; }
+            public DynamicEndpoint<long> Size { get; }
 
             private readonly VolumeInfo info;
             private readonly VolumeExtent[] extents;
@@ -76,7 +78,7 @@ namespace AmbientOS.FileSystem
                         var extents = buffer.ReadObject<PInvoke.VolumeDiskExtents>(0, Endianness.Current);
                         this.extents = extents.Extents.Select(e => {
                             var disk = new WindowsDiskService.WindowsDisk(e.DiskNumber);
-                            var diskInfo = disk.GetInfo();
+                            var diskInfo = disk.Info.Get();
                             return new VolumeExtent() {
                                 Track = 0,
                                 Disk = disk.DiskRef.Retain(),
@@ -110,6 +112,11 @@ namespace AmbientOS.FileSystem
 
 
                 }
+
+                Info = new DynamicEndpoint<VolumeInfo>(info, PropertyAccess.ReadOnly);
+                Size = new DynamicEndpoint<long>(
+                    () => capacity,
+                    val => { throw new NotImplementedException("Can't change size of a Windows volume. To implement support for this, take at a look at the DeviceIoControl operations FSCTL_EXTEND_VOLUME and IOCTL_DISK_GROW_PARTITION."); });
             }
 
             /// <summary>
@@ -121,24 +128,9 @@ namespace AmbientOS.FileSystem
             {
             }
 
-            public VolumeInfo GetInfo()
-            {
-                return info;
-            }
-
             public VolumeExtent[] GetExtents()
             {
                 return extents;
-            }
-
-            public long GetSize()
-            {
-                return capacity;
-            }
-
-            public long SetSize(long size)
-            {
-                throw new NotImplementedException("Can't change size of a Windows volume. To implement support for this, take at a look at the DeviceIoControl operations FSCTL_EXTEND_VOLUME and IOCTL_DISK_GROW_PARTITION.");
             }
 
             public void Read(long offset, long count, byte[] buffer, long bufferOffset)

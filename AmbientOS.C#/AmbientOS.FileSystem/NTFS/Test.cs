@@ -127,9 +127,9 @@ namespace AmbientOS.FileSystem.NTFS
 
 
 
-                var vhdMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>() { { "app", "AmbientOS.Foreign.WindowsVHDService" } })).AsSingle()?.Cast<IAction>();
-                var diskMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>() { { "app", "AmbientOS.Foreign.WindowsDiskService" } })).AsSingle()?.Cast<IAction>();
-                var volumeMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectAppearance(new Dictionary<string, string>() { { "app", "AmbientOS.Foreign.WindowsVolumeService" } })).AsSingle()?.Cast<IAction>();
+                var vhdMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectConstraints(new Dictionary<string, object>() { { "app", "AmbientOS.Foreign.WindowsVHDService" } })).AsSingle()?.Cast<IAction>();
+                var diskMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectConstraints(new Dictionary<string, object>() { { "app", "AmbientOS.Foreign.WindowsDiskService" } })).AsSingle()?.Cast<IAction>();
+                var volumeMountAction = ObjectStore.FindObjects(typeof(IAction), new ObjectConstraints(new Dictionary<string, object>() { { "app", "AmbientOS.Foreign.WindowsVolumeService" } })).AsSingle()?.Cast<IAction>();
 
                 if (vhdMountAction == null)
                     throw new Exception("Cannot continue NTFS test, native Windows VHD service is not available (this is only available on a native Windows system)");

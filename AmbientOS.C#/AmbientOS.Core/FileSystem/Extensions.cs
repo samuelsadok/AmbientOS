@@ -10,10 +10,11 @@ namespace AmbientOS.FileSystem
     {
         /// <summary>
         /// Adds the "ext" appearance attribute to this file.
+        /// todo: this method and IExtensionProperties are hacky. Think about a more general way of supporting extension functions
         /// </summary>
         public static void AddCustomAppearance(this IFile file, Dictionary<string, string> dict)
         {
-            var name = file.GetName();
+            var name = file.Name.GetValue();
             var lastPoint = name.LastIndexOf('.');
             if (lastPoint >= 0)
                 dict["ext"] = name.Substring(lastPoint + 1);
@@ -34,7 +35,9 @@ namespace AmbientOS.FileSystem
         /// </summary>
         public static byte[] Read(this IFile file)
         {
-            var size = file.GetSize();
+            // todo: lock file
+
+            var size = file.Size.GetValue();
             if (!size.HasValue)
                 throw new InvalidOperationException("unknown file size");
 
@@ -47,7 +50,7 @@ namespace AmbientOS.FileSystem
         /// </summary>
         public static void Write(this IFile file, byte[] buffer)
         {
-            file.ChangeSize(buffer.Length);
+            file.Size.SetValue(buffer.Length);
             file.Write(0, buffer.Length, buffer, 0);
         }
 
@@ -57,8 +60,8 @@ namespace AmbientOS.FileSystem
         public static void Append(this IFile file, byte[] value)
         {
             // todo: lock file
-            var offset = file.GetSize().Value;
-            file.ChangeSize(offset + value.Count());
+            var offset = file.Size.GetValue().Value;
+            file.Size.SetValue(offset + value.Count());
             file.Write(offset, value.Count(), value, 0);
         }
 
@@ -182,8 +185,8 @@ namespace AmbientOS.FileSystem
                             break;
                         case MergeMode.Newer:
                         case MergeMode.Older:
-                            var myTime = obj.GetTimes().ModifiedTime.Value;
-                            var otherTime2 = otherObj.GetTimes().ModifiedTime.Value;
+                            var myTime = obj.Times.GetValue().ModifiedTime.Value;
+                            var otherTime2 = otherObj.Times.GetValue().ModifiedTime.Value;
                             if (myTime == otherTime2)
                                 throw new Exception("cant decide on the right file, times are equal");
                             if ((myTime < otherTime2) != (mode == MergeMode.Older))
@@ -202,8 +205,8 @@ namespace AmbientOS.FileSystem
                 var file = obj.Cast<IFile>();
                 var newFile = newObj.Cast<IFile>();
 
-                var length = file.GetSize().Value;
-                newFile.ChangeSize(length);
+                var length = file.Size.GetValue().Value;
+                newFile.Size.SetValue(length);
 
                 // do a 16MB block copy
                 var block = new byte[16777216];
@@ -220,7 +223,7 @@ namespace AmbientOS.FileSystem
                 var newFolder = newObj.Cast<IFolder>();
                 
                 foreach (var child in folder.GetChildren())
-                    child.Copy(newFolder, child.GetName(), mode);
+                    child.Copy(newFolder, child.Name.GetValue(), mode);
             }
 
             return newObj;
@@ -258,7 +261,7 @@ namespace AmbientOS.FileSystem
         {
             RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
             byte[] randomData = new byte[4096];
-            var fileSize = file.GetSize().Value;
+            var fileSize = file.Size.GetValue().Value;
 
             for (int i = 0; i < passes; i++) {
                 // scramble data
@@ -271,7 +274,7 @@ namespace AmbientOS.FileSystem
                 }
 
                 // scramble times
-                file.SetTimes(new FileTimes() {
+                file.Times.SetValue(new FileTimes() {
                     CreatedTime = new DateTime(rng.GetLong()),
                     ModifiedTime = new DateTime(rng.GetLong()),
                     ReadTime = new DateTime(rng.GetLong()),
@@ -283,7 +286,7 @@ namespace AmbientOS.FileSystem
             // scramble file size and name
             for (int i = 0; i < passes; i++) {
                 // todo: scramble file name without violating naming conventions
-                file.ChangeSize(rng.GetLong(0, fileSize));
+                file.Size.SetValue(rng.GetLong(0, fileSize));
             }
 
             file.Delete(DeleteMode.Permanent);

@@ -16,8 +16,7 @@ namespace AmbientOS.FileSystem
         public class WindowsDisk : IDiskImpl, IDisposable
         {
             public IDisk DiskRef { get; }
-
-            private readonly DiskInfo info;
+            public DynamicEndpoint<DiskInfo> Info { get; }
 
             /// <summary>
             /// Returns a name of the form "\\.\PhysicalDriveX" where X is the number of this disk.
@@ -88,6 +87,7 @@ namespace AmbientOS.FileSystem
                 Number = number;
 
                 // get drive info
+                DiskInfo info;
                 using (var disk = OpenDisk(PInvoke.Access.None)) {
                     var geometry = PInvoke.DeviceIoControl<PInvoke.DiskGeometry>(disk, PInvoke.IOCTL_DISK_GET_DRIVE_GEOMETRY);
                     var sectors = geometry.Cylinders * geometry.TracksPerCylinder * geometry.SectorsPerTrack;
@@ -99,6 +99,10 @@ namespace AmbientOS.FileSystem
                         Tracks = 1
                     };
                 }
+
+                Info = new DynamicEndpoint<DiskInfo>(
+                    () => info,
+                    val => { throw new NotImplementedException("Can't change metadata of a Windows disk"); });
             }
 
             /// <summary>
@@ -110,22 +114,12 @@ namespace AmbientOS.FileSystem
             {
             }
 
-            public DiskInfo GetInfo()
-            {
-                return info;
-            }
-
-            public long SetSize(long sectorCount)
-            {
-                throw new NotImplementedException("Can't change size of a Windows disk");
-            }
-
             public void Read(int track, long offset, long count, byte[] buffer, long bufferOffset)
             {
                 if (track != 0)
                     throw new ArgumentOutOfRangeException($"{track}");
                 using (var disk = OpenDisk(PInvoke.Access.Read))
-                    PInvoke.ReadFile(disk, offset * info.BytesPerSector, buffer, (int)bufferOffset, (int)count * (int)info.BytesPerSector);
+                    PInvoke.ReadFile(disk, offset * Info.Get().BytesPerSector, buffer, (int)bufferOffset, (int)count * (int)Info.Get().BytesPerSector);
             }
 
             /// <summary>
@@ -137,7 +131,7 @@ namespace AmbientOS.FileSystem
                 if (track != 0)
                     throw new ArgumentOutOfRangeException($"{track}");
                 using (var disk = OpenDisk(PInvoke.Access.Write))
-                    PInvoke.WriteFile(disk, offset * info.BytesPerSector, buffer, (int)bufferOffset, (int)count * (int)info.BytesPerSector);
+                    PInvoke.WriteFile(disk, offset * Info.Get().BytesPerSector, buffer, (int)bufferOffset, (int)count * (int)Info.Get().BytesPerSector);
             }
 
             public void Flush()

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using AmbientOS.Environment;
 using AmbientOS.Utils;
 using AmbientOS.FileSystem;
@@ -53,7 +54,7 @@ namespace AmbientOS
     public interface IObjectRef : IRefCounted
     {
         IObjectImpl Implementation { get; }
-        ObjectAppearance GetAppearance();
+        Dictionary<string, object> GetExtensionProperties();
         string GetTypeName();
         T Cast<T>() where T : IObjectRef;
         //bool Implements<T>() where T : IObjectRef;
@@ -88,37 +89,57 @@ namespace AmbientOS
 
         protected IObjectRef[] baseReferences;
 
+        /// <summary>
+        /// Should be asserted when there is new data to be delivered to the implementation.
+        /// A data request counts as outgoing too.
+        /// </summary>
+        protected AutoResetEvent communicationSignal = new AutoResetEvent(false);
+
+        protected abstract void FetchPropertiesFrom(TImpl implementation);
+        protected abstract void DeliverPropertiesTo(TImpl implementation);
+
+
         public IObjectImpl Implementation { get { return implementation; } }
 
         public ObjectRef(TImpl implementation)
         {
             this.implementation = implementation;
+
+            new Thread(() => {
+                while (true) { // todo: what about shutdown?
+                    communicationSignal.WaitOne();
+                    Barrier();
+                }
+            }).Start(); 
         }
 
         public ObjectRef(IObjectRef<TImpl> reference)
         {
             this.reference = reference;
         }
+        
+        SynchronizedAction synchronize = new SynchronizedAction();
 
+        /// <summary>
+        /// Blocks until all property writes and method calls that were issued before are completed.
+        /// </summary>
+        public void Barrier()
+        {
+            synchronize.Run(() => {
+                DeliverPropertiesTo(implementation);
+                FetchPropertiesFrom(implementation);
+            });
+        }
 
-        public ObjectAppearance GetAppearance()
+        public Dictionary<string, object> GetExtensionProperties()
         {
             if (implementation != null) {
-                var appearance = new ObjectAppearance(new Dictionary<string, string>());
-
-                foreach (var attr in typeof(TImpl).GetCustomAttributes<AOSAttributeAttribute>()) {
-                    var method = typeof(TImpl).GetMethod(attr.Method);
-                    var value = method.Invoke(implementation, new object[0]);
-                    appearance.attributes[attr.Name] = value.ToString();
-                }
-
-                var customAppearance = implementation as ICustomAppearance;
+                var customAppearance = implementation as IExtensionProperties;
                 if (customAppearance != null)
-                    customAppearance.AddCustomAppearance(appearance.attributes, typeof(TImpl));
-
-                return appearance;
+                    return customAppearance.GetExtensionProperties(typeof(TImpl));
+                return new Dictionary<string, object>();
             } else {
-                return reference.GetAppearance();
+                return reference.GetExtensionProperties();
             }
         }
 
@@ -259,8 +280,8 @@ namespace AmbientOS
         Service = publisher;
     }*/
 
-    public interface ICustomAppearance
+    public interface IExtensionProperties
     {
-        void AddCustomAppearance(Dictionary<string, string> dict, Type type);
+        Dictionary<string, object> GetExtensionProperties(Type type);
     }
 }

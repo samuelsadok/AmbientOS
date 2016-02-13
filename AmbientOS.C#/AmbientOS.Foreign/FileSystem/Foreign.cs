@@ -9,6 +9,7 @@ namespace AmbientOS.FileSystem.Foreign
     public class InteropFileSystem : IFileSystemImpl
     {
         public IFileSystem FileSystemRef { get; }
+        public DynamicEndpoint<string> Name { get; }
 
         private readonly string root;
         private readonly Func<InteropFileSystem, string, IFolder> folderConstructor;
@@ -33,6 +34,14 @@ namespace AmbientOS.FileSystem.Foreign
             var colon = root.ToLower().IndexOf(':');
             if (colon == 1)
                 info = new DriveInfo(root.Substring(0, 1));
+
+            Name = new DynamicEndpoint<string>(
+                () => info != null ? info.VolumeLabel : root,
+                val => {
+                    if (info == null)
+                        throw new NotSupportedException("You can't rename this volume.");
+                    info.VolumeLabel = val;
+                });
         }
 
         public InteropFileSystem(string root)
@@ -43,21 +52,6 @@ namespace AmbientOS.FileSystem.Foreign
         public NamingConventions GetNamingConventions()
         {
             return namingConventions;
-        }
-
-        public string GetName()
-        {
-            if (info != null)
-                return info.VolumeLabel;
-
-            return root;
-        }
-
-        public void SetName(string name)
-        {
-            if (info == null)
-                throw new NotSupportedException("You can't rename this volume.");
-            info.VolumeLabel = name;
         }
 
         public IFolder GetRoot()
@@ -123,6 +117,10 @@ namespace AmbientOS.FileSystem.Foreign
     public abstract class InteropFileSystemObject : IFileSystemObjectImpl
     {
         public IFileSystemObject FileSystemObjectRef { get; }
+        public DynamicEndpoint<string> Name { get; }
+        public DynamicEndpoint<string> Path { get; }
+        public DynamicEndpoint<FileTimes> Times { get; protected set; }
+        public DynamicEndpoint<long?> Size { get; protected set; }
 
         public readonly InteropFileSystem fileSystem;
         public readonly string path;
@@ -132,6 +130,13 @@ namespace AmbientOS.FileSystem.Foreign
             FileSystemObjectRef = new FileSystemObjectRef(this);
             this.fileSystem = fileSystem;
             this.path = path;
+
+            Name = new DynamicEndpoint<string>(
+                () => System.IO.Path.GetFileName(this.path),
+                val => SetName(val)
+                );
+
+            Path = new DynamicEndpoint<string>(() => path);
         }
 
         public IFileSystem GetFileSystem()
@@ -139,20 +144,7 @@ namespace AmbientOS.FileSystem.Foreign
             return fileSystem?.FileSystemRef.Retain();
         }
 
-        public string GetPath()
-        {
-            return path;
-        }
-
-        public string GetName()
-        {
-            return Path.GetFileName(path);
-        }
-
-        public abstract void SetName(string name);
-        public abstract FileTimes GetTimes();
-        public abstract void SetTimes(FileTimes times);
-        public abstract long? GetSize();
+        protected abstract void SetName(string name);
         public abstract long? GetSizeOnDisk();
         public abstract void Delete(DeleteMode mode);
 
@@ -171,11 +163,25 @@ namespace AmbientOS.FileSystem.Foreign
             : base(fileSystem, path)
         {
             FolderRef = new FolderRef(this);
+
+            Times = new DynamicEndpoint<FileTimes>(
+                () => new FileTimes() {
+                    CreatedTime = Directory.GetCreationTimeUtc(path),
+                    ReadTime = Directory.GetLastAccessTimeUtc(path),
+                    ModifiedTime = Directory.GetLastWriteTimeUtc(path)
+                },
+                val => {
+                    Directory.SetCreationTimeUtc(path, val.CreatedTime.Value);
+                    Directory.SetLastAccessTimeUtc(path, val.ReadTime.Value);
+                    Directory.SetLastWriteTimeUtc(path, val.ModifiedTime.Value);
+                });
+
+            Size = new DynamicEndpoint<long?>(() => new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Select(f => f.Length).Sum());
         }
 
-        public override void SetName(string name)
+        protected override void SetName(string name)
         {
-            var dirPath = Path.GetDirectoryName(path);
+            var dirPath = System.IO.Path.GetDirectoryName(path);
             if (dirPath == null)
                 throw new Exception("This is a root directory and hence cannot be renamed.");
 
@@ -183,33 +189,6 @@ namespace AmbientOS.FileSystem.Foreign
             if (Directory.Exists(newPath))
                 throw new Exception("A folder with the same name already exists");
             Directory.Move(path, newPath);
-        }
-
-        public override FileTimes GetTimes()
-        {
-            var info = new DirectoryInfo(path);
-            return new FileTimes() {
-                CreatedTime = Directory.GetCreationTimeUtc(path),
-                ReadTime = Directory.GetLastAccessTimeUtc(path),
-                ModifiedTime = Directory.GetLastWriteTimeUtc(path)
-            };
-        }
-
-        public override void SetTimes(FileTimes times)
-        {
-            Directory.SetCreationTimeUtc(path, times.CreatedTime.Value);
-            Directory.SetLastAccessTimeUtc(path, times.ReadTime.Value);
-            Directory.SetLastWriteTimeUtc(path, times.ModifiedTime.Value);
-        }
-
-        private long GetSize(DirectoryInfo dir)
-        {
-            return dir.EnumerateFiles("*", SearchOption.AllDirectories).Select(f => f.Length).Sum();
-        }
-
-        public override long? GetSize()
-        {
-            return GetSize(new DirectoryInfo(path));
         }
 
         public override long? GetSizeOnDisk()
@@ -274,6 +253,27 @@ namespace AmbientOS.FileSystem.Foreign
             : base(fileSystem, path)
         {
             FileRef = new FileRef(this);
+
+            Times = new DynamicEndpoint<FileTimes>(
+                () => new FileTimes() {
+                    CreatedTime = File.GetCreationTimeUtc(path),
+                    ReadTime = File.GetLastAccessTimeUtc(path),
+                    ModifiedTime = File.GetLastWriteTimeUtc(path)
+                },
+                val => {
+                    File.SetCreationTimeUtc(path, val.CreatedTime.Value);
+                    File.SetLastAccessTimeUtc(path, val.ReadTime.Value);
+                    File.SetLastWriteTimeUtc(path, val.ModifiedTime.Value);
+                });
+
+            Size = new DynamicEndpoint<long?>(
+                () => new FileInfo(path).Length,
+                val => {
+                    if (val == null)
+                        throw new ArgumentNullException($"{val}");
+                    using (var file = File.Open(path, FileMode.Open))
+                        file.SetLength(val.Value);
+                });
         }
 
         //private void OpenFile()
@@ -285,34 +285,12 @@ namespace AmbientOS.FileSystem.Foreign
         //
         //private void CloseFile
 
-        public override void SetName(string name)
+        protected override void SetName(string name)
         {
-            var newPath = Path.GetDirectoryName(path) + "\\" + name;
+            var newPath = System.IO.Path.GetDirectoryName(path) + "\\" + name;
             if (File.Exists(newPath))
                 throw new Exception("A file with the same name already exists");
             File.Move(path, newPath);
-        }
-
-        public override FileTimes GetTimes()
-        {
-            var info = new FileInfo(path);
-            return new FileTimes() {
-                CreatedTime = File.GetCreationTimeUtc(path),
-                ReadTime = File.GetLastAccessTimeUtc(path),
-                ModifiedTime = File.GetLastWriteTimeUtc(path)
-            };
-        }
-
-        public override void SetTimes(FileTimes times)
-        {
-            File.SetCreationTimeUtc(path, times.CreatedTime.Value);
-            File.SetLastAccessTimeUtc(path, times.ReadTime.Value);
-            File.SetLastWriteTimeUtc(path, times.ModifiedTime.Value);
-        }
-
-        public override long? GetSize()
-        {
-            return new FileInfo(path).Length;
         }
 
         public override long? GetSizeOnDisk()
@@ -357,11 +335,6 @@ namespace AmbientOS.FileSystem.Foreign
             }
         }
 
-        public void ChangeSize(long newSize)
-        {
-            using (var file = File.Open(path, FileMode.Open))
-                file.SetLength(newSize);
-        }
 
         public void Flush()
         {

@@ -18,8 +18,9 @@ namespace AmbientOS.FileSystem
         private class Volume : IVolumeImpl
         {
             public IVolume VolumeRef { get; }
-
-            private readonly VolumeInfo info;
+            public DynamicEndpoint<VolumeInfo> Info { get; }
+            public DynamicEndpoint<long> Size { get; }
+            
             private readonly VolumeExtent[] extents;
 
             /// <summary>
@@ -35,7 +36,6 @@ namespace AmbientOS.FileSystem
             [ContractInvariantMethod]
             protected void ObjectInvariant()
             {
-                Contract.Invariant(info != null);
                 Contract.Invariant(extents != null);
                 Contract.Invariant(bytesPerSector != null);
                 Contract.Invariant(extentLengths != null);
@@ -49,32 +49,19 @@ namespace AmbientOS.FileSystem
             public Volume(IDisk disk, byte type, VolumeInfo info, VolumeExtent[] extents)
             {
                 VolumeRef = new VolumeRef(this);
-
-                this.info = info;
+                
                 this.extents = extents;
 
-                bytesPerSector = extents.Select(e => e.Disk.GetInfo().BytesPerSector).ToArray();
+                bytesPerSector = extents.Select(e => e.Disk.Info.GetValue().BytesPerSector).ToArray();
                 extentLengths = extents.Select((e, i) => e.Sectors * bytesPerSector[i]).ToArray();
-            }
 
-            public VolumeInfo GetInfo()
-            {
-                return info;
+                Info = new DynamicEndpoint<VolumeInfo>(info, PropertyAccess.ReadOnly);
+                Size = new DynamicEndpoint<long>(() => extentLengths.Sum(), val => { throw new NotImplementedException(); });
             }
 
             public VolumeExtent[] GetExtents()
             {
                 return extents.RetainAll();
-            }
-
-            public long GetSize()
-            {
-                return extentLengths.Sum();
-            }
-
-            public long SetSize(long size)
-            {
-                throw new NotImplementedException();
             }
 
             private void DoOperation(long offset, long count, byte[] buffer, long bufferOffset, bool read)
@@ -151,7 +138,7 @@ namespace AmbientOS.FileSystem
 
         private List<string> ParseDisk(IDisk disk, LogContext info, bool verbose, out List<Volume> volumes)
         {
-            DiskInfo diskInfo = disk.GetInfo();
+            DiskInfo diskInfo = disk.Info.GetValue();
 
             volumes = new List<Volume>(4);
             var issues = new List<string>();

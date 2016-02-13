@@ -20,13 +20,13 @@ namespace AmbientOS.Platform
             return new PlatformIndependentContext();
         }
 
-        public Context Init(string[] args, string name, string description, Context preContext)
+        public Context Init(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context preContext)
         {
             if (preContext != null)
                 return preContext;
 
             Context context = new Context() {
-                Name = name,
+                Name = name.GetValue(),
                 Controller = new TaskController(),
                 Environment = new ForeignEnvironment().EnvironmentRef.Retain()
             };
@@ -39,18 +39,18 @@ namespace AmbientOS.Platform
                 context.Log = ui.LogContext;
                 context.UI = ui.UIRef.Retain();
             } else {
-                context.Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name);
+                context.Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name.GetValue());
                 context.UI = null; // bad idea: use dummy UI
             }
 
             return context;
         }
 
-        public void Install(string[] args, string name, string description, Context context)
+        public void Install(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context context)
         {
         }
 
-        public void Uninstall(string[] args, string name, string description, Context context)
+        public void Uninstall(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context context)
         {
         }
     }

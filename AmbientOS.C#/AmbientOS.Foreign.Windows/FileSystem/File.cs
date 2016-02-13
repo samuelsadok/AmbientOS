@@ -9,15 +9,14 @@ namespace AmbientOS.FileSystem
     abstract class WindowsFileSystemObject : IFileSystemObjectImpl, IDisposable
     {
         public IFileSystemObject FileSystemObjectRef { get; }
+        public DynamicEndpoint<string> Name { get; }
+        public DynamicEndpoint<string> Path { get; }
+        public DynamicEndpoint<FileTimes> Times { get; }
+        public DynamicEndpoint<long?> Size { get; }
 
         private readonly PInvoke.ByHandleFileInformation info;
         private readonly WindowsFolder parent;
         protected readonly IFileSystem fs;
-
-        /// <summary>
-        /// Returns the path of the file
-        /// </summary>
-        public string Path { get; }
 
         /// <summary>
         /// If not null, this handle will be closed when this disk is disposed.
@@ -35,12 +34,59 @@ namespace AmbientOS.FileSystem
             FileSystemObjectRef = new FileSystemObjectRef(this);
 
             this.fs = fs;
-            Path = path;
 
             // get file info
             using (var file = OpenFile(PInvoke.Access.None)) {
                 info = PInvoke.GetFileInformationByHandle(file);
             }
+
+
+            Path = new DynamicEndpoint<string>(() => path);
+
+            Name = new DynamicEndpoint<string>(
+                () => {
+                    var currentPath = Path.Get();
+                    var delimiter = currentPath.LastIndexOfAny(new char[] { '\\', '/' });
+                    return currentPath.Substring(delimiter + 1);
+                },
+                val => {
+                    using (var root = parent.OpenFile(0))
+                    using (var file = OpenFile(0))
+                        PInvoke.SetFileInformationByHandle(file, new PInvoke.FileRenameInfo() {
+                            ReplaceIfExists = 0,
+                            RootDirectory = root.DangerousGetHandle(),
+                            FileName = val
+                        });
+                    // todo: update path
+                });
+
+            Times = new DynamicEndpoint<FileTimes>(
+                () => new FileTimes() {
+                    CreatedTime = info.ftCreationTime,
+                    ReadTime = info.ftLastAccessTime,
+                    ModifiedTime = info.ftLastWriteTime
+                },
+                val => {
+                    if (val.CreatedTime.HasValue)
+                        info.ftCreationTime = val.CreatedTime.Value;
+                    if (val.ReadTime.HasValue)
+                        info.ftLastAccessTime = val.ReadTime.Value;
+                    if (val.ModifiedTime.HasValue)
+                        info.ftLastWriteTime = val.ModifiedTime.Value;
+
+                    using (var file = OpenFile(0))
+                        PInvoke.SetFileInformationByHandle(file, new PInvoke.FileBasicInfo() {
+                            CreationTime = info.ftCreationTime,
+                            LastAccessTime = info.ftLastAccessTime,
+                            LastWriteTime = info.ftLastWriteTime,
+                            ChangeTime = info.ftLastWriteTime,
+                            FileAttributes = info.dwFileAttributes
+                        });
+                });
+
+            Size = new DynamicEndpoint<long?>(
+                () => ((long)info.nFileSizeHigh << 32) | (info.nFileSizeLow & 0xFFFFFFFF),
+                val => { throw new NotImplementedException(); });
         }
 
         public void Dispose()
@@ -51,54 +97,6 @@ namespace AmbientOS.FileSystem
         public IFileSystem GetFileSystem()
         {
             return fs;
-        }
-
-        public string GetPath()
-        {
-            return Path;
-        }
-
-        public string GetName()
-        {
-            var delimiter = Path.LastIndexOfAny(new char[] { '\\', '/' });
-            return Path.Substring(delimiter + 1);
-        }
-
-        public void SetName(string name)
-        {
-            using (var root = parent.OpenFile(0))
-            using (var file = OpenFile(0))
-                PInvoke.SetFileInformationByHandle(file, new PInvoke.FileRenameInfo() {
-                    ReplaceIfExists = 0,
-                    RootDirectory = root.DangerousGetHandle(),
-                    FileName = name
-                });
-        }
-
-        public FileTimes GetTimes()
-        {
-            return new FileTimes() {
-                CreatedTime = info.ftCreationTime,
-                ReadTime = info.ftLastAccessTime,
-                ModifiedTime = info.ftLastWriteTime
-            };
-        }
-
-        public void SetTimes(FileTimes times)
-        {
-            using (var file = OpenFile(0))
-                PInvoke.SetFileInformationByHandle(file, new PInvoke.FileBasicInfo() {
-                    CreationTime = info.ftCreationTime,
-                    LastAccessTime = info.ftLastAccessTime,
-                    LastWriteTime = info.ftLastWriteTime,
-                    ChangeTime = info.ftLastWriteTime,
-                    FileAttributes = info.dwFileAttributes
-                });
-        }
-
-        public long? GetSize()
-        {
-            return ((long)info.nFileSizeHigh << 32) | (info.nFileSizeLow & 0xFFFFFFFF);
         }
 
         public long? GetSizeOnDisk()
@@ -139,14 +137,14 @@ namespace AmbientOS.FileSystem
 
         protected override SafeFileHandle OpenFile(PInvoke.Access access)
         {
-            return PInvoke.CreateFile(Path, access, PInvoke.ShareMode.ReadWrite, IntPtr.Zero, PInvoke.CreationDisposition.OPEN_EXISTING, PInvoke.FileFlags.OVERLAPPED, IntPtr.Zero);
+            return PInvoke.CreateFile(Path.Get(), access, PInvoke.ShareMode.ReadWrite, IntPtr.Zero, PInvoke.CreationDisposition.OPEN_EXISTING, PInvoke.FileFlags.OVERLAPPED, IntPtr.Zero);
         }
 
         public override void Delete(DeleteMode mode)
         {
             if (mode != DeleteMode.Permanent)
                 throw new NotImplementedException();
-            PInvoke.DeleteFile(Path);
+            PInvoke.DeleteFile(Path.Get());
         }
 
         public void Read(long offset, long count, byte[] buffer, long bufferOffset)
@@ -164,11 +162,6 @@ namespace AmbientOS.FileSystem
         public void Flush()
         {
             // the handle is closed after each write, which presumably flushes the cache
-        }
-
-        public void ChangeSize(long newSize)
-        {
-            throw new NotImplementedException();
         }
 
         public void AddCustomAppearance(Dictionary<string, string> dict, Type type)

@@ -84,7 +84,7 @@ namespace AmbientOS
         /// The constraint that an object must satisfy for the associated action to be considered.
         /// When the OS selects an action to handle an object, it only considers the ones with constraints that apply to the object's attributes.
         /// </summary>
-        public ObjectAppearance Constraints { get; }
+        public ObjectConstraints Constraints { get; }
 
         public AOSActionAttribute(string verb, params string[] constraints)
         {
@@ -96,15 +96,15 @@ namespace AmbientOS
                     throw new Exception(string.Format("invalid attribute specifier \"{0}\"", a));
                 return new {
                     key = parts[0],
-                    value = parts[1].UnescapeFromURL()
+                    value = (object)parts[1].UnescapeFromURL()
                 };
             }).ToDictionary(a => a.key, a => a.value);
-            Constraints = new ObjectAppearance(dict);
+            Constraints = new ObjectConstraints(dict);
         }
     }
 
 
-    /// <summary>
+    /*/// <summary>
     /// If a method of an interface is marked with this attribute, the method is automatically invoked
     /// when the object appearance is queried.
     /// </summary>
@@ -119,7 +119,7 @@ namespace AmbientOS
             Name = name;
             Method = method;
         }
-    }
+    }*/
 
 
     /// <summary>

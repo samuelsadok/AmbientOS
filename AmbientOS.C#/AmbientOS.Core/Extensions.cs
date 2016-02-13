@@ -43,6 +43,52 @@ namespace AmbientOS
             return (T)impl;
         }
 
+
+        /// <summary>
+        /// Checks if the object matches the specified constraints.
+        /// </summary>
+        public static bool CompliesTo(this IObjectRef obj, ObjectConstraints constraints)
+        {
+            // we prefetch all relevant properties so that they are retrieved in one query
+            var constraintsArray = constraints.properties
+                .Where(kv => kv.Value != null)
+                .Select(kv => new {
+                    name = kv.Key,
+                    expectedValue = kv.Value,
+                    property = obj.GetType().GetProperty(kv.Key)?.GetValue(obj) as DynamicProperty
+                }).ToArray();
+
+            var extensionProperties = obj.GetExtensionProperties();
+            
+            return constraintsArray.All(constraint => {
+                object value;
+                if (constraint.property != null)
+                    value = constraint.property.GetValueAsObject();
+                else if (!extensionProperties.TryGetValue(constraint.name, out value))
+                    return true;
+                return Equals(constraint.expectedValue, value);
+            });
+        }
+
+
+        /// <summary>
+        /// Returns the constraints that a handler must comply to to be able to handle this object.
+        /// </summary>
+        public static ObjectConstraints GetHandlerConstraints(this IObjectRef obj)
+        {
+            // prefetch properties to prevent unneccessary message passing
+            var properties = obj.GetType().GetProperties()
+                .Where(p => typeof(DynamicProperty).IsAssignableFrom(p.PropertyType))
+                .Select(p => new KeyValuePair<string, object>(p.Name, p.GetValue(obj)))
+                .Where(p => p.Value != null)
+                .ToArray();
+
+            var constraints = obj.GetExtensionProperties().Concat(properties).ToDictionary(kv => "obj." + kv.Key, kv => kv.Value);
+            constraints["InputTypeName"] = obj.GetTypeName();
+            return new ObjectConstraints(constraints);
+        }
+
+
         /*
         public static T GetDecremented<T>(this T reference)
             where T : IObjectRef

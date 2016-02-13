@@ -9,14 +9,18 @@ namespace AmbientOS.Environment
     public static class ApplicationRegistry
     {
 
-        private class ActionStub : IActionImpl, ICustomAppearance
+        private class ActionStub : IActionImpl, IExtensionProperties
         {
             public IAction ActionRef { get; }
+            public DynamicEndpoint<string> Verb { get; }
+            public DynamicEndpoint<Type> InputType { get; }
+            public DynamicEndpoint<Type> OutputType { get; }
+            public DynamicEndpoint<string> InputTypeName { get; }
+            public DynamicEndpoint<string> OutputTypeName { get; }
+
             ApplicationLifecycleManager app;
             MethodInfo method;
             AOSActionAttribute attr;
-            Type inputType;
-            Type outputType;
 
             public ActionStub(ApplicationLifecycleManager app, MethodInfo method, AOSActionAttribute attr)
             {
@@ -36,7 +40,8 @@ namespace AmbientOS.Environment
                     if (!refInfo[i].ParameterType.IsAssignableFrom(paramInfo[i].ParameterType))
                         throw new Exception(string.Format("parameter {0} of method {1} must be assignable to {2}", i, method.ToString(), refInfo[i].ParameterType.ToString()));
 
-                inputType = paramInfo[0].ParameterType;
+                var inputType = paramInfo[0].ParameterType;
+                Type outputType;
 
                 var returnType = method.ReturnType;
 
@@ -50,31 +55,12 @@ namespace AmbientOS.Environment
 
                     outputType = returnType.GenericTypeArguments.Single();
                 }
-            }
 
-            public string GetVerb()
-            {
-                return attr.Verb;
-            }
-
-            public Type GetInputType()
-            {
-                return inputType;
-            }
-
-            public Type GetOutputType()
-            {
-                return outputType;
-            }
-
-            public string GetInputTypeName()
-            {
-                return ObjectStore.GetTypeName(inputType);
-            }
-
-            public string GetOutputTypeName()
-            {
-                return ObjectStore.GetTypeName(outputType);
+                Verb = new DynamicEndpoint<string>(() => attr.Verb);
+                InputType = new DynamicEndpoint<Type>(inputType, PropertyAccess.ReadOnly);
+                OutputType = new DynamicEndpoint<Type>(outputType, PropertyAccess.ReadOnly);
+                InputTypeName = new DynamicEndpoint<string>(() => ObjectStore.GetTypeName(inputType));
+                OutputTypeName = new DynamicEndpoint<string>(() => ObjectStore.GetTypeName(outputType));
             }
 
             //public IApplication GetApplication()
@@ -86,7 +72,7 @@ namespace AmbientOS.Environment
             {
                 var set = (DynamicSet)method.Invoke(app.GetInstance(), new object[] { obj, context });
 
-                if (outputType == typeof(void))
+                if (OutputType.Get() == typeof(void))
                     return new DynamicSet<IObjectRef>().Retain();
 
                 var result = new DynamicSet<IObjectRef>().Retain();
@@ -94,11 +80,13 @@ namespace AmbientOS.Environment
                 return result;
             }
 
-            public void AddCustomAppearance(Dictionary<string, string> dict, Type type)
+            public Dictionary<string, object> GetExtensionProperties(Type type)
             {
+                var result = new Dictionary<string, object>();
                 if (type == typeof(IAction))
-                    foreach (var constraint in attr.Constraints.attributes)
-                        dict["obj." + constraint.Key] = constraint.Value;
+                    foreach (var constraint in attr.Constraints.properties)
+                        result["obj." + constraint.Key] = constraint.Value;
+                return result;
             }
         }
 

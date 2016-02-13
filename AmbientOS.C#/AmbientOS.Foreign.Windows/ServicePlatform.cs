@@ -23,13 +23,13 @@ namespace AmbientOS.Platform
             return new ServicePlatform();
         }
 
-        public Context Init(string[] args, string name, string description, Context preContext)
+        public Context Init(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context preContext)
         {
             Context context = new Context() {
-                Name = name,
+                Name = name.GetValue(),
                 Controller = new TaskController(TaskState.Inactive),
                 Environment = new ForeignEnvironment().EnvironmentRef.Retain(),
-                Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name),
+                Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name.GetValue()),
                 UI = null
             };
 
@@ -40,7 +40,7 @@ namespace AmbientOS.Platform
             return context;
         }
 
-        public void Install(string[] args, string name, string description, Context context)
+        public void Install(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context context)
         {
             // restart as admin if neccessary
             if (!PlatformUtilities.RunningAsAdmin()) {
@@ -88,7 +88,7 @@ namespace AmbientOS.Platform
             }
         }
 
-        public void Uninstall(string[] args, string name, string description, Context context)
+        public void Uninstall(string[] args, DynamicProperty<string> name, DynamicProperty<string> description, Context context)
         {
             // restart as admin if neccessary
             if (!PlatformUtilities.RunningAsAdmin()) {

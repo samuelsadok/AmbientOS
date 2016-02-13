@@ -73,18 +73,8 @@
         todo: define this interface.
         consider: application icon, associated actions, update, ...
       </summary>
-      <method name="GetName" ret="string">
-        <summary>
-          Returns a human readable name of the application.
-          todo: make this a dynamic property
-        </summary>
-      </method>
-      <method name="GetDescription" ret="string">
-        <summary>
-          Returns a human readable description of the application.
-          todo: make this a dynamic property
-        </summary>
-      </method>
+      <property name="Name" type="string" summary="Returns a human readable name of the application." />
+      <property name="Description" type="string" summary="Returns a human readable description of the application." />
       <method name="Run">
         <summary>
           Loads and runs the application if neccessary.
@@ -98,34 +88,11 @@
       <summary>
         Represents an action that can execute a verb on specific kinds of objects.
       </summary>
-      <attribute name="verb" method="GetVerb" />
-      <attribute name="input" method="GetInputTypeName" />
-      <attribute name="output" method="GetOutputTypeName" />
-      <method name="GetVerb" ret="string">
-        <summary>
-          Returns the verb that this action represents.
-        </summary>
-      </method>
-      <method name="GetInputTypeName" ret="string">
-        <summary>
-          Indicates the name of the type that this action expects as an input.
-        </summary>
-      </method>
-      <method name="GetInputType" ret="Type">
-        <summary>
-          Returns the type that this action expects as an input.
-        </summary>
-      </method>
-      <method name="GetOutputTypeName" ret="string">
-        <summary>
-          Indicates the name of the type that this action returns as an output.
-        </summary>
-      </method>
-      <method name="GetOutputType" ret="Type">
-        <summary>
-          Returns the type that this action returns as an output.
-        </summary>
-      </method>
+      <property name="Verb" type="string" summary="Returns the verb that this action represents." />
+      <property name="InputType" type="Type" summary="Returns the type that this action expects as an input." />
+      <property name="OutputType" type="Type" summary="Returns the type that this action returns as an output." />
+      <property name="InputTypeName" type="string" summary="Indicates the name of the type that this action expects as an input." />
+      <property name="OutputTypeName" type="string" summary="Indicates the name of the type that this action returns as an output." />
       <method name="Invoke" ret="DynamicSet[ObjRef]">
         <summary>
           Excecutes this action on the specified object.
@@ -289,24 +256,9 @@
         <param name="destination" type="Vector2D[int]" summary="The top left point of the destination rectangle." />
         <param name="size" type="Vector2D[int]" summary="The size area to be copied." />
       </method>-->
-      <method name="GetDimensions" ret="Vector2D[int]">
-        <summary>
-          Returns the size of the console in chars.
-        </summary>
-      </method>
-      <method name="GetCursorPosition" ret="Vector2D[int]">
-        <summary>
-          Returns the current cursor position.
-        </summary>
-      </method>
-      <method name="SetCursorPosition">
-        <summary>
-          Sets the cursor position.
-          (0, 0) denotes the top left corner of the buffer.
-        </summary>
-        <param name="position" type="Vector2D[int]" summary="The new cursor position" />
-        <param name="visible" type="bool" summary="Indicates whether the cursor should be visible" />
-      </method>
+      <property name="WindowSize" type="Vector2D[int]" summary="The size of the console in chars." />
+      <property name="CursorPosition" type="Vector2D[int]" summary="Gets or sets the current cursor position. (0, 0) denotes the top left corner of the console." />
+      <property name="CursorVisibility" type="bool" summary="Gets or sets the visibility of the cursor." />
     </interface>
     
     <interface name="UI">
@@ -396,6 +348,7 @@
       <field name="Sectors" type="long">
         <summary>
           The total number of sectors on one track of the disk.
+          Each track has the same number of sectors.
         </summary>
       </field>
       <field name="MaxSectors" type="long">
@@ -425,7 +378,7 @@
           Zero if unknown. For legacy MBR partitions, only the last byte specifies the type and the rest is zero.
         </summary>
       </field>
-      <field name="flags" type="FileSystemFlags" />
+      <field name="Flags" type="FileSystemFlags" />
     </struct>
 
     <struct name="VolumeExtent">
@@ -474,20 +427,7 @@
     </struct>
 
     <interface name="Disk">
-      <method name="GetInfo" ret="DiskInfo">
-        <summary>
-          Returns information about the disk.
-        </summary>
-      </method>
-      <method name="SetSize" ret="long">
-        <summary>
-          Changes the number of sectors in the disk.
-          This may be possible for virtual disks.
-          This affects all tracks equally.
-          Returns the actual size that was set. This may be different from the requested size if it's too large.
-        </summary>
-        <param name="sectorCount" type="long" summary="New size in bytes." />
-      </method>
+      <property name="Info" type="DiskInfo" summary="Indicates information about the disk. It may be possible for virtual disks to change some of this information." />
       <method name="Read">
         <summary>
           Reads the specified sectors.
@@ -513,37 +453,26 @@
       <method name="Flush">
         <summary>
           Flushes any cached write operations to this disk to the device.
-          The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file shoud also be flushed.
+          The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file should also be flushed.
           The method must not return until the changes are committed to non-volatile storage.
         </summary>
       </method>
     </interface>
 
     <interface name="Volume">
-      <method name="GetInfo" ret="VolumeInfo">
+      <property name="Info" type="VolumeInfo" summary="Indicates information about the disk. It may be possible for some volumes to change this information." />
+      <property name="Size" type="long">
         <summary>
-          Returns information about the volume.
+          Indicates the size of the volume in bytes.
+          It may be possible to change the size of a virtual volume or if there is unused disk space following the last volume extent.
         </summary>
-      </method>
+      </property>
       <method name="GetExtents" ret="Array[VolumeExtent]">
         <summary>
           Returns the extents that make up this volume.
           In most cases, the result contains a single element.
           The result may be incomplete, for instance if the volume is partially virtual.
         </summary>
-      </method>
-      <method name="GetSize" ret="long">
-        <summary>
-          Returns size of the volume in bytes.
-        </summary>
-      </method>
-      <method name="SetSize" ret="long">
-        <summary>
-          Changes size of the volume.
-          This may be possible on a virtual volume or if there is unused disk space following the last volume extent.
-          Returns the actual size that was set. This may be different from the requested size if it's too large or not sector-aligned.
-        </summary>
-        <param name="size" type="long" summary="New size in bytes." />
       </method>
       <method name="Read">
         <summary>
@@ -568,7 +497,7 @@
       <method name="Flush">
         <summary>
           Flushes any cached write operations to this volume to disk.
-          The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
+          The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
           The method must not return until the changes are committed to non-volatile storage.
         </summary>
       </method>
@@ -578,18 +507,7 @@
       <summary>
         Exposes a file system.
       </summary>
-      <method name="GetName" ret="string">
-        <summary>
-          Returns the human-readable volume name.
-          Shall return null if there is no name available.
-        </summary>
-      </method>
-      <method name="SetName">
-        <summary>
-          Sets the volume name.
-        </summary>
-        <param name="file" type="string" summary="The new volume name" />
-      </method>
+      <property name="Name" type="string" summary="Gets or sets the human-readable volume name. Returns null if there is no name available." />
       <method name="GetNamingConventions" ret="NamingConventions">
         <summary>
           Returns the naming conventions for this file system.
@@ -649,14 +567,15 @@
     </interface>
 
     <interface name="FileSystemObject">
-      <attribute name="name" method="GetName" />
-      <method name="GetFileSystem" ret="FileSystem">
+      <property name="Name" type="string">
         <summary>
-          Returns the file system that contains this file or folder.
-          Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+          Gets or sets the name of the file or folder.
+          Returns null if the name is not available.
+          Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+          todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
         </summary>
-      </method>
-      <method name="GetPath" ret="string">
+      </property>
+      <property name="Path" type="string">
         <summary>
           todo: think about what we really want
           do we want a path that uniquely identifies the object value?
@@ -671,45 +590,28 @@
           which one it wants to use.
           (e.g. the same file may be reachable via bluetooth but also via USB)
         </summary>
-      </method>
-      <method name="GetName" ret="string">
+      </property>
+      <property name="Times" type="FileTimes" summary="Gets or sets various time fields of this file." />
+      <property name="Size" type="Maybe[long]">
         <summary>
-          Returns the name of the file or folder.
-          Returns null if the name is not available.
-        </summary>
-      </method>
-      <method name="SetName">
-        <summary>
-          Renames the file or folder.
-          Caution should be taken when allowing this: it may be possible to misuse this to query the existance of files in the parent folder.
-          todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
-        </summary>
-        <param name="name" type="string" />
-      </method>
-      <method name="GetTimes" ret="FileTimes">
-        <summary>
-          Returns various times about the file.
-        </summary>
-      </method>
-      <method name="SetTimes">
-        <summary>
-          Updates the time fields of this file.
-        </summary>
-        <param name="times" type="FileTimes" />
-      </method>
-      <method name="GetSize" ret="Maybe[long]">
-        <summary>
-          Returns the total size of the file or folder in bytes.
+          Returns the total size of the file or folder in bytes or null if the value cannot be determined.
           For folders the size is determined recursively.
-          Returns null if the size value is not available.
+          For files, the size may be altered if write access is available.
+          If increasing the size of a file, the slack space is filled with zeros.
         </summary>
-      </method>
+      </property>
       <method name="GetSizeOnDisk" ret="Maybe[long]">
         <summary>
           Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
           For folders the size is determined recursively.
           When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
           Returns null if the size cannot be determined.
+        </summary>
+      </method>
+      <method name="GetFileSystem" ret="FileSystem">
+        <summary>
+          Returns the file system that contains this file or folder.
+          Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
         </summary>
       </method>
       <method name="Delete">
@@ -741,7 +643,7 @@
         <summary>
           Returns the list of files and folders that are direct children of this folder.
           The caller can check for each item, which interface it implements to distinguish between files and folders.
-          The list is not required to be in any particular order.
+          The list is not guaranteed to be in any particular order.
         </summary>
       </method>
       <method name="GetChild" ret="FileSystemObject">
@@ -785,17 +687,10 @@
         <param name="buffer" type="Array[byte]" />
         <param name="bufferOffset" type="long" />
       </method>
-      <method name="ChangeSize">
-        <summary>
-          Changes the size of the file.
-          If the new size is larger than the current size, the slack space should be initialized to 0.
-        </summary>
-        <param name="newSize" type="long" />
-      </method>
       <method name="Flush">
         <summary>
           Flushes any cached write operations to this file to disk.
-          The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file shoud also be flushed.
+          The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
           The method must not return until the changes are committed to non-volatile storage.
         </summary>
       </method>

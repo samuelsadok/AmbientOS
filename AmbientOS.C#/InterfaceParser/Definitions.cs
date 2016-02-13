@@ -314,19 +314,27 @@ namespace InterfaceParser
     {
         public List<AttributeDefinition> Attributes { get; } = new List<AttributeDefinition>();
         public List<string> BaseInterfaces { get; } = new List<string>();
+        public List<PropertyDefinition> Properties { get; } = new List<PropertyDefinition>();
         public List<MethodDefinition> Methods { get; } = new List<MethodDefinition>();
 
         protected override void ConsumeNode(XmlNode node)
         {
             switch (node.Name) {
+
+                case "inherits":
+                    BaseInterfaces.Add(node.InnerText);
+                    break;
+
                 case "attribute":
                     var aDef = new AttributeDefinition();
                     aDef.Init(node, Namespace);
                     Attributes.Add(aDef);
                     break;
 
-                case "inherits":
-                    BaseInterfaces.Add(node.InnerText);
+                case "property":
+                    var pDef = new PropertyDefinition();
+                    pDef.Init(node, Namespace);
+                    Properties.Add(pDef);
                     break;
 
                 case "method":
@@ -359,6 +367,19 @@ namespace InterfaceParser
             switch (node.Name) {
                 case "method": Method = node.InnerText; break;
                 case "field": Field = node.InnerText; break;
+                default: base.ConsumeNode(node); break;
+            }
+        }
+    }
+
+    public class PropertyDefinition : Definition
+    {
+        public string PropertyType { get; private set; }
+
+        protected override void ConsumeNode(XmlNode node)
+        {
+            switch (node.Name) {
+                case "type": PropertyType = node.InnerText; break;
                 default: base.ConsumeNode(node); break;
             }
         }
