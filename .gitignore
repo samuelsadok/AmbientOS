@@ -12,6 +12,10 @@ Thumbs.db
 *.csproj.user
 
 
+# NuGet (these packages are restored by NuGet)
+/packages/
+
+
 # Emacs
 *~
 \#*\#

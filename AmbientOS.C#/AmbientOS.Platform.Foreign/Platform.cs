@@ -101,8 +101,8 @@ namespace AmbientOS.Platform
                 }
             }
 
-            context.Log.Log(string.Format("available platforms: {0}", availablePlatforms.Any() ? string.Join(", ", availablePlatforms.Select(p => string.Format("{0} ({1})", p.GetType(), p.Text.Summary))) : "none"), LogType.Debug);
-            context.Log.Log(string.Format("unavailable platforms: {0}", unavailablePlatforms.Any() ? string.Join(", ", unavailablePlatforms.Select(p => string.Format("{0} ({1})", p.Item1, p.Item2.Message))) : "none"), LogType.Debug);
+            context.Log.Log(string.Format("available platforms: {0}", availablePlatforms.Any() ? string.Join(", ", availablePlatforms.Select(p => p == null ? "(null)" : string.Format("{0} ({1})", p.GetType(), p.Text.Summary))) : "none"), LogType.Debug);
+            context.Log.Log(string.Format("unavailable platforms: {0}", unavailablePlatforms.Any() ? string.Join(", ", unavailablePlatforms.Select(p => p == null ? "(null)" : string.Format("{0} ({1})", p.Item1, p.Item2.Message))) : "none"), LogType.Debug);
 
 
             IPlatform platform;

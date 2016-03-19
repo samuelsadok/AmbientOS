@@ -80,7 +80,7 @@
       <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
       <Name>AmbientOS.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.Foreign\AmbientOS.Platform.Foreign.csproj">
+    <ProjectReference Include="..\AmbientOS.Platform.Foreign\AmbientOS.Platform.Foreign.csproj">
       <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
       <Name>AmbientOS.Platform.Foreign</Name>
     </ProjectReference>
