@@ -10,6 +10,8 @@
   <alias name="uint" alias="UInt32" />
   <alias name="long" alias="Int64" />
   <alias name="ulong" alias="UInt64" />
+  <!--<alias name="float" alias="Float32" />-->
+  <!--<alias name="double" alias="Float64" />-->
   <alias name="char" alias="Char" />
   <alias name="string" alias="String" />
 
@@ -23,6 +25,8 @@
   <type lang="C#" name="UInt32" code="uint" />
   <type lang="C#" name="Int64" code="long" />
   <type lang="C#" name="UInt64" code="ulong" />
+  <type lang="C#" name="Float32" code="float" />
+  <type lang="C#" name="Float64" code="double" />
   <type lang="C#" name="Char" code="char" />
   <type lang="C#" name="String" code="string" />
   <type lang="C#" name="Guid" code="Guid" />
@@ -40,9 +44,11 @@
   
   <!-- C# additional types -->
   <type lang="C#" name="DynamicSet[T]" code="DynamicSet&lt;T&gt;" />
+  <type lang="C#" name="DynamicList[T]" code="DynamicList&lt;T&gt;" />
   <type lang="C#" name="ObjRef" code="IObjectRef" />
   <type lang="C#" name="Context" code="Context" />
   <type lang="C#" name="Vector2D[T]" code="Vector2D&lt;T&gt;" />
+  <type lang="C#" name="Matrix[T]" code="IMatrix&lt;T&gt;" />
 
 
   <namespace name="Environment">
@@ -208,6 +214,68 @@
       <field name="Char" type="Maybe[char]" summary="Holds the unicode char associated with the key press. Null if no unicode char can be assigned to the key press." />
     </struct>
 
+    <enum name="Modality">
+      <summary>
+        Governs the display style and behaviour of a UI window or panel.
+      </summary>
+      <value name="StaticContent">
+        <summary>
+          A panel with this modality is usually displayed as a tab in a window with static tabs and cannot be moved around.
+        </summary>
+      </value>
+      <value name="DynamicContent">
+        <summary>
+          A panel with this modality is usually displayed as a dynamic tab and can be moved around, docked to any position in the parent window.
+          This is suitable for the documents in a multi-document interface or for the tabs in a browser.
+        </summary>
+      </value>
+      <value name="StaticToolbox">
+        <summary>
+          A panel with this modality is usually displayed as a docked side bar and cannot be moved around.
+          On a small display, a swipe from the side may be required to reveal the panel.
+          If multiple panels with this modality are displayed, they may share a single side bar and switching is possible through tabs.
+        </summary>
+      </value>
+      <value name="DynamicToolbox">
+        <summary>
+          This defines a behaviour that is usually equal to DynamicContent.
+          The only difference is that such a panel is by default docked to a side instead of filling the main area.
+        </summary>
+      </value>
+    </enum>
+
+    <enum name="TextType">
+      <value name="Arbitrary" />
+      <value name="AlphaNumeric" />
+      <value name="Numeric" />
+      <value name="URL" />
+      <value name="Email" />
+    </enum>
+      
+    <struct name="TextInputOptions">
+      <field name="TextType" type="TextType" />
+      <field name="StartWithCapital" type="bool" />
+      <field name="CapitalWords" type="bool" />
+    </struct>
+    
+    <struct name="TextSelectionOptions">
+    </struct>
+    
+    <struct name="GridDefinition">
+      <summary>
+        Specifies the appearance of a single grid column or row.
+        todo: maybe allow to specify a size relative to another grid definition
+      </summary>
+      <field name="Header" type="Text" />
+      <field name="Tight" type="bool" summary="If true, the actual column width or row height is calculated according to the space requirements of the cells." />
+      <field name="Size" type="Float64" summary="The relative column width. If Tight is true, a value of 1 means that the column is just wide enough to fit the content. If Tight is false and all columns have the same Size value, all will have the same width, but still at least the content width." />
+      <field name="Resizable" type="bool" summary="If true, the user may be able to resize the column width or row height." />
+    </struct>
+    
+    <struct name="FieldDefinition">
+      
+    </struct>
+
     <interface name="Console">
       <method name="Write">
         <summary>
@@ -261,9 +329,9 @@
       <property name="CursorVisibility" type="bool" summary="Gets or sets the visibility of the cursor." />
     </interface>
     
-    <interface name="UI">
+    <interface name="Shell">
       <summary>
-        A shell is the environment in which an action is executed.
+        A shell is the environment which manages the interaction with the user.
         A shell may be a console, a graphical user interface, a speech based
         interface or anything else that allows for interaction with the user.
 
@@ -293,6 +361,121 @@
         <param name="message" type="Text" />
         <param name="severity" type="Severity" />
       </method>
+    </interface>
+
+    <interface name="UI">
+      <summary>
+        Represents the most general description of a user interface.
+        A user interface is usually graphical and 2D, but could conceptually also be presented in 3D, a console or through a speech interface.
+      </summary>
+      <property name="ID" type="string" summary="A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration." />
+      <property name="Modality" type="Modality" summary="Governs the modality in which the UI is displayed" />
+      <property name="Title" type="Text" summary="The title of the UI. This usually makes up the title and subtitle of a window or view." />
+      <property name="Menus" type="DynamicSet[Menu]">
+        <summary>
+          Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+          This may include things such as "Open" or "Create New".
+        </summary>
+      </property>
+    </interface>
+
+    <interface name="Menu">
+      <summary>
+        Represents a collection of features that should probably be displayed in a group.
+      </summary>
+    </interface>
+
+    <interface name="PanelUI" inherits="UI">
+      <property name="Panels" type="DynamicSet[UI]" summary="Represents the set of panels that should be available in the UI. Their modality defines how these behave." />
+    </interface>
+    
+    <interface name="CustomUI" inherits="UI">
+      <property name="Content" type="UIElement" summary="Contains the UI element to display." />
+    </interface>
+
+    <interface name="UIElement">
+      <summary>
+        Base class for all UI elements.
+      </summary>
+    </interface>
+  
+    <interface name="Frames" inherits="UIElement">
+      <summary>
+        Provides a way of displaying multiple elements on top of each other.
+      </summary>
+      <property name="Frames" type="DynamicList[UI]" summary="Specifies the frames being displayed." />
+    </interface>
+  
+    <interface name="Grid" inherits="UIElement">
+      <summary>
+        Arranges child elements in a matrix.
+      </summary>
+      <property name="RowDefinitions" type="DynamicList[GridDefinition]" summary="Specifies the row definitions of the grid. If the rows exceed the available space, scrolling is enabled." />
+      <property name="ColumnDefinitions" type="DynamicList[GridDefinition]" summary="Specifies the column definitions of the grid. If the columns exceed the available space, scrolling is enabled." />
+      <property name="Content" type="Matrix[UIElement]" summary="Holds the actual UI elements of the grid. The row and column with index 0 correspond conceptually to the first row and column in the grid. Whether this corrsponds to the top and right side, depends on the UI context." />
+    </interface>
+    
+    <interface name="Button" inherits="UIElement">
+      <summary>
+        Displays an element that has an on and off state.
+        This can be a button, a checkbox, a switch or something similar.
+        has a textbox as content but can contain any UI element.
+      </summary>
+      <property name="Content" type="UIElement" summary="The content inside or next to the control. This is usually a textbox." />
+      <property name="Pressed" type="bool" summary="The pressed-state of the control. This is set and reset by the shell when the user clicks on the button." />
+    </interface>
+  
+    <interface name="Textbox" inherits="UIElement">
+      <summary>
+        Displays text. The text can be selectable, editable or none.
+      </summary>
+      <property name="Text" type="string" />
+      <property name="Style" type="Graphics.TextStyle" summary="Customizes the text appearance. If null, the context in which the text is shown defines the style." />
+      <property name="InputOptions" type="TextInputOptions" summary="Specifies the behaviour of text input. If null, the text cannot be edited." />
+      <property name="SelectionOptions" type="TextSelectionOptions" summary="Specifies the behaviour of text selection. If null, the text cannot be edited." />
+    </interface>
+
+    <interface name="Graphics" inherits="UIElement">
+      <summary>
+        Draws a graphic.
+      </summary>
+      <property name="Content" type="Graphics.Graphics" summary="The graphics to be displayed" />
+    </interface>
+
+    <interface name="List" inherits="UIElement">
+      <property name="Items" type="DynamicList[ObjRef]">
+        <summary>
+          Represents the list of items that should be displayed in the list view.
+          Depending on the context and platform, tool windows may be floating or docked to a side of the parent window.
+        </summary>
+      </property>
+      <property name="Fields" type="DynamicSet[FieldDefinition]" />
+    </interface>
+  </namespace>
+  
+  
+  <namespace name="Graphics">
+    <summary>
+      Contains interfaces related to 2D and 3D drawing, images and videos.
+    </summary>
+
+    <struct name="Brush">
+      <summary>
+        Defines how an area is painted.
+      </summary>
+    </struct>
+    
+    <interface name="Graphics">
+      <method name="Draw" />
+    </interface>
+  
+    <struct name="TextStyle">
+      <field name="Font" type="Font" />
+      <field name="Foreground" type="Brush" />
+      <field name="Background" type="Brush" />
+    </struct>
+  
+    <interface name="Font">
     </interface>
   </namespace>
   

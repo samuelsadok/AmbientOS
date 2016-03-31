@@ -131,20 +131,31 @@ namespace InterfaceParser
                     builder.AppendLine();
                 first = false;
 
-                if (child is NamespaceDefinition)
-                    (child as NamespaceDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, builder);
-                else if (child is InterfaceDefinition)
-                    (child as InterfaceDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, builder);
-                else if (child is BareTypeDefinition)
-                    (child as BareTypeDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, builder, ref first);
-                else if (child is AliasDefinition)
-                    (child as AliasDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, builder, ref first);
-                else if (child is StructDefinition)
-                    (child as StructDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, builder);
-                else if (child is EnumDefinition)
-                    (child as EnumDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, builder);
-                else
-                    throw new Exception(string.Format("cannot generate C# code for {0}", child.GetType()));
+                var childBuilder = new StringBuilder();
+
+                try {
+                    if (child is NamespaceDefinition)
+                        (child as NamespaceDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, childBuilder);
+                    else if (child is InterfaceDefinition)
+                        (child as InterfaceDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, childBuilder);
+                    else if (child is BareTypeDefinition)
+                        (child as BareTypeDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, childBuilder, ref first);
+                    else if (child is AliasDefinition)
+                        (child as AliasDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, childBuilder, ref first);
+                    else if (child is StructDefinition)
+                        (child as StructDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, childBuilder);
+                    else if (child is EnumDefinition)
+                        (child as EnumDefinition).GenerateCS(indent + DEFAULT_CS_INDENT, childBuilder);
+                    else
+                        throw new Exception(string.Format("cannot generate C# code for {0}", child.GetType()));
+
+                    builder.Append(childBuilder.ToString());
+                } catch (Exception ex) {
+                    builder.AppendLine("<Code-Generation-Error>");
+                    builder.AppendLine("/* node: " + (child?.Name ?? "(null)"));
+                    builder.Append(ex.ToString());
+                    builder.AppendLine(" */");
+                }
             }
 
             builder.AppendLine(indent + "}");

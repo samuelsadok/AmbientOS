@@ -1,11 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6769D08F-E76D-4498-91EE-3F7AA6A588C9}</ProjectGuid>
-    <ProjectTypeGuids>{FEACFBD2-3405-455C-9665-78FE426C6842};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <ProjectGuid>{69F9F493-E9D5-4744-AE89-753E2F656A29}</ProjectGuid>
+    <ProjectTypeGuids>{75B93CEE-1B3E-4BD1-9DB6-45105FFA44DA};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AmbientOS</RootNamespace>
@@ -19,7 +18,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <MtouchDebug>true</MtouchDebug>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugType>pdbonly</DebugType>
@@ -34,14 +32,57 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodesignProvision>Automatic:AppStore</CodesignProvision>
-    <CodesignKey>iPhone Distribution</CodesignKey>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Platform)' == 'AnyCPU' ">
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\AnyCPU\</OutputPath>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\AnyCPU\</OutputPath>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Publish|AnyCPU' ">
+    <OutputPath>bin\Publish\AnyCPU\</OutputPath>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Android' ">
+    <OutputPath>bin\Debug\Android\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Android' ">
+    <OutputPath>bin\Release\Android\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Publish|Android' ">
+    <OutputPath>bin\Publish\Android\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|iPhone' ">
+    <OutputPath>bin\Debug\iPhone\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|iPhone' ">
+    <OutputPath>bin\Release\iPhone\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Publish|iPhone' ">
+    <OutputPath>bin\Publish\iPhone\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|iPhoneSimulator' ">
+    <OutputPath>bin\Debug\iPhoneSimulator\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|iPhoneSimulator' ">
+    <OutputPath>bin\Release\iPhoneSimulator\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Publish|iPhoneSimulator' ">
+    <OutputPath>bin\Publish\iPhoneSimulator\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Main.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Core\AmbientOS.Core.csproj">
@@ -52,33 +93,27 @@
       <Project>{5c90ab4c-ece3-4d15-a935-83eccf892e90}</Project>
       <Name>AmbientOS.FileSystem</Name>
     </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign.Windows\AmbientOS.Platform.Windows.csproj">
-      <Project>{1e1cb682-915d-452e-961e-c47bae9863a6}</Project>
-      <Name>AmbientOS.Platform.Windows</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Foreign\AmbientOS.Platform.Foreign.csproj">
-      <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
-      <Name>AmbientOS.Platform.Foreign</Name>
-    </ProjectReference>
     <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Net\AmbientOS.Net.csproj">
       <Project>{51475512-c2fe-4bac-a80f-e23bcf838bb4}</Project>
       <Name>AmbientOS.Net</Name>
     </ProjectReference>
-    <ProjectReference Include="..\ClassLibrary1\AmbientOS.Platform.iOS.csproj">
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Platform.Foreign\AmbientOS.Platform.Foreign.csproj">
+      <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
+      <Name>AmbientOS.Platform.Foreign</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Platform.iOS\AmbientOS.Platform.iOS.csproj">
       <Project>{d1a49596-e194-4f29-9732-22cb4ae9c118}</Project>
       <Name>AmbientOS.Platform.iOS</Name>
     </ProjectReference>
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Platform.Windows\AmbientOS.Platform.Windows.csproj">
+      <Project>{1e1cb682-915d-452e-961e-c47bae9863a6}</Project>
+      <Name>AmbientOS.Platform.Windows</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Info.plist" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="Xamarin.iOS">
-      <HintPath>$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\Xamarin.iOS\v1.0\Xamarin.iOS.dll</HintPath>
-    </Reference>
+    <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\AmbientOS\AmbientOS.CSharp.targets" />
-  <Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

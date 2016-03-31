@@ -503,6 +503,90 @@ namespace AmbientOS
             public char? Char;
         }
 
+        /// <summary>
+        /// Governs the display style and behaviour of a UI window or panel.
+        /// </summary>
+        public enum Modality
+        {
+            /// <summary>
+            /// A panel with this modality is usually displayed as a tab in a window with static tabs and cannot be moved around.
+            /// </summary>
+            StaticContent,
+
+            /// <summary>
+            /// A panel with this modality is usually displayed as a dynamic tab and can be moved around, docked to any position in the parent window.
+            /// This is suitable for the documents in a multi-document interface or for the tabs in a browser.
+            /// </summary>
+            DynamicContent,
+
+            /// <summary>
+            /// A panel with this modality is usually displayed as a docked side bar and cannot be moved around.
+            /// On a small display, a swipe from the side may be required to reveal the panel.
+            /// If multiple panels with this modality are displayed, they may share a single side bar and switching is possible through tabs.
+            /// </summary>
+            StaticToolbox,
+
+            /// <summary>
+            /// This defines a behaviour that is usually equal to DynamicContent.
+            /// The only difference is that such a panel is by default docked to a side instead of filling the main area.
+            /// </summary>
+            DynamicToolbox
+        }
+
+        public enum TextType
+        {
+            Arbitrary,
+
+            AlphaNumeric,
+
+            Numeric,
+
+            URL,
+
+            Email
+        }
+
+        public class TextInputOptions
+        {
+            public TextType TextType;
+
+            public bool StartWithCapital;
+
+            public bool CapitalWords;
+        }
+
+        public class TextSelectionOptions
+        {
+        }
+
+        /// <summary>
+        /// Specifies the appearance of a single grid column or row.
+        /// todo: maybe allow to specify a size relative to another grid definition
+        /// </summary>
+        public class GridDefinition
+        {
+            public Text Header;
+
+            /// <summary>
+            /// If true, the actual column width or row height is calculated according to the space requirements of the cells.
+            /// </summary>
+            public bool Tight;
+
+            /// <summary>
+            /// The relative column width. If Tight is true, a value of 1 means that the column is just wide enough to fit the content. If Tight is false and all columns have the same Size value, all will have the same width, but still at least the content width.
+            /// </summary>
+            public double Size;
+
+            /// <summary>
+            /// If true, the user may be able to resize the column width or row height.
+            /// </summary>
+            public bool Resizable;
+        }
+
+        public class FieldDefinition
+        {
+        }
+
         [AOSInterface("AmbientOS.UI.Console", typeof(IConsoleImpl), typeof(ConsoleRef))]
         public interface IConsole : IObjectRef
         {
@@ -712,7 +796,7 @@ namespace AmbientOS
 
 
         /// <summary>
-        /// A shell is the environment in which an action is executed.
+        /// A shell is the environment which manages the interaction with the user.
         /// A shell may be a console, a graphical user interface, a speech based
         /// interface or anything else that allows for interaction with the user.
         /// 
@@ -722,8 +806,8 @@ namespace AmbientOS
         /// mean that the console is used for all user interaction. The job of figuring out the right mode of
         /// interaction is the job of the user experience service.
         /// </summary>
-        [AOSInterface("AmbientOS.UI.UI", typeof(IUIImpl), typeof(UIRef))]
-        public interface IUI : IObjectRef
+        [AOSInterface("AmbientOS.UI.Shell", typeof(IShellImpl), typeof(ShellRef))]
+        public interface IShell : IObjectRef
         {
             /// <summary>
             /// Presents a message to the user and allows the user to select one out of a set of possible answers.
@@ -742,10 +826,10 @@ namespace AmbientOS
             void Notify(Text message, Severity severity);
         }
 
-        [AOSInterface("AmbientOS.UI.UI", typeof(IUIImpl), typeof(UIRef))]
-        public interface IUIImpl : IObjectImpl
+        [AOSInterface("AmbientOS.UI.Shell", typeof(IShellImpl), typeof(ShellRef))]
+        public interface IShellImpl : IObjectImpl
         {
-            IUI UIRef { get; }
+            IShell ShellRef { get; }
 
             /// <summary>
             /// Presents a message to the user and allows the user to select one out of a set of possible answers.
@@ -764,18 +848,18 @@ namespace AmbientOS
             void Notify(Text message, Severity severity);
         }
 
-        public class UIRef : ObjectRef<IUIImpl>, IUI
+        public class ShellRef : ObjectRef<IShellImpl>, IShell
         {
-            public UIRef(IUIImpl implementation)
+            public ShellRef(IShellImpl implementation)
                 : base(implementation)
             {
                 baseReferences = new IObjectRef[] { };
             }
 
-            protected override void DeliverPropertiesTo(IUIImpl implementation)
+            protected override void DeliverPropertiesTo(IShellImpl implementation)
             {
             }
-            protected override void FetchPropertiesFrom(IUIImpl implementation)
+            protected override void FetchPropertiesFrom(IShellImpl implementation)
             {
             }
 
@@ -801,6 +885,950 @@ namespace AmbientOS
             {
                 Barrier();
                 implementation.Notify(message, severity);
+            }
+        }
+
+
+        /// <summary>
+        /// Represents the most general description of a user interface.
+        /// A user interface is usually graphical and 2D, but could conceptually also be presented in 3D, a console or through a speech interface.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.UI", typeof(IUIImpl), typeof(UIRef))]
+        public interface IUI : IObjectRef
+        {
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+            DynamicProperty<string> ID { get; }
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+            DynamicProperty<Modality> Modality { get; }
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+            DynamicProperty<Text> Title { get; }
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+            DynamicProperty<DynamicSet<IMenu>> Menus { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.UI", typeof(IUIImpl), typeof(UIRef))]
+        public interface IUIImpl : IObjectImpl
+        {
+            IUI UIRef { get; }
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+            DynamicEndpoint<string> ID { get; }
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+            DynamicEndpoint<Modality> Modality { get; }
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+            DynamicEndpoint<Text> Title { get; }
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+            DynamicEndpoint<DynamicSet<IMenu>> Menus { get; }
+        }
+
+        public class UIRef : ObjectRef<IUIImpl>, IUI
+        {
+            public UIRef(IUIImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] { };
+                IUI_ID = new DynamicProperty<string>(communicationSignal);
+                IUI_Modality = new DynamicProperty<Modality>(communicationSignal);
+                IUI_Title = new DynamicProperty<Text>(communicationSignal);
+                IUI_Menus = new DynamicProperty<DynamicSet<IMenu>>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IUIImpl implementation)
+            {
+                IUI_ID.DeliverTo(implementation.ID);
+                IUI_Modality.DeliverTo(implementation.Modality);
+                IUI_Title.DeliverTo(implementation.Title);
+                IUI_Menus.DeliverTo(implementation.Menus);
+            }
+            protected override void FetchPropertiesFrom(IUIImpl implementation)
+            {
+                IUI_ID.FetchFrom(implementation.ID);
+                IUI_Modality.FetchFrom(implementation.Modality);
+                IUI_Title.FetchFrom(implementation.Title);
+                IUI_Menus.FetchFrom(implementation.Menus);
+            }
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+            DynamicProperty<string> IUI.ID { get { return IUI_ID.Get(); } }
+            readonly DynamicProperty<string> IUI_ID;
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+            DynamicProperty<Modality> IUI.Modality { get { return IUI_Modality.Get(); } }
+            readonly DynamicProperty<Modality> IUI_Modality;
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+            DynamicProperty<Text> IUI.Title { get { return IUI_Title.Get(); } }
+            readonly DynamicProperty<Text> IUI_Title;
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+            DynamicProperty<DynamicSet<IMenu>> IUI.Menus { get { return IUI_Menus.Get(); } }
+            readonly DynamicProperty<DynamicSet<IMenu>> IUI_Menus;
+        }
+
+
+        /// <summary>
+        /// Represents a collection of features that should probably be displayed in a group.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.Menu", typeof(IMenuImpl), typeof(MenuRef))]
+        public interface IMenu : IObjectRef
+        {
+        }
+
+        [AOSInterface("AmbientOS.UI.Menu", typeof(IMenuImpl), typeof(MenuRef))]
+        public interface IMenuImpl : IObjectImpl
+        {
+            IMenu MenuRef { get; }
+        }
+
+        public class MenuRef : ObjectRef<IMenuImpl>, IMenu
+        {
+            public MenuRef(IMenuImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] { };
+            }
+
+            protected override void DeliverPropertiesTo(IMenuImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IMenuImpl implementation)
+            {
+            }
+        }
+
+
+        [AOSInterface("AmbientOS.UI.PanelUI", typeof(IPanelUIImpl), typeof(PanelUIRef))]
+        public interface IPanelUI : IObjectRef, IUI
+        {
+            /// <summary>
+            /// Represents the set of panels that should be available in the UI. Their modality defines how these behave.
+            /// </summary>
+            DynamicProperty<DynamicSet<IUI>> Panels { get; }
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+        }
+
+        [AOSInterface("AmbientOS.UI.PanelUI", typeof(IPanelUIImpl), typeof(PanelUIRef))]
+        public interface IPanelUIImpl : IObjectImpl, IUIImpl
+        {
+            IPanelUI PanelUIRef { get; }
+
+            /// <summary>
+            /// Represents the set of panels that should be available in the UI. Their modality defines how these behave.
+            /// </summary>
+            DynamicEndpoint<DynamicSet<IUI>> Panels { get; }
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+        }
+
+        public class PanelUIRef : ObjectRef<IPanelUIImpl>, IPanelUI, IUI
+        {
+            IUI UIRef { get; }
+            public PanelUIRef(IPanelUIImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIRef = new UIRef(implementation)
+                };
+                IPanelUI_Panels = new DynamicProperty<DynamicSet<IUI>>(communicationSignal);
+                IUI_ID = new DynamicProperty<string>(communicationSignal);
+                IUI_Modality = new DynamicProperty<Modality>(communicationSignal);
+                IUI_Title = new DynamicProperty<Text>(communicationSignal);
+                IUI_Menus = new DynamicProperty<DynamicSet<IMenu>>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IPanelUIImpl implementation)
+            {
+                IPanelUI_Panels.DeliverTo(implementation.Panels);
+                IUI_ID.DeliverTo(implementation.ID);
+                IUI_Modality.DeliverTo(implementation.Modality);
+                IUI_Title.DeliverTo(implementation.Title);
+                IUI_Menus.DeliverTo(implementation.Menus);
+            }
+            protected override void FetchPropertiesFrom(IPanelUIImpl implementation)
+            {
+                IPanelUI_Panels.FetchFrom(implementation.Panels);
+                IUI_ID.FetchFrom(implementation.ID);
+                IUI_Modality.FetchFrom(implementation.Modality);
+                IUI_Title.FetchFrom(implementation.Title);
+                IUI_Menus.FetchFrom(implementation.Menus);
+            }
+
+            /// <summary>
+            /// Represents the set of panels that should be available in the UI. Their modality defines how these behave.
+            /// </summary>
+            DynamicProperty<DynamicSet<IUI>> IPanelUI.Panels { get { return IPanelUI_Panels.Get(); } }
+            readonly DynamicProperty<DynamicSet<IUI>> IPanelUI_Panels;
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+            DynamicProperty<string> IUI.ID { get { return IUI_ID.Get(); } }
+            readonly DynamicProperty<string> IUI_ID;
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+            DynamicProperty<Modality> IUI.Modality { get { return IUI_Modality.Get(); } }
+            readonly DynamicProperty<Modality> IUI_Modality;
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+            DynamicProperty<Text> IUI.Title { get { return IUI_Title.Get(); } }
+            readonly DynamicProperty<Text> IUI_Title;
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+            DynamicProperty<DynamicSet<IMenu>> IUI.Menus { get { return IUI_Menus.Get(); } }
+            readonly DynamicProperty<DynamicSet<IMenu>> IUI_Menus;
+        }
+
+
+        [AOSInterface("AmbientOS.UI.CustomUI", typeof(ICustomUIImpl), typeof(CustomUIRef))]
+        public interface ICustomUI : IObjectRef, IUI
+        {
+            /// <summary>
+            /// Contains the UI element to display.
+            /// </summary>
+            DynamicProperty<IUIElement> Content { get; }
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+        }
+
+        [AOSInterface("AmbientOS.UI.CustomUI", typeof(ICustomUIImpl), typeof(CustomUIRef))]
+        public interface ICustomUIImpl : IObjectImpl, IUIImpl
+        {
+            ICustomUI CustomUIRef { get; }
+
+            /// <summary>
+            /// Contains the UI element to display.
+            /// </summary>
+            DynamicEndpoint<IUIElement> Content { get; }
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+        }
+
+        public class CustomUIRef : ObjectRef<ICustomUIImpl>, ICustomUI, IUI
+        {
+            IUI UIRef { get; }
+            public CustomUIRef(ICustomUIImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIRef = new UIRef(implementation)
+                };
+                ICustomUI_Content = new DynamicProperty<IUIElement>(communicationSignal);
+                IUI_ID = new DynamicProperty<string>(communicationSignal);
+                IUI_Modality = new DynamicProperty<Modality>(communicationSignal);
+                IUI_Title = new DynamicProperty<Text>(communicationSignal);
+                IUI_Menus = new DynamicProperty<DynamicSet<IMenu>>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(ICustomUIImpl implementation)
+            {
+                ICustomUI_Content.DeliverTo(implementation.Content);
+                IUI_ID.DeliverTo(implementation.ID);
+                IUI_Modality.DeliverTo(implementation.Modality);
+                IUI_Title.DeliverTo(implementation.Title);
+                IUI_Menus.DeliverTo(implementation.Menus);
+            }
+            protected override void FetchPropertiesFrom(ICustomUIImpl implementation)
+            {
+                ICustomUI_Content.FetchFrom(implementation.Content);
+                IUI_ID.FetchFrom(implementation.ID);
+                IUI_Modality.FetchFrom(implementation.Modality);
+                IUI_Title.FetchFrom(implementation.Title);
+                IUI_Menus.FetchFrom(implementation.Menus);
+            }
+
+            /// <summary>
+            /// Contains the UI element to display.
+            /// </summary>
+            DynamicProperty<IUIElement> ICustomUI.Content { get { return ICustomUI_Content.Get(); } }
+            readonly DynamicProperty<IUIElement> ICustomUI_Content;
+
+            /// <summary>
+            /// A key that is unique with respect to the containing context (i.e. parent window or application). This is used by the shell to store and retrieve the window configuration.
+            /// </summary>
+            DynamicProperty<string> IUI.ID { get { return IUI_ID.Get(); } }
+            readonly DynamicProperty<string> IUI_ID;
+
+            /// <summary>
+            /// Governs the modality in which the UI is displayed
+            /// </summary>
+            DynamicProperty<Modality> IUI.Modality { get { return IUI_Modality.Get(); } }
+            readonly DynamicProperty<Modality> IUI_Modality;
+
+            /// <summary>
+            /// The title of the UI. This usually makes up the title and subtitle of a window or view.
+            /// </summary>
+            DynamicProperty<Text> IUI.Title { get { return IUI_Title.Get(); } }
+            readonly DynamicProperty<Text> IUI_Title;
+
+            /// <summary>
+            /// Shall provide all feature sets with a scope that spans the entire UI, or features that should always be visible.
+            /// This may include things such as "Open" or "Create New".
+            /// </summary>
+            DynamicProperty<DynamicSet<IMenu>> IUI.Menus { get { return IUI_Menus.Get(); } }
+            readonly DynamicProperty<DynamicSet<IMenu>> IUI_Menus;
+        }
+
+
+        /// <summary>
+        /// Base class for all UI elements.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.UIElement", typeof(IUIElementImpl), typeof(UIElementRef))]
+        public interface IUIElement : IObjectRef
+        {
+        }
+
+        [AOSInterface("AmbientOS.UI.UIElement", typeof(IUIElementImpl), typeof(UIElementRef))]
+        public interface IUIElementImpl : IObjectImpl
+        {
+            IUIElement UIElementRef { get; }
+        }
+
+        public class UIElementRef : ObjectRef<IUIElementImpl>, IUIElement
+        {
+            public UIElementRef(IUIElementImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] { };
+            }
+
+            protected override void DeliverPropertiesTo(IUIElementImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IUIElementImpl implementation)
+            {
+            }
+        }
+
+
+        /// <summary>
+        /// Provides a way of displaying multiple elements on top of each other.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.Frames", typeof(IFramesImpl), typeof(FramesRef))]
+        public interface IFrames : IObjectRef, IUIElement
+        {
+            /// <summary>
+            /// Specifies the frames being displayed.
+            /// </summary>
+            DynamicProperty<DynamicList<IUI>> Frames { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.Frames", typeof(IFramesImpl), typeof(FramesRef))]
+        public interface IFramesImpl : IObjectImpl, IUIElementImpl
+        {
+            IFrames FramesRef { get; }
+
+            /// <summary>
+            /// Specifies the frames being displayed.
+            /// </summary>
+            DynamicEndpoint<DynamicList<IUI>> Frames { get; }
+        }
+
+        public class FramesRef : ObjectRef<IFramesImpl>, IFrames, IUIElement
+        {
+            IUIElement UIElementRef { get; }
+            public FramesRef(IFramesImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIElementRef = new UIElementRef(implementation)
+                };
+                IFrames_Frames = new DynamicProperty<DynamicList<IUI>>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IFramesImpl implementation)
+            {
+                IFrames_Frames.DeliverTo(implementation.Frames);
+            }
+            protected override void FetchPropertiesFrom(IFramesImpl implementation)
+            {
+                IFrames_Frames.FetchFrom(implementation.Frames);
+            }
+
+            /// <summary>
+            /// Specifies the frames being displayed.
+            /// </summary>
+            DynamicProperty<DynamicList<IUI>> IFrames.Frames { get { return IFrames_Frames.Get(); } }
+            readonly DynamicProperty<DynamicList<IUI>> IFrames_Frames;
+        }
+
+
+        /// <summary>
+        /// Arranges child elements in a matrix.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.Grid", typeof(IGridImpl), typeof(GridRef))]
+        public interface IGrid : IObjectRef, IUIElement
+        {
+            /// <summary>
+            /// Specifies the row definitions of the grid. If the rows exceed the available space, scrolling is enabled.
+            /// </summary>
+            DynamicProperty<DynamicList<GridDefinition>> RowDefinitions { get; }
+
+            /// <summary>
+            /// Specifies the column definitions of the grid. If the columns exceed the available space, scrolling is enabled.
+            /// </summary>
+            DynamicProperty<DynamicList<GridDefinition>> ColumnDefinitions { get; }
+
+            /// <summary>
+            /// Holds the actual UI elements of the grid. The row and column with index 0 correspond conceptually to the first row and column in the grid. Whether this corrsponds to the top and right side, depends on the UI context.
+            /// </summary>
+            DynamicProperty<IMatrix<IUIElement>> Content { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.Grid", typeof(IGridImpl), typeof(GridRef))]
+        public interface IGridImpl : IObjectImpl, IUIElementImpl
+        {
+            IGrid GridRef { get; }
+
+            /// <summary>
+            /// Specifies the row definitions of the grid. If the rows exceed the available space, scrolling is enabled.
+            /// </summary>
+            DynamicEndpoint<DynamicList<GridDefinition>> RowDefinitions { get; }
+
+            /// <summary>
+            /// Specifies the column definitions of the grid. If the columns exceed the available space, scrolling is enabled.
+            /// </summary>
+            DynamicEndpoint<DynamicList<GridDefinition>> ColumnDefinitions { get; }
+
+            /// <summary>
+            /// Holds the actual UI elements of the grid. The row and column with index 0 correspond conceptually to the first row and column in the grid. Whether this corrsponds to the top and right side, depends on the UI context.
+            /// </summary>
+            DynamicEndpoint<IMatrix<IUIElement>> Content { get; }
+        }
+
+        public class GridRef : ObjectRef<IGridImpl>, IGrid, IUIElement
+        {
+            IUIElement UIElementRef { get; }
+            public GridRef(IGridImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIElementRef = new UIElementRef(implementation)
+                };
+                IGrid_RowDefinitions = new DynamicProperty<DynamicList<GridDefinition>>(communicationSignal);
+                IGrid_ColumnDefinitions = new DynamicProperty<DynamicList<GridDefinition>>(communicationSignal);
+                IGrid_Content = new DynamicProperty<IMatrix<IUIElement>>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IGridImpl implementation)
+            {
+                IGrid_RowDefinitions.DeliverTo(implementation.RowDefinitions);
+                IGrid_ColumnDefinitions.DeliverTo(implementation.ColumnDefinitions);
+                IGrid_Content.DeliverTo(implementation.Content);
+            }
+            protected override void FetchPropertiesFrom(IGridImpl implementation)
+            {
+                IGrid_RowDefinitions.FetchFrom(implementation.RowDefinitions);
+                IGrid_ColumnDefinitions.FetchFrom(implementation.ColumnDefinitions);
+                IGrid_Content.FetchFrom(implementation.Content);
+            }
+
+            /// <summary>
+            /// Specifies the row definitions of the grid. If the rows exceed the available space, scrolling is enabled.
+            /// </summary>
+            DynamicProperty<DynamicList<GridDefinition>> IGrid.RowDefinitions { get { return IGrid_RowDefinitions.Get(); } }
+            readonly DynamicProperty<DynamicList<GridDefinition>> IGrid_RowDefinitions;
+
+            /// <summary>
+            /// Specifies the column definitions of the grid. If the columns exceed the available space, scrolling is enabled.
+            /// </summary>
+            DynamicProperty<DynamicList<GridDefinition>> IGrid.ColumnDefinitions { get { return IGrid_ColumnDefinitions.Get(); } }
+            readonly DynamicProperty<DynamicList<GridDefinition>> IGrid_ColumnDefinitions;
+
+            /// <summary>
+            /// Holds the actual UI elements of the grid. The row and column with index 0 correspond conceptually to the first row and column in the grid. Whether this corrsponds to the top and right side, depends on the UI context.
+            /// </summary>
+            DynamicProperty<IMatrix<IUIElement>> IGrid.Content { get { return IGrid_Content.Get(); } }
+            readonly DynamicProperty<IMatrix<IUIElement>> IGrid_Content;
+        }
+
+
+        /// <summary>
+        /// Displays an element that has an on and off state.
+        /// This can be a button, a checkbox, a switch or something similar.
+        /// has a textbox as content but can contain any UI element.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.Button", typeof(IButtonImpl), typeof(ButtonRef))]
+        public interface IButton : IObjectRef, IUIElement
+        {
+            /// <summary>
+            /// The content inside or next to the control. This is usually a textbox.
+            /// </summary>
+            DynamicProperty<IUIElement> Content { get; }
+
+            /// <summary>
+            /// The pressed-state of the control. This is set and reset by the shell when the user clicks on the button.
+            /// </summary>
+            DynamicProperty<bool> Pressed { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.Button", typeof(IButtonImpl), typeof(ButtonRef))]
+        public interface IButtonImpl : IObjectImpl, IUIElementImpl
+        {
+            IButton ButtonRef { get; }
+
+            /// <summary>
+            /// The content inside or next to the control. This is usually a textbox.
+            /// </summary>
+            DynamicEndpoint<IUIElement> Content { get; }
+
+            /// <summary>
+            /// The pressed-state of the control. This is set and reset by the shell when the user clicks on the button.
+            /// </summary>
+            DynamicEndpoint<bool> Pressed { get; }
+        }
+
+        public class ButtonRef : ObjectRef<IButtonImpl>, IButton, IUIElement
+        {
+            IUIElement UIElementRef { get; }
+            public ButtonRef(IButtonImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIElementRef = new UIElementRef(implementation)
+                };
+                IButton_Content = new DynamicProperty<IUIElement>(communicationSignal);
+                IButton_Pressed = new DynamicProperty<bool>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IButtonImpl implementation)
+            {
+                IButton_Content.DeliverTo(implementation.Content);
+                IButton_Pressed.DeliverTo(implementation.Pressed);
+            }
+            protected override void FetchPropertiesFrom(IButtonImpl implementation)
+            {
+                IButton_Content.FetchFrom(implementation.Content);
+                IButton_Pressed.FetchFrom(implementation.Pressed);
+            }
+
+            /// <summary>
+            /// The content inside or next to the control. This is usually a textbox.
+            /// </summary>
+            DynamicProperty<IUIElement> IButton.Content { get { return IButton_Content.Get(); } }
+            readonly DynamicProperty<IUIElement> IButton_Content;
+
+            /// <summary>
+            /// The pressed-state of the control. This is set and reset by the shell when the user clicks on the button.
+            /// </summary>
+            DynamicProperty<bool> IButton.Pressed { get { return IButton_Pressed.Get(); } }
+            readonly DynamicProperty<bool> IButton_Pressed;
+        }
+
+
+        /// <summary>
+        /// Displays text. The text can be selectable, editable or none.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.Textbox", typeof(ITextboxImpl), typeof(TextboxRef))]
+        public interface ITextbox : IObjectRef, IUIElement
+        {
+            DynamicProperty<string> Text { get; }
+
+            /// <summary>
+            /// Customizes the text appearance. If null, the context in which the text is shown defines the style.
+            /// </summary>
+            DynamicProperty<Graphics.TextStyle> Style { get; }
+
+            /// <summary>
+            /// Specifies the behaviour of text input. If null, the text cannot be edited.
+            /// </summary>
+            DynamicProperty<TextInputOptions> InputOptions { get; }
+
+            /// <summary>
+            /// Specifies the behaviour of text selection. If null, the text cannot be edited.
+            /// </summary>
+            DynamicProperty<TextSelectionOptions> SelectionOptions { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.Textbox", typeof(ITextboxImpl), typeof(TextboxRef))]
+        public interface ITextboxImpl : IObjectImpl, IUIElementImpl
+        {
+            ITextbox TextboxRef { get; }
+
+            DynamicEndpoint<string> Text { get; }
+
+            /// <summary>
+            /// Customizes the text appearance. If null, the context in which the text is shown defines the style.
+            /// </summary>
+            DynamicEndpoint<Graphics.TextStyle> Style { get; }
+
+            /// <summary>
+            /// Specifies the behaviour of text input. If null, the text cannot be edited.
+            /// </summary>
+            DynamicEndpoint<TextInputOptions> InputOptions { get; }
+
+            /// <summary>
+            /// Specifies the behaviour of text selection. If null, the text cannot be edited.
+            /// </summary>
+            DynamicEndpoint<TextSelectionOptions> SelectionOptions { get; }
+        }
+
+        public class TextboxRef : ObjectRef<ITextboxImpl>, ITextbox, IUIElement
+        {
+            IUIElement UIElementRef { get; }
+            public TextboxRef(ITextboxImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIElementRef = new UIElementRef(implementation)
+                };
+                ITextbox_Text = new DynamicProperty<string>(communicationSignal);
+                ITextbox_Style = new DynamicProperty<Graphics.TextStyle>(communicationSignal);
+                ITextbox_InputOptions = new DynamicProperty<TextInputOptions>(communicationSignal);
+                ITextbox_SelectionOptions = new DynamicProperty<TextSelectionOptions>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(ITextboxImpl implementation)
+            {
+                ITextbox_Text.DeliverTo(implementation.Text);
+                ITextbox_Style.DeliverTo(implementation.Style);
+                ITextbox_InputOptions.DeliverTo(implementation.InputOptions);
+                ITextbox_SelectionOptions.DeliverTo(implementation.SelectionOptions);
+            }
+            protected override void FetchPropertiesFrom(ITextboxImpl implementation)
+            {
+                ITextbox_Text.FetchFrom(implementation.Text);
+                ITextbox_Style.FetchFrom(implementation.Style);
+                ITextbox_InputOptions.FetchFrom(implementation.InputOptions);
+                ITextbox_SelectionOptions.FetchFrom(implementation.SelectionOptions);
+            }
+
+            DynamicProperty<string> ITextbox.Text { get { return ITextbox_Text.Get(); } }
+            readonly DynamicProperty<string> ITextbox_Text;
+
+            /// <summary>
+            /// Customizes the text appearance. If null, the context in which the text is shown defines the style.
+            /// </summary>
+            DynamicProperty<Graphics.TextStyle> ITextbox.Style { get { return ITextbox_Style.Get(); } }
+            readonly DynamicProperty<Graphics.TextStyle> ITextbox_Style;
+
+            /// <summary>
+            /// Specifies the behaviour of text input. If null, the text cannot be edited.
+            /// </summary>
+            DynamicProperty<TextInputOptions> ITextbox.InputOptions { get { return ITextbox_InputOptions.Get(); } }
+            readonly DynamicProperty<TextInputOptions> ITextbox_InputOptions;
+
+            /// <summary>
+            /// Specifies the behaviour of text selection. If null, the text cannot be edited.
+            /// </summary>
+            DynamicProperty<TextSelectionOptions> ITextbox.SelectionOptions { get { return ITextbox_SelectionOptions.Get(); } }
+            readonly DynamicProperty<TextSelectionOptions> ITextbox_SelectionOptions;
+        }
+
+
+        /// <summary>
+        /// Draws a graphic.
+        /// </summary>
+        [AOSInterface("AmbientOS.UI.Graphics", typeof(IGraphicsImpl), typeof(GraphicsRef))]
+        public interface IGraphics : IObjectRef, IUIElement
+        {
+            /// <summary>
+            /// The graphics to be displayed
+            /// </summary>
+            DynamicProperty<Graphics.IGraphics> Content { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.Graphics", typeof(IGraphicsImpl), typeof(GraphicsRef))]
+        public interface IGraphicsImpl : IObjectImpl, IUIElementImpl
+        {
+            IGraphics GraphicsRef { get; }
+
+            /// <summary>
+            /// The graphics to be displayed
+            /// </summary>
+            DynamicEndpoint<Graphics.IGraphics> Content { get; }
+        }
+
+        public class GraphicsRef : ObjectRef<IGraphicsImpl>, IGraphics, IUIElement
+        {
+            IUIElement UIElementRef { get; }
+            public GraphicsRef(IGraphicsImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIElementRef = new UIElementRef(implementation)
+                };
+                IGraphics_Content = new DynamicProperty<Graphics.IGraphics>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IGraphicsImpl implementation)
+            {
+                IGraphics_Content.DeliverTo(implementation.Content);
+            }
+            protected override void FetchPropertiesFrom(IGraphicsImpl implementation)
+            {
+                IGraphics_Content.FetchFrom(implementation.Content);
+            }
+
+            /// <summary>
+            /// The graphics to be displayed
+            /// </summary>
+            DynamicProperty<Graphics.IGraphics> IGraphics.Content { get { return IGraphics_Content.Get(); } }
+            readonly DynamicProperty<Graphics.IGraphics> IGraphics_Content;
+        }
+
+
+        [AOSInterface("AmbientOS.UI.List", typeof(IListImpl), typeof(ListRef))]
+        public interface IList : IObjectRef, IUIElement
+        {
+            /// <summary>
+            /// Represents the list of items that should be displayed in the list view.
+            /// Depending on the context and platform, tool windows may be floating or docked to a side of the parent window.
+            /// </summary>
+            DynamicProperty<DynamicList<IObjectRef>> Items { get; }
+
+            DynamicProperty<DynamicSet<FieldDefinition>> Fields { get; }
+        }
+
+        [AOSInterface("AmbientOS.UI.List", typeof(IListImpl), typeof(ListRef))]
+        public interface IListImpl : IObjectImpl, IUIElementImpl
+        {
+            IList ListRef { get; }
+
+            /// <summary>
+            /// Represents the list of items that should be displayed in the list view.
+            /// Depending on the context and platform, tool windows may be floating or docked to a side of the parent window.
+            /// </summary>
+            DynamicEndpoint<DynamicList<IObjectRef>> Items { get; }
+
+            DynamicEndpoint<DynamicSet<FieldDefinition>> Fields { get; }
+        }
+
+        public class ListRef : ObjectRef<IListImpl>, IList, IUIElement
+        {
+            IUIElement UIElementRef { get; }
+            public ListRef(IListImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] {
+                    UIElementRef = new UIElementRef(implementation)
+                };
+                IList_Items = new DynamicProperty<DynamicList<IObjectRef>>(communicationSignal);
+                IList_Fields = new DynamicProperty<DynamicSet<FieldDefinition>>(communicationSignal);
+            }
+
+            protected override void DeliverPropertiesTo(IListImpl implementation)
+            {
+                IList_Items.DeliverTo(implementation.Items);
+                IList_Fields.DeliverTo(implementation.Fields);
+            }
+            protected override void FetchPropertiesFrom(IListImpl implementation)
+            {
+                IList_Items.FetchFrom(implementation.Items);
+                IList_Fields.FetchFrom(implementation.Fields);
+            }
+
+            /// <summary>
+            /// Represents the list of items that should be displayed in the list view.
+            /// Depending on the context and platform, tool windows may be floating or docked to a side of the parent window.
+            /// </summary>
+            DynamicProperty<DynamicList<IObjectRef>> IList.Items { get { return IList_Items.Get(); } }
+            readonly DynamicProperty<DynamicList<IObjectRef>> IList_Items;
+
+            DynamicProperty<DynamicSet<FieldDefinition>> IList.Fields { get { return IList_Fields.Get(); } }
+            readonly DynamicProperty<DynamicSet<FieldDefinition>> IList_Fields;
+        }
+
+    }
+
+    /// <summary>
+    /// Contains interfaces related to 2D and 3D drawing, images and videos.
+    /// </summary>
+    namespace Graphics
+    {
+        /// <summary>
+        /// Defines how an area is painted.
+        /// </summary>
+        public class Brush
+        {
+        }
+
+        [AOSInterface("AmbientOS.Graphics.Graphics", typeof(IGraphicsImpl), typeof(GraphicsRef))]
+        public interface IGraphics : IObjectRef
+        {
+            void Draw();
+        }
+
+        [AOSInterface("AmbientOS.Graphics.Graphics", typeof(IGraphicsImpl), typeof(GraphicsRef))]
+        public interface IGraphicsImpl : IObjectImpl
+        {
+            IGraphics GraphicsRef { get; }
+
+            void Draw();
+        }
+
+        public class GraphicsRef : ObjectRef<IGraphicsImpl>, IGraphics
+        {
+            public GraphicsRef(IGraphicsImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] { };
+            }
+
+            protected override void DeliverPropertiesTo(IGraphicsImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IGraphicsImpl implementation)
+            {
+            }
+
+            public void Draw()
+            {
+                Barrier();
+                implementation.Draw();
+            }
+        }
+
+
+        public class TextStyle : IRefCounted
+        {
+            public IFont Font { get { return _Font; } set { _Font?.Release(); _Font = value?.Retain(); } }
+            public IFont _Font;
+
+            public Brush Foreground;
+
+            public Brush Background;
+
+            void IRefCounted.Alloc()
+            {
+                _Font.Retain();
+            }
+
+            void IRefCounted.Free()
+            {
+                _Font.Release();
+            }
+
+            void IDisposable.Dispose()
+            {
+                this.Release();
+            }
+        }
+
+        [AOSInterface("AmbientOS.Graphics.Font", typeof(IFontImpl), typeof(FontRef))]
+        public interface IFont : IObjectRef
+        {
+        }
+
+        [AOSInterface("AmbientOS.Graphics.Font", typeof(IFontImpl), typeof(FontRef))]
+        public interface IFontImpl : IObjectImpl
+        {
+            IFont FontRef { get; }
+        }
+
+        public class FontRef : ObjectRef<IFontImpl>, IFont
+        {
+            public FontRef(IFontImpl implementation)
+                : base(implementation)
+            {
+                baseReferences = new IObjectRef[] { };
+            }
+
+            protected override void DeliverPropertiesTo(IFontImpl implementation)
+            {
+            }
+            protected override void FetchPropertiesFrom(IFontImpl implementation)
+            {
             }
         }
 

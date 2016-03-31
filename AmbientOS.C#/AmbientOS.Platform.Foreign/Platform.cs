@@ -95,6 +95,9 @@ namespace AmbientOS.Platform
                     var safeConstructor = (Func<LaunchMode, IPlatform>)Delegate.CreateDelegate(typeof(Func<LaunchMode, IPlatform>), constructor);
                     var p = safeConstructor(launchMode);
 
+                    if (p == null)
+                        throw new Exception("The platform constructor returned null");
+
                     availablePlatforms.Add(p);
                 } catch (Exception ex) {
                     unavailablePlatforms.Add(new Tuple<Type, Exception>(t, ex));
