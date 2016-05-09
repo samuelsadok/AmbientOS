@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<namespace name="$rootnamespace$">
+  <namespace name="$safeitemrootname$">
+    <!-- put your interface definitions here, for examples take a look at the existing definition files -->
+  </namespace>
+</namespace>

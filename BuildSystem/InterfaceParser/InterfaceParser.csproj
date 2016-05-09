@@ -33,12 +33,15 @@
     <CodeAnalysisRuleSet />
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>InterfaceParser.Class1</StartupObject>
+    <StartupObject>InterfaceParser.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="envdte, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
+    <Reference Include="Microsoft.Build" />
+    <Reference Include="Microsoft.Build.Framework" />
+    <Reference Include="Microsoft.Build.Utilities.v4.0" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -49,7 +52,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="MSBuildTask.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="CSGenerator.cs" />
     <Compile Include="Definitions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

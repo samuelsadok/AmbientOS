@@ -8,7 +8,7 @@ using EnvDTE;
 namespace InterfaceParser
 {
 
-    public class Class1
+    public class Program
     {
 
         public static void Main(string[] args)

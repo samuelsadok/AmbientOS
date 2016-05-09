@@ -41,6 +41,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -49,16 +50,23 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AggeregatableProjectWrapper.cs" />
     <Compile Include="AmbientOSDebugTargetSelection.cs" />
     <Compile Include="AmbientOSFlavoredProject.cs" />
     <Compile Include="AmbientOSProjectConfig.cs" />
-    <Compile Include="ApplicationFactory.cs" />
+    <Compile Include="AmbientOSProjectFactory.cs" />
     <Compile Include="DebugCommand.cs" />
     <Compile Include="ExtensionMethods.cs" />
     <Compile Include="Constants.cs" />
+    <Compile Include="HierarchyItem.cs" />
+    <Compile Include="Hooking.cs" />
+    <Compile Include="InterfaceCodeGenerator.cs" />
+    <Compile Include="InterfaceDefinitionsProject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="CustomHierarchyItem.cs" />
     <Compile Include="VsCfgWrapper.cs" />
     <Compile Include="VSCommandInterceptor.cs" />
     <EmbeddedResource Include="Resources\ApplicationProjectNode.BMP" />
@@ -92,6 +100,7 @@
     <Reference Include="EnvDTE90, Version=9.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
+    <Reference Include="Microsoft.Build" />
     <Reference Include="Microsoft.Build.Framework" />
     <Reference Include="Microsoft.Build.Tasks.v4.0" />
     <Reference Include="Microsoft.CSharp" />
@@ -201,7 +210,21 @@
     <ProjectReference Include="..\ApplicationTemplate\ApplicationTemplate.csproj">
       <Project>{E2B4F426-F0B8-4857-BDDF-46465735D9ED}</Project>
       <Name>ApplicationTemplate</Name>
-      <VSIXSubPath>ProjectTemplates</VSIXSubPath>
+      <VSIXSubPath>ProjectTemplates\CSharp\AmbientOS</VSIXSubPath>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <IncludeOutputGroupsInVSIX>TemplateProjectOutputGroup%3b</IncludeOutputGroupsInVSIX>
+    </ProjectReference>
+    <ProjectReference Include="..\LibraryTemplate\LibraryTemplate.csproj">
+      <Project>{81B79043-DB0C-42F4-A5FB-DAFC5780F9A9}</Project>
+      <Name>LibraryTemplate</Name>
+      <VSIXSubPath>ProjectTemplates\CSharp\AmbientOS</VSIXSubPath>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <IncludeOutputGroupsInVSIX>TemplateProjectOutputGroup%3b</IncludeOutputGroupsInVSIX>
+    </ProjectReference>
+    <ProjectReference Include="..\InterfaceDefinitionTemplate\InterfaceDefinitionTemplate.csproj">
+      <Project>{60E77537-8A07-4272-9821-6A293211B1B0}</Project>
+      <Name>InterfaceDefinitionTemplate</Name>
+      <VSIXSubPath>ItemTemplates\AmbientOS</VSIXSubPath>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <IncludeOutputGroupsInVSIX>TemplateProjectOutputGroup%3b</IncludeOutputGroupsInVSIX>
     </ProjectReference>

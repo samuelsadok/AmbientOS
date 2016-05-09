@@ -1,0 +1,48 @@
+
+This is a rough guide on how to implement various things in the AmbientOS project.
+Only outlines are given and important steps may have been left out. You are free to extend.
+
+
+HOW TO...
+
+
+SUPPORT A NEW TARGET PLATFORM (as in: run AmbientOS Applications there)
+ - Write a library for the platform you want to support (AmbientOS.Platform.YourPlatform).
+    - The library should expose any objects that are available on the target platform
+    - The library should provide the application initialization code to create a context for the application
+      (todo: describe in more detail)
+ - Make sure that MSBuild (and VS) can build AmbientOS applications for the new platform.
+    - Make sure that you already have a MSBuild target file for the new platform.
+    - Define a new value for the "Platform" build property, and modify AmbientOS.CSharp.Targets (likewise for any other language):
+       - so that the correct build properties are set up for the new platform
+       - so that all necessary platform specific files are prepared and included in the build
+       - add a conditional import for the platform specific targets file.
+    - To make the platform appear in the drop-down menu, you must Add an according property group to your .csproj file (this will also allow VS to add the platform to the platform selector)
+    - Also, you must update the configuration settings in the .sln file (just delete them and restart VS)
+    - You may want to modify the AmbientOS Application project template, so that it contains the new property group
+    - You may want to somehow modify the AmbientOS VS package, so that it updates already existing project files and solutions
+    - You should now be able to build an AmbientOS application for the new platform from the command line (MSBuild) or from Visual Studio
+ - If you want debugging support for your new platform in Visual Studio, you have to modify the VS package (AmbientOS.VisualStudio).
+    - Make sure that you already have a Visual Studio extension that supports your platform, e.g. Xamarin.iOS for iOS.
+    - Wrap the package and the project type that supports your platform by adding their GUIDs to the wrapped packages/project-types list
+    - Extend the ConfigurationRedirect list: if your new platform is selected when building, the AmbientOS VS extension will translate the configuration into something that the wrapped extension understands
+    - It is likely that not all features of the newly wrapped extensions work properly, so you may have to modify the project system code
+
+
+SUPPORT A NEW PROGRAMMING LANGUAGE
+ - Update the interface definition parser to generate code for the new language.
+    - First, make sure you know your language, then think about how the interface definitions should look in that language, so that it feels comfortable to use them.
+    - Add a code-emission backend for the new language to the InterfaceParser.
+ - Implement a new project system Visual Studio that supports your language. (If your new language is not to be used inside Visual Studio, skip this or do something similar for the according IDE)
+    - Define a new project flavor and add the project system code for it to the AmbientOS VSPackage. Try to do this by reusing the existing code for C# projects.
+    - Modify the AmbientOS VSPackage attributes, such that it advertises the ability to handle your new project flavor.
+    - Add a project template to AmbientOS.VisualStudio. This should be a minimal skeletton that references the AmbientOS framework, calls its initialization code and uses the AmbientOS build targets.
+
+
+SUPPORT A NEW IDE
+ - If the new IDE is integrated with MSBuild, that's good.
+ - If not, you're on your own (todo: elaborate)
+
+
+SUPPORT A NEW TARGET BOARD
+ (todo: elaborate)

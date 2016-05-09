@@ -90,7 +90,7 @@ namespace AmbientOS.FileSystem
                 DiskInfo info;
                 using (var disk = OpenDisk(PInvoke.Access.None)) {
                     var geometry = PInvoke.DeviceIoControl<PInvoke.DiskGeometry>(disk, PInvoke.IOCTL_DISK_GET_DRIVE_GEOMETRY);
-                    var sectors = geometry.Cylinders * geometry.TracksPerCylinder * geometry.SectorsPerTrack;
+                    var sectors = geometry.Cylinders * geometry.TracksPerCylinder * geometry.SectorsPerTrack; // TODO: THIS SECTOR CALCULATION IS BULLSHIT
                     info = new DiskInfo() {
                         // todo: convey serial number, but right now we're limited by the disk interface
                         BytesPerSector = geometry.BytesPerSector,

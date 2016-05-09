@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<VSTemplate Version="3.0.0" Type="Item" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" xmlns:sdk="http://schemas.microsoft.com/developer/vstemplate-sdkextension/2010">
+  <TemplateData>
+    <Name>Interface Definition</Name>
+    <Description>
+      An XML file that contains AmbientOS interface definitions.
+      At compile time, code is automatically generated from these definitions.
+    </Description>
+    <Icon>InterfaceDefinitionTemplate.ico</Icon>
+    <TemplateID>72a23633-a5c7-4ca0-b670-38f2760eb818</TemplateID>
+    <ProjectType>CSharp</ProjectType>
+    <ProjectSubType>AmbientOS</ProjectSubType>
+    <NumberOfParentCategoriesToRollUp>1</NumberOfParentCategoriesToRollUp>
+    <DefaultName>InterfaceDefinition.xml</DefaultName>
+  </TemplateData>
+  <TemplateContent>
+    <ProjectItem ItemType="InterfaceDefinition" ReplaceParameters="true">InterfaceDefinition.xml</ProjectItem>
+  </TemplateContent>
+</VSTemplate>

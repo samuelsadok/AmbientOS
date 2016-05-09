@@ -11,24 +11,28 @@ using Microsoft.VisualStudio;
 
 namespace AmbientOS.VisualStudio
 {
-    [Guid(Constants.ProjectFactoryGuidString)]
-    class ApplicationFactory : FlavoredProjectFactoryBase
+    class AmbientOSProjectFactory : FlavoredProjectFactoryBase
     {
         AmbientOSVSPackage package;
+        AmbientOSProjectType type;
         object[] innerProjects;
 
-        public ApplicationFactory(AmbientOSVSPackage package)
+        protected AmbientOSProjectFactory(AmbientOSVSPackage package, AmbientOSProjectType type)
         {
             if (package == null)
                 throw new ArgumentNullException($"{package}");
             this.package = package;
+            this.type = type;
         }
 
         protected override object PreCreateForOuter(IntPtr outerProjectIUnknown)
         {
             var solution = ((IServiceProvider)package).GetService(typeof(SVsSolution)) as IVsSolution;
-            innerProjects = CreateInnerProjects(solution, outerProjectIUnknown).ToArray();
-            return new AmbientOSFlavoredProject(package, innerProjects, AmbientOSProjectType.Application);
+            if (type == AmbientOSProjectType.Application)
+                innerProjects = CreateInnerProjects(solution, outerProjectIUnknown).ToArray();
+            else
+                innerProjects = new object[0];
+            return new AmbientOSFlavoredProject(package, innerProjects, type);
         }
 
         private IEnumerable<object> CreateInnerProjects(IVsSolution solution, IntPtr outerProjectIUnknown)
@@ -55,13 +59,6 @@ namespace AmbientOS.VisualStudio
 
 
 
-
-
-
-
-
-
-
         /// <summary>
         /// This is the disassembled version of the method from Microsoft.VisualStudio.Shell.Flavor.FlavoredProjectFactoryBase
         /// Source Assembly: Microsoft.VisualStudio.Shell.14.0 (14.0.0.0)
@@ -77,8 +74,8 @@ namespace AmbientOS.VisualStudio
             if (localRegistryCorrected == null) {
                 throw new InvalidOperationException();
             }
-            //Guid gUID = typeof(Microsoft.VisualStudio.ProjectAggregator.CProjectAggregatorClass).GUID;
-            Guid gUID = new Guid("1CACE4D9-C378-42BD-87DB-3C5D27334331");
+            
+            Guid gUID = new Guid("1CACE4D9-C378-42BD-87DB-3C5D27334331"); // = typeof(Microsoft.VisualStudio.ProjectAggregator.CProjectAggregatorClass).GUID
             Guid iID_IUnknown = VSConstants.IID_IUnknown;
             uint dwFlags = 1u;
             IntPtr zero = IntPtr.Zero;
@@ -108,6 +105,24 @@ namespace AmbientOS.VisualStudio
             }
             return 0;
         }
+    }
 
+
+    [Guid(Constants.ApplicationFactoryGuidString)]
+    class AmbientOSApplicationFactory : AmbientOSProjectFactory
+    {
+        public AmbientOSApplicationFactory(AmbientOSVSPackage package)
+            : base(package, AmbientOSProjectType.Application)
+        {
+        }
+    }
+
+    [Guid(Constants.LibraryFactoryGuidString)]
+    class AmbientOSLibraryFactory : AmbientOSProjectFactory
+    {
+        public AmbientOSLibraryFactory(AmbientOSVSPackage package)
+            : base(package, AmbientOSProjectType.Library)
+        {
+        }
     }
 }

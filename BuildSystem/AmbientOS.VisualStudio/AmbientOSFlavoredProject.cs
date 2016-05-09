@@ -1,67 +1,27 @@
-﻿using System;
+﻿
+//#define USE_INTERFACE_DEFINITIONS_VIRTUAL_FOLDER // this has still problems
+
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Drawing;
+using System.IO;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell.Flavor;
-using EnvDTE;
-using EnvDTE80;
-using Microsoft.VisualStudio;
-using System.Collections;
-using VSLangProj;
 using Microsoft.VisualStudio.OLE.Interop;
-using System.Drawing;
-using Microsoft.VisualStudio.Shell;
-using System.IO;
+using EnvDTE;
 
 namespace AmbientOS.VisualStudio
 {
 
-
-    class ForwardingProject : IVsAggregatableProjectCorrected
-    {
-        IVsAggregatableProjectCorrected inner;
-        public ForwardingProject(IVsAggregatableProjectCorrected inner)
-        {
-            this.inner = inner;
-        }
-
-        public int GetAggregateProjectTypeGuids(out string pbstrProjTypeGuids)
-        {
-            var result = inner.GetAggregateProjectTypeGuids(out pbstrProjTypeGuids);
-            if (pbstrProjTypeGuids != null)
-                pbstrProjTypeGuids += (pbstrProjTypeGuids == "" ? "" : ";") + "{" + Constants.MonoTouchUnifiedProjectGuid + "};{" + Constants.MonoDroidProjectGuid + "}";
-            return result;
-        }
-
-        public int InitializeForOuter(string pszFilename, string pszLocation, string pszName, uint grfCreateFlags, ref Guid iidProject, out IntPtr ppvProject, out int pfCanceled)
-        {
-            return inner.InitializeForOuter(pszFilename, pszLocation, pszName, grfCreateFlags, ref iidProject, out ppvProject, out pfCanceled);
-        }
-
-        public int OnAggregationComplete()
-        {
-            return inner.OnAggregationComplete();
-        }
-
-        public int SetAggregateProjectTypeGuids(string lpstrProjTypeGuids)
-        {
-            return inner.SetAggregateProjectTypeGuids(lpstrProjTypeGuids);
-        }
-
-        public int SetInnerProject(IntPtr punkInnerIUnknown)
-        {
-            return inner.SetInnerProject(punkInnerIUnknown);
-        }
-    }
-
-
-
     class AmbientOSFlavoredProject : FlavoredProjectBase, IVsProject, IVsProject2, IVsProject3, IVsProjectFlavorCfgProvider
     {
         AmbientOSVSPackage package;
+        AmbientOSProjectType type;
+
         DTE dte;
         IVsProjectFlavorCfgProvider baseFlavorConfigProvider;
         IVsProject3 innerVsProject3;
@@ -72,11 +32,14 @@ namespace AmbientOS.VisualStudio
         IVsHierarchy[] innerHierarchies;
         IVsUIHierarchy[] innerUIHierarchies;
 
+        HierarchyItem FirstCustomItem; // head of the list of custom items
+        List<uint> hiddenItems = new List<uint>(); // a list of itemIds to hide from the hierarchy
+
         public Project Project { get { return this.ToDteProject(); } }
         public Icon ProjectNodeIcon { get; private set; }
 
-        public virtual bool IsDebuggable { get { return true; } } // todo: override
-        public virtual bool IsStartable { get { return true; } } // todo: override
+        public virtual bool IsDebuggable { get { return type == AmbientOSProjectType.Application; } } // todo: override
+        public virtual bool IsStartable { get { return type == AmbientOSProjectType.Application; } } // todo: override
         public virtual bool IsDeployable { get { return true; } } // todo: override
         public virtual bool IsPublishable { get { return true; } } // todo: override
 
@@ -99,7 +62,7 @@ namespace AmbientOS.VisualStudio
 
         private void FakeCreateDebuggerStartInfo(IVsAggregatableProjectCorrected project, object device)
         {
-            var runSessionInfo = project.InvokeMethod("GetRunSessionInfo" , new Tuple<object, Type>(device, device.GetType())); // type: MonoTouchRunSessionInfo
+            var runSessionInfo = project.InvokeMethod("GetRunSessionInfo", new Tuple<object, Type>(device, device.GetType())); // type: MonoTouchRunSessionInfo
             if (runSessionInfo == null)
                 return;
 
@@ -135,7 +98,7 @@ namespace AmbientOS.VisualStudio
             var xamarinProject = innerAggeregatableProjects.FirstOrDefault(); //.Select(p => Convert.ChangeType(p, xamarinPackageType)); //.FirstOrDefault(p => xamarinPackageType.IsAssignableFrom(p.GetType())); // type: MonoTouchFlavoredProject
 
             //var x2 = xamarinProject as Xamarin.VisualStudio.IOS.MonoTouchFlavoredProject;
-            
+
 
             var macServer = xamarinProject.GetField("macServer");
             var isConnected = macServer.GetProperty("IsConnected");
@@ -179,9 +142,10 @@ namespace AmbientOS.VisualStudio
             return -2147467260;
         }
 
-        public AmbientOSFlavoredProject(AmbientOSVSPackage package, object[] innerProjects, AmbientOSProjectType projectType)
+        public AmbientOSFlavoredProject(AmbientOSVSPackage package, object[] innerProjects, AmbientOSProjectType type)
         {
             this.package = package;
+            this.type = type;
 
             innerAggeregatableProjects = innerProjects.Select(p => p as IVsAggregatableProjectCorrected).Where(p => p != null).ToArray();
             innerHierarchies = innerProjects.Select(p => p as IVsHierarchy).Where(p => p != null).ToArray();
@@ -196,9 +160,36 @@ namespace AmbientOS.VisualStudio
 
             var startupProjectSetInterceptor = VSCommandInterceptor.FromEnum(dte, VSConstants.VSStd97CmdID.SetStartupProject);
             startupProjectSetInterceptor.AfterExecute += OnAfterSetStartupProjectCommandExecuted;
+
+
+            //var testParent = new CustomHierarchyItem(VSConstants.VSITEMID_ROOT) { Caption = "Custom Item Root" };
+            //
+            //HierarchyItem lastItem = testParent;
+            //
+            //for (int i = 0; i < 80; i++) {
+            //    lastItem = lastItem.NextSibling = new CustomHierarchyItem(testParent.ItemId) { Caption = "Custom Item " + i, Icon = i };
+            //}
+            //
+            //testParent.FirstChild = testParent.NextSibling;
+            //testParent.NextSibling = null;
+            //
+            //AddCustomItem(testParent);
         }
 
-        
+        private void AddCustomItem(HierarchyItem item)
+        {
+            if (FirstCustomItem == null) {
+                FirstCustomItem = item;
+                return;
+            }
+
+            var lastItem = FirstCustomItem;
+            while (lastItem.NextSibling != null)
+                lastItem = lastItem.NextSibling;
+            lastItem.NextSibling = item;
+        }
+
+
         protected override void SetInnerProject(IntPtr innerIUnknown)
         {
             var objectForIUnknown = Marshal.GetObjectForIUnknown(innerIUnknown);
@@ -210,14 +201,14 @@ namespace AmbientOS.VisualStudio
                 serviceProvider = package;
 
 
-            
+
             foreach (var project in innerAggeregatableProjects)
                 project.SetInnerProject(innerIUnknown);
 
             base.SetInnerProject(innerIUnknown);
 
 
-            _innerVsAggregatableProject = new ForwardingProject(_innerVsAggregatableProject);
+            _innerVsAggregatableProject = new AggregatableProjectWrapper(_innerVsAggregatableProject);
         }
 
         protected override void InitializeForOuter(string fileName, string location, string name, uint flags, ref Guid guidProject, out bool cancel)
@@ -239,34 +230,255 @@ namespace AmbientOS.VisualStudio
 
             foreach (var project in innerAggeregatableProjects)
                 project.OnAggregationComplete();
+
+
+
+
+
+
+            List<HierarchyItem> interfaceDefinitionItems = new List<HierarchyItem>();
+
+            var interfaceDefinitionsFolder = new CustomHierarchyItem(VSConstants.VSITEMID_ROOT) {
+                Caption = "Interface Definitions",
+                Icon = 8
+            };
+
+            HierarchyItem lastItem = interfaceDefinitionsFolder;
+
+            var allChildren = this.GetAllChildren().ToArray();
+            foreach (var itemId in allChildren) {
+                object property;
+                if (GetProperty(itemId, (int)__VSHPROPID4.VSHPROPID_BuildAction, out property) != VSConstants.S_OK)
+                    continue;
+                if (property as string != ProjectWithInterfaceDefinitions.InterfaceDefinitionItemType)
+                    continue;
+
+                hiddenItems.Add(itemId);
+                interfaceDefinitionItems.Add(lastItem = lastItem.NextSibling = new HierarchyItem(interfaceDefinitionsFolder.ItemId, new Tuple<IVsUIHierarchy, uint>(this, itemId)));
+            }
+
+            interfaceDefinitionsFolder.FirstChild = interfaceDefinitionsFolder.NextSibling;
+            interfaceDefinitionsFolder.NextSibling = null;
+
+#if USE_INTERFACE_DEFINITIONS_VIRTUAL_FOLDER
+            AddCustomItem(interfaceDefinitionsFolder);
+#endif
         }
+
+        protected override int GetNestedHierarchy(uint itemId, ref Guid guidHierarchyNested, out IntPtr hierarchyNested, out uint itemIdNested)
+        {
+            ThereIsThisItem(itemId);
+
+            var result = base.GetNestedHierarchy(itemId, ref guidHierarchyNested, out hierarchyNested, out itemIdNested);
+
+            if (result != VSConstants.S_OK)
+                foreach (var hierarchy in innerHierarchies)
+                    if (hierarchy.GetNestedHierarchy(itemId, ref guidHierarchyNested, out hierarchyNested, out itemIdNested) == VSConstants.S_OK)
+                        return VSConstants.S_OK;
+
+            return result;
+        }
+
+        private HierarchyItem GetCustomItem(uint itemId)
+        {
+            return FirstCustomItem?.GetItem(itemId);
+        }
+
+        private bool IsAtRoot(uint itemId)
+        {
+            return FirstCustomItem?.GetItem(itemId, false) != null;
+        }
+
+        public void InvalidateItem(uint itemid)
+        {
+            var listeners = eventListeners.Values.ToArray();
+            for (int i = 0; i < listeners.Length; i++)
+                listeners[i].OnInvalidateItems(itemid);
+        }
+
+        public void InvalidateProperty(uint itemid, __VSHPROPID prop)
+        {
+            var listeners = eventListeners.Values.ToArray();
+            for (int i = 0; i < listeners.Length; i++)
+                listeners[i].OnPropertyChanged(itemid, (int)prop, 0u);
+        }
+
+        private Dictionary<uint, Tuple<string, object, object, object, object, object>> blabla = new Dictionary<uint, Tuple<string, object, object, object, object, object>>();
+
+        private void ThereIsThisItem(uint itemId)
+        {
+#if __DEBUG__
+            object c, o0, o1, o2, o3, o4;
+            base.GetProperty(itemId, (int)__VSHPROPID.VSHPROPID_Caption, out c);
+            base.GetProperty(itemId, (int)__VSHPROPID.VSHPROPID_IconImgList, out o0);
+            base.GetProperty(itemId, (int)__VSHPROPID.VSHPROPID_IconIndex, out o1);
+            base.GetProperty(itemId, (int)__VSHPROPID.VSHPROPID_OpenFolderIconIndex, out o2);
+            base.GetProperty(itemId, (int)__VSHPROPID.VSHPROPID_IconHandle, out o3);
+            base.GetProperty(itemId, (int)__VSHPROPID.VSHPROPID_OpenFolderIconHandle, out o4);
+            blabla[itemId] = new Tuple<string, object, object, object, object, object>((string)c, o0, o1, o2, o3, o4);
+#endif
+        }
+
+#if __DEBUG__
+        bool dumpedOnce = false;
+#endif
+
+        private void DumpKnownItems()
+        {
+#if __DEBUG__
+            bool successOnly = true;
+
+            if (dumpedOnce)
+                return;
+            dumpedOnce = true;
+
+            using (var output = new StreamWriter(@"C:\Data\Projects\AmbientOS\BuildSystem\itemdump.txt", false)) {
+                output.WriteLine("item dump at " + DateTime.Now);
+
+                foreach (var itemId in blabla.Keys.ToArray()) {
+                    Action<int, string> dumpProperty = (propId, propName) => {
+                        object property;
+                        var result = base.GetProperty(itemId, propId, out property);
+                        if (successOnly && result != VSConstants.S_OK)
+                            return;
+                        if (propName.StartsWith("__VSHPROPID"))
+                            propName = propName.Substring("__VSHPROPID".Length);
+                        output.WriteLine(propName + "(" + result + "): " + (property?.ToString() ?? "(null)") + " (" + (property?.GetType()?.ToString() ?? "(null)") + ")");
+                    };
+
+
+                    output.WriteLine("===== ITEM " + itemId + " =====");
+                    output.WriteLine(">>> __VSHPROPID");
+                    foreach (__VSHPROPID propId in Enum.GetValues(typeof(__VSHPROPID)))
+                        dumpProperty((int)propId, propId.ToString());
+                    output.WriteLine(">>> __VSHPROPID2");
+                    foreach (__VSHPROPID2 propId in Enum.GetValues(typeof(__VSHPROPID2)))
+                        dumpProperty((int)propId, propId.ToString());
+                    output.WriteLine(">>> __VSHPROPID3");
+                    foreach (__VSHPROPID3 propId in Enum.GetValues(typeof(__VSHPROPID3)))
+                        dumpProperty((int)propId, propId.ToString());
+                    output.WriteLine(">>> __VSHPROPID4");
+                    foreach (__VSHPROPID4 propId in Enum.GetValues(typeof(__VSHPROPID4)))
+                        dumpProperty((int)propId, propId.ToString());
+                    output.WriteLine(">>> __VSHPROPID5");
+                    foreach (__VSHPROPID5 propId in Enum.GetValues(typeof(__VSHPROPID5)))
+                        dumpProperty((int)propId, propId.ToString());
+                    output.WriteLine(">>> __VSHPROPID6");
+                    foreach (__VSHPROPID6 propId in Enum.GetValues(typeof(__VSHPROPID6)))
+                        dumpProperty((int)propId, propId.ToString());
+                    output.WriteLine();
+                }
+            }
+#endif
+        }
+
+
+#region FlavoredProject
 
         protected override int GetProperty(uint itemId, int propId, out object property)
         {
-            int result;
+            ThereIsThisItem(itemId);
 
-            foreach (var hierarchy in innerHierarchies)
-                if ((result = hierarchy.GetProperty(itemId, propId, out property)) == VSConstants.S_OK)
-                    if (property != null)
-                        return VSConstants.S_OK;
+            DumpKnownItems();
 
-            result = base.GetProperty(itemId, propId, out property);
+            // insert custom items before anything else
+            if (itemId == VSConstants.VSITEMID_ROOT && propId == -2041 && FirstCustomItem != null) {
+                property = FirstCustomItem.ItemId;
+                return VSConstants.S_OK;
+            }
+
+            var customItem = GetCustomItem(itemId);
+
+            if (customItem != null) {
+
+                // let the custom item handle the property query
+                var customResult = customItem.GetProperty((__VSHPROPID)propId, out property);
+
+                // if the custom item list is exhausted, pretend we're at the beginning of the root item's children
+                if ((__VSHPROPID)propId == __VSHPROPID.VSHPROPID_NextSibling || (__VSHPROPID)propId == __VSHPROPID.VSHPROPID_NextVisibleSibling) {
+                    if (ExtensionMethods.ToItemID(property) == VSConstants.VSITEMID.Nil && IsAtRoot(itemId)) {
+                        itemId = VSConstants.VSITEMID_ROOT;
+                        if ((__VSHPROPID)propId == __VSHPROPID.VSHPROPID_NextSibling)
+                            propId = (int)__VSHPROPID.VSHPROPID_FirstChild;
+                        else if ((__VSHPROPID)propId == __VSHPROPID.VSHPROPID_NextVisibleSibling)
+                            propId = (int)__VSHPROPID.VSHPROPID_FirstVisibleChild;
+                    }
+                }
+
+                if (itemId != VSConstants.VSITEMID_ROOT)
+                    return customResult;
+            }
+
+            // forward the call of GetProperty to the wrapped hierarchies
+
+            var result = VSConstants.E_FAIL;
+            property = null;
+
+            bool repeatCall;
+            do {
+                repeatCall = false;
+
+                result = base.GetProperty(itemId, propId, out property);
+
+                if (result != VSConstants.S_OK)
+                    foreach (var hierarchy in innerHierarchies)
+                        if ((result = hierarchy.GetProperty(itemId, propId, out property)) == VSConstants.S_OK)
+                            break;
+
+                if (result != VSConstants.S_OK)
+                    break;
+
+#if USE_INTERFACE_DEFINITIONS_VIRTUAL_FOLDER
+                // if the property was a hierarchy walk and returned a hidden item, we repeat the call to omit the hidden item
+                if ((__VSHPROPID)propId == __VSHPROPID.VSHPROPID_FirstChild ||
+                    (__VSHPROPID)propId == __VSHPROPID.VSHPROPID_FirstVisibleChild ||
+                    (__VSHPROPID)propId == __VSHPROPID.VSHPROPID_NextSibling ||
+                    (__VSHPROPID)propId == __VSHPROPID.VSHPROPID_NextVisibleSibling) {
+                    object buildAction;
+                    if (GetProperty(itemId, (int)__VSHPROPID4.VSHPROPID_BuildAction, out buildAction) != VSConstants.S_OK)
+                        continue;
+                    if (buildAction as string != ProjectWithInterfaceDefinitions.InterfaceDefinitionItemType)
+                        continue;
+
+                    //if (hiddenItems.Contains((uint)ExtensionMethods.ToItemID(property))) {
+                    itemId = (uint)ExtensionMethods.ToItemID(property);
+                    if ((__VSHPROPID)propId == __VSHPROPID.VSHPROPID_FirstChild)
+                        propId = (int)__VSHPROPID.VSHPROPID_NextSibling;
+                    else if ((__VSHPROPID)propId == __VSHPROPID.VSHPROPID_FirstVisibleChild)
+                        propId = (int)__VSHPROPID.VSHPROPID_NextVisibleSibling;
+                    repeatCall = true;
+                    //}
+                }
+#endif
+            } while (repeatCall);
+
             return result;
         }
 
         protected override int SetProperty(uint itemId, int propId, object property)
         {
+            var customItem = GetCustomItem(itemId);
+            if (customItem != null)
+                return customItem.SetProperty((__VSHPROPID)propId, property);
+
             int result = base.SetProperty(itemId, propId, property);
 
-            foreach (var hierarchy in innerHierarchies)
-                if (hierarchy.SetProperty(itemId, propId, property) == VSConstants.S_OK)
-                    result = VSConstants.S_OK;
+            if (result != VSConstants.S_OK)
+                foreach (var hierarchy in innerHierarchies)
+                    if (hierarchy.SetProperty(itemId, propId, property) == VSConstants.S_OK)
+                        return VSConstants.S_OK;
 
             return result;
         }
 
         protected override Guid GetGuidProperty(uint itemId, int propId)
         {
+            ThereIsThisItem(itemId);
+
+            var customItem = GetCustomItem(itemId);
+            if (customItem != null)
+                return customItem.GetGuidProperty((__VSHPROPID)propId);
+
             try {
                 return base.GetGuidProperty(itemId, propId);
             } catch {
@@ -285,6 +497,12 @@ namespace AmbientOS.VisualStudio
 
         protected override void SetGuidProperty(uint itemId, int propId, ref Guid guid)
         {
+            var customItem = GetCustomItem(itemId);
+            if (customItem != null) {
+                customItem.SetGuidProperty((__VSHPROPID)propId, ref guid);
+                return;
+            }
+
             base.SetGuidProperty(itemId, propId, ref guid);
 
             foreach (var hierarchy in innerHierarchies)
@@ -293,24 +511,43 @@ namespace AmbientOS.VisualStudio
 
         protected override int QueryStatusCommand(uint itemid, ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
         {
+            var customItem = GetCustomItem(itemid);
+            if (customItem != null)
+                return customItem.QueryStatusCommand(ref pguidCmdGroup, cCmds, prgCmds, pCmdText);
+
             int result = base.QueryStatusCommand(itemid, ref pguidCmdGroup, cCmds, prgCmds, pCmdText);
 
-            foreach (var hierarchy in innerUIHierarchies)
-                if (hierarchy.QueryStatusCommand(itemid, ref pguidCmdGroup, cCmds, prgCmds, pCmdText) == VSConstants.S_OK)
-                    result = VSConstants.S_OK;
+            if (result != VSConstants.S_OK)
+                foreach (var hierarchy in innerUIHierarchies)
+                    if (hierarchy.QueryStatusCommand(itemid, ref pguidCmdGroup, cCmds, prgCmds, pCmdText) == VSConstants.S_OK)
+                        return VSConstants.S_OK;
 
             return result;
         }
 
+        //public static bool IsRightClick = false;
+        public static Guid cmdGuid = Guid.Empty;
+        public static uint cmd = 0;
+
         protected override int ExecCommand(uint itemid, ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
         {
-            int result = base.ExecCommand(itemid, ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
-            if (result == VSConstants.S_OK) // experimental: return on first success instead of executing multiple times
-                return result;
+            var customItem = GetCustomItem(itemid);
+            if (customItem != null)
+                return customItem.ExecCommand(ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
 
-            foreach (var hierarchy in innerUIHierarchies)
-                if (hierarchy.ExecCommand(itemid, ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut) == VSConstants.S_OK)
-                    return VSConstants.S_OK;
+            //IsRightClick = (pguidCmdGroup == typeof(VSConstants.VsUIHierarchyWindowCmdIds).GUID && nCmdID == (uint)VSConstants.VsUIHierarchyWindowCmdIds.UIHWCMDID_RightClick);
+            cmdGuid = pguidCmdGroup;
+            cmd = nCmdID;
+
+            int result = base.ExecCommand(itemid, ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
+
+            if (result != VSConstants.S_OK)
+                foreach (var hierarchy in innerUIHierarchies)
+                    if (hierarchy.ExecCommand(itemid, ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut) == VSConstants.S_OK)
+                        return VSConstants.S_OK;
+
+            //cmdGuid = Guid.Empty;
+            //cmd = 0;
 
             return result;
         }
@@ -360,6 +597,7 @@ namespace AmbientOS.VisualStudio
             //}
         }
 
+#endregion
 
 
 
@@ -392,7 +630,8 @@ namespace AmbientOS.VisualStudio
                 Console.WriteLine("startup project: " + startupProjects);
         }
 
-        #region Implementation for some interfaces
+
+#region IVsProjectFlavorCfgProvider
 
         public int CreateProjectFlavorCfg(IVsCfg baseProjectConfig, out IVsProjectFlavorCfg ppFlavorCfg)
         {
@@ -463,9 +702,10 @@ namespace AmbientOS.VisualStudio
             //return VSConstants.S_OK;
         }
 
-        #endregion
+#endregion
 
-        #region Implementaion for IVsProject, IVsProject2 and IVsProject3
+
+#region IVsProject, IVsProject2, IVsProject3
 
         public int AddItem(uint itemidLoc, VSADDITEMOPERATION dwAddItemOperation, string pszItemName, uint cFilesToOpen, string[] rgpszFilesToOpen, IntPtr hwndDlgOwner, VSADDRESULT[] pResult)
         {
@@ -479,7 +719,8 @@ namespace AmbientOS.VisualStudio
 
         public int OpenItem(uint itemid, ref Guid rguidLogicalView, IntPtr punkDocDataExisting, out IVsWindowFrame ppWindowFrame)
         {
-            return innerVsProject3.OpenItem(itemid, ref rguidLogicalView, punkDocDataExisting, out ppWindowFrame);
+            var result = innerVsProject3.OpenItem(itemid, ref rguidLogicalView, punkDocDataExisting, out ppWindowFrame);
+            return result;
         }
 
         public int OpenItemWithSpecific(uint itemid, uint grfEditorFlags, ref Guid rguidEditorType, string pszPhysicalView, ref Guid rguidLogicalView, IntPtr punkDocDataExisting, out IVsWindowFrame ppWindowFrame)
@@ -509,7 +750,8 @@ namespace AmbientOS.VisualStudio
 
         public int GetItemContext(uint itemid, out Microsoft.VisualStudio.OLE.Interop.IServiceProvider ppSP)
         {
-            return innerVsProject3.GetItemContext(itemid, out ppSP);
+            var result = innerVsProject3.GetItemContext(itemid, out ppSP);
+            return result;
         }
 
         public int GetMkDocument(uint itemid, out string pbstrMkDocument)
@@ -522,11 +764,12 @@ namespace AmbientOS.VisualStudio
             return innerVsProject3.IsDocumentInProject(pszMkDocument, out pfFound, pdwPriority, out pitemid);
         }
 
-        #endregion
+#endregion
     }
 
     enum AmbientOSProjectType
     {
-        Application
+        Application,
+        Library
     }
 }

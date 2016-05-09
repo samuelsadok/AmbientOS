@@ -137,6 +137,40 @@ namespace AmbientOS.VisualStudio
             return canLaunch != 0;
         }
 
+        public static VSConstants.VSITEMID ToItemID(object obj)
+        {
+            if (obj.GetType() == typeof(VSConstants.VSITEMID))
+                return (VSConstants.VSITEMID)obj;
+            else if (obj.GetType() == typeof(int))
+                return (VSConstants.VSITEMID)(int)obj;
+            else if (obj.GetType() == typeof(uint))
+                return (VSConstants.VSITEMID)(uint)obj;
+            else
+                throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Returns the item IDs of all the children of the specified root item.
+        /// </summary>
+        /// <param name="rootId">VSConstants.VSITEMID_ROOT by default</param>
+        public static IEnumerable<uint> GetAllChildren(this IVsHierarchy hierarchy, uint rootId = VSConstants.VSITEMID_ROOT)
+        {
+            object property;
+
+            if (hierarchy.GetProperty(rootId, (int)__VSHPROPID.VSHPROPID_FirstChild, out property) != VSConstants.S_OK)
+                yield break;
+
+            for (var item = unchecked((uint)ToItemID(property)); item != VSConstants.VSITEMID_NIL; item = unchecked((uint)ToItemID(property))) {
+                yield return item;
+
+                foreach (var child in hierarchy.GetAllChildren(item))
+                    yield return child;
+
+                if (hierarchy.GetProperty(item, (int)__VSHPROPID.VSHPROPID_NextSibling, out property) != VSConstants.S_OK)
+                    yield break;
+            }
+        }
+
 
 
 
