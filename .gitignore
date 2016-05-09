@@ -26,6 +26,7 @@ bin/
 obj/
 simulation/
 depend_Release_CSR101x_A05/
+*.g.cs
 
 
 # Altium Designer

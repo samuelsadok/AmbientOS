@@ -83,14 +83,19 @@ namespace InterfaceParser
 
     public class NamespaceDefinition : Definition
     {
+        /// <summary>
+        /// Returns an empty global root namespace
+        /// </summary>
+        public static NamespaceDefinition GetNewRootNamespace()
+        {
+            return new NamespaceDefinition() {
+                Name = null,
+                Type = new RootType()
+            };
+        }
+
         public List<Definition> Children { get; } = new List<Definition>();
         public Dictionary<string, List<TypeDefinition>> Types { get; } = new Dictionary<string, List<TypeDefinition>>();
-
-        public void InitAsRoot()
-        {
-            Name = null;
-            Type = new RootType();
-        }
 
         protected override void ConsumeNode(XmlNode node)
         {

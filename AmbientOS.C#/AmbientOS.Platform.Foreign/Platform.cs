@@ -111,7 +111,7 @@ namespace AmbientOS.Platform
             IPlatform platform;
 
             if (availablePlatforms.Count() > 1) {
-                var answer = context.UI.PresentDialog(new Text() {
+                var answer = context.Shell.PresentDialog(new Text() {
                     Summary = string.Format("You are about to {0} {1}. In which mode do you want {0} {1}?", verb, name),
                     Details = string.Format("There are multiple environments available and it's not clear which one you prefer."),
                 },

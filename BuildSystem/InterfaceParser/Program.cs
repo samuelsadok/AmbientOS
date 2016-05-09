@@ -13,24 +13,17 @@ namespace InterfaceParser
 
         public static void Main(string[] args)
         {
-            //var p = new System.Diagnostics.Process();
-            //p.Kill();
-            //p.WaitForExit()
-            
-
             try {
-                var ns = new NamespaceDefinition();
-                ns.InitAsRoot();
+                var root = NamespaceDefinition.GetNewRootNamespace();
 
-                var file = new DefinitionFile(args[0], ns);
+                var file = new DefinitionFile(args[0], root);
                 var builder = new StringBuilder();
 
-                builder.AppendLine("using System;");
-                builder.AppendLine("using System.Collections.Generic;");
-                builder.AppendLine("using AmbientOS.Utils;");
-                builder.AppendLine();
+                builder.GenerateCSPrologue();
 
                 file.RootDefinition.GenerateCS("", builder);
+
+                builder.GenerateCSEpilogue();
 
                 Console.WriteLine(builder.ToString());
 
@@ -39,25 +32,5 @@ namespace InterfaceParser
                 Console.WriteLine(ex.ToString() + " */");
             }
         }
-
-
-        //    public static string Hello()
-        //    {
-        //        var domain = AppDomain.CreateDomain("InterfaceParser");
-        //        var instance = domain.CreateInstanceFromAndUnwrap(@".\..\InterfaceParser\bin\Debug\InterfaceParser.dll", "InterfaceParser.Class1");
-        //        domain.ExecuteAssembly()
-        //        AppDomain.Unload(domain);
-        //
-        //
-        //        var result = (MarshalByRefObject)instance.GetType().GetMethod("Hello").Invoke(instance, new object[0]);
-        //
-        //
-        //        //var assembly = System.Reflection.Assembly.LoadFile(Host.ResolvePath(@".\..\InterfaceParser\bin\Debug\InterfaceParser.dll"));
-        //        //var t = assembly.GetType("InterfaceParser.Class1");
-        //        //var m = t.GetMethod("Hello", System.Reflection.BindingFlags.Static);
-        //        //m.Invoke(null, new object[0]);
-        //        
-        //        return "hello world!";
-        //    }
     }
 }

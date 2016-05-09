@@ -12,7 +12,7 @@ namespace AmbientOS
     public class Context
     {
         public string Name { get; set; }
-        public IUI UI { get; set; }
+        public IShell Shell { get; set; }
         public IEnvironment Environment { get; set; }
         public LogContext Log { get; set; }
         public TaskController Controller { get; set; }
@@ -21,7 +21,7 @@ namespace AmbientOS
         {
             return new Context() {
                 Name = name,
-                UI = UI,
+                Shell = Shell,
                 Environment = Environment,
                 Log = Log.SubContext(name),
                 Controller = Controller

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<namespace name="AmbientOS.Graphics">
+  <summary>
+    Contains interfaces related to 2D and 3D drawing, images and videos.
+  </summary>
+
+  <struct name="Brush">
+    <summary>
+      Defines how an area is painted.
+    </summary>
+  </struct>
+  
+  <interface name="Graphics">
+    <method name="Draw" />
+  </interface>
+ 
+  <struct name="TextStyle">
+    <field name="Font" type="Font" />
+    <field name="Foreground" type="Brush" />
+    <field name="Background" type="Brush" />
+  </struct>
+ 
+  <interface name="Font">
+  </interface>
+</namespace>

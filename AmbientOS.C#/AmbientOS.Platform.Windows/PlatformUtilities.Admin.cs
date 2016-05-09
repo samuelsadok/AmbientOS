@@ -55,7 +55,7 @@ namespace AmbientOS
                 RestartWithAdminPrivileges(args);
                 return;
             } catch (Exception ex) {
-                context.UI.Notify(
+                context.Shell.Notify(
                     new Text() {
                         Summary = "You must grant administrator rights to this application",
                         Details = explanation,

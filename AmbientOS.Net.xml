@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<namespace name="AmbientOS.Net">
+  <summary>
+    Contains interfaces related to networking and connectivity.
+  </summary>
+
+  <interface name="BluetoothLEScanner">
+    <summary>
+      A facility capable of receiving Bluetooth LE advertisments and exposing the discovered peripherals.
+    </summary>
+
+    <method name="Scan" ret="DynamicSet[BluetoothLEPeripheral]">
+      <summary>
+        Starts a scan for peripherals.
+        The peripherals are added and removed to a dynamic set as they are discovered and lost.
+        If the reference count of the dynamic set reaches 0, the scan is stopped. It is restarted if the set is referenced again.
+      </summary>
+      <param name="parameters" type="int" />
+      <param name="context" type="Context" />
+    </method>
+  </interface>
+  
+  <interface name="BluetoothLEPeripheral">
+    <!--<property name="SignalStrength" type="long" />-->
+    <method name="Connect">
+      <summary>
+        Establishes a connection with the peripheral.
+      </summary>
+    </method>
+  </interface>
+</namespace>

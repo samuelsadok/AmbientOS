@@ -6,9 +6,9 @@ using AmbientOS.Environment;
 
 namespace AmbientOS.UI
 {
-    public class ConsoleUI : IUIImpl
+    public class ConsoleUI : IShellImpl
     {
-        public IUI UIRef { get; }
+        public IShell ShellRef { get; }
 
         public LogContext LogContext { get; }
 
@@ -23,7 +23,7 @@ namespace AmbientOS.UI
 
         public ConsoleUI(IConsole console)
         {
-            UIRef = new UIRef(this);
+            ShellRef = new ShellRef(this);
             this.console = console;
             LogContext = LogContext.FromConsole((str, foregroundColor, backgroundColor, controller) => {
                 queue.Enqueue(new Tuple<string, ConsoleColor, ConsoleColor>(str, foregroundColor, backgroundColor), controller);

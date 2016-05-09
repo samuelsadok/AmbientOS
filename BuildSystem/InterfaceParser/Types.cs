@@ -87,15 +87,15 @@ namespace InterfaceParser
         /// </summary>
         /// <param name="name">Set to the remainder of the name. Null if this was a single part.</param>
         /// <param name="args">Set to an array that contains the generic arguments. Null if the first part was not a generic name</param>
-        public static string ExtractFirstGenericName(ref string name, out string[] args)
+        public static string ExtractFirstGenericName(string fullName, out string remainingName, out string[] args)
         {
             StringBuilder currentName = new StringBuilder();
             int level = 0;
             List<StringBuilder> argList = null;
 
             int i = 0;
-            for (i = 0; i < name.Length && !(level == 0 && name[i] == '.'); i++) {
-                var c = name[i];
+            for (i = 0; i < fullName.Length && !(level == 0 && fullName[i] == '.'); i++) {
+                var c = fullName[i];
                 switch (c) {
                     case '[':
                         if (level == 0) {
@@ -131,45 +131,47 @@ namespace InterfaceParser
             }
 
             if (level != 0)
-                throw new Exception(string.Format("unbalanced [] in typename \"{0}\"", name));
+                throw new Exception(string.Format("unbalanced [] in typename \"{0}\"", fullName));
 
-            name = i < name.Length ? name.Substring(i + 1) : null;
+            remainingName = i < fullName.Length ? fullName.Substring(i + 1) : null;
             args = argList == null ? null : argList.Select(arg => arg.ToString()).ToArray();
             return currentName.ToString();
 
         }
 
         /// <summary>
-        /// Adds a subtype to this type (of one of it's subtypes) and initializes the added type.
+        /// Adds a subtype to this type (or one of it's subtypes) and initializes the added type.
         /// </summary>
         public Type AddType(string fullName, string lang, TypeDefinition definition = null)
         {
             string[] genericArgs;
-            var currentName = ExtractFirstGenericName(ref fullName, out genericArgs);
+            string remainingName;
+            var currentName = ExtractFirstGenericName(fullName, out remainingName, out genericArgs);
 
-            List<Type> list;
-            if (!SubTypes.TryGetValue(currentName, out list))
-                SubTypes[currentName] = list = new List<Type>();
-            var subType = list.FirstOrDefault(c => c.ValidForLanguage(lang));
+            // retrieve or generate a list of already existing subtypes that have the same name as the new type
+            List<Type> subTypes;
+            if (!SubTypes.TryGetValue(currentName, out subTypes))
+                SubTypes[currentName] = subTypes = new List<Type>();
+            var subType = subTypes.FirstOrDefault(c => c.ValidForLanguage(lang));
 
-            if (fullName == null) {
+            if (remainingName == null) {
                 var t = new TypeWithDefinition(currentName, lang, definition, this);
                 if (subType != null) {
                     if (!(subType is AutomaticallyGeneratedType))
-                        throw new Exception(string.Format("The type \"{0}\" already exists in \"{1}\"", fullName, ToString()));
-                    list.Remove(subType);
+                        throw new Exception(string.Format("The type \"{0}\" already exists in \"{1}\"", currentName, ToString()));
+                    subTypes.Remove(subType);
                     foreach (var child in subType.SubTypes)
                         t.SubTypes[child.Key] = child.Value;
                 }
-                list.Add(t);
+                subTypes.Add(t);
                 return t;
 
             } else {
                 if (subType == null) {
                     subType = new AutomaticallyGeneratedType(currentName, lang, this);
-                    list.Add(subType);
+                    subTypes.Add(subType);
                 }
-                return subType.AddType(fullName, lang, definition);
+                return subType.AddType(remainingName, lang, definition);
             }
         }
 
@@ -227,7 +229,7 @@ namespace InterfaceParser
                 Type type = Root;
 
                 do {
-                    var genericName = ExtractFirstGenericName(ref remainingName, out argList);
+                    var genericName = ExtractFirstGenericName(remainingName, out remainingName, out argList);
                     type = type.TryGetType(genericName, lang);
 
                     if (type != null && argList != null) {

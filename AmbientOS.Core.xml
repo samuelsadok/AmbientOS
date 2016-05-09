@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<namespace name="AmbientOS">
+  <!-- universal aliasses -->
+  <alias name="bool" alias="Boolean" />
+  <alias name="sbyte" alias="Int8" />
+  <alias name="byte" alias="UInt8" />
+  <alias name="short" alias="Int16" />
+  <alias name="ushort" alias="UInt16" />
+  <alias name="int" alias="Int32" />
+  <alias name="uint" alias="UInt32" />
+  <alias name="long" alias="Int64" />
+  <alias name="ulong" alias="UInt64" />
+  <!--<alias name="float" alias="Float32" />-->
+  <!--<alias name="double" alias="Float64" />-->
+  <alias name="char" alias="Char" />
+  <alias name="string" alias="String" />
+
+  <!-- C# built-in types -->
+  <type lang="C#" name="Boolean" code="bool" />
+  <type lang="C#" name="Int8" code="sbyte" />
+  <type lang="C#" name="UInt8" code="byte" />
+  <type lang="C#" name="Int16" code="short" />
+  <type lang="C#" name="UInt16" code="ushort" />
+  <type lang="C#" name="Int32" code="int" />
+  <type lang="C#" name="UInt32" code="uint" />
+  <type lang="C#" name="Int64" code="long" />
+  <type lang="C#" name="UInt64" code="ulong" />
+  <type lang="C#" name="Float32" code="float" />
+  <type lang="C#" name="Float64" code="double" />
+  <type lang="C#" name="Char" code="char" />
+  <type lang="C#" name="String" code="string" />
+  <type lang="C#" name="Guid" code="Guid" />
+  <type lang="C#" name="DateTime" code="DateTime" />
+  <type lang="C#" name="Type" code="Type" />
+  <type lang="C#" name="Array[T]" code="T[]" />
+  <type lang="C#" name="Enumerable[T]" code="IEnumerable&lt;T&gt;" />
+  <type lang="C#" name="Maybe[T]" code="T?" />
+
+  <!-- C built-in types -->
+  <type lang="C" name="UInt64" code="uint64_t" />
+
+  <alias lang="C" name="String" alias="Array[Char]" />
+
+  
+  <!-- C# additional types -->
+  <type lang="C#" name="DynamicSet[T]" code="DynamicSet&lt;T&gt;" />
+  <type lang="C#" name="DynamicList[T]" code="DynamicList&lt;T&gt;" />
+  <type lang="C#" name="ObjRef" code="IObjectRef" />
+  <type lang="C#" name="Context" code="Context" />
+  <type lang="C#" name="Vector2D[T]" code="Vector2D&lt;T&gt;" />
+  <type lang="C#" name="Matrix[T]" code="IMatrix&lt;T&gt;" />
+</namespace>

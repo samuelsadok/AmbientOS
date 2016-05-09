@@ -54,7 +54,7 @@ namespace AmbientOS
             //});
 
             //var answer = 0;
-            var answer = context.UI.PresentDialog(new Text() {
+            var answer = context.Shell.PresentDialog(new Text() {
                 Summary = "This is a summary",
                 Details = "and these are the details"
             }, new Option[] {

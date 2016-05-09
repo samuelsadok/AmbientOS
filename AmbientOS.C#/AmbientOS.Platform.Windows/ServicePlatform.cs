@@ -30,7 +30,7 @@ namespace AmbientOS.Platform
                 Controller = new TaskController(TaskState.Inactive),
                 Environment = new ForeignEnvironment().EnvironmentRef.Retain(),
                 Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name.GetValue()),
-                UI = null
+                Shell = null
             };
 
             var service = new MainService() {
@@ -49,7 +49,7 @@ namespace AmbientOS.Platform
             }
 
             if (PlatformUtilities.IsOnNetworkDrive(PlatformUtilities.Assembly)) {
-                context.UI.Notify(
+                context.Shell.Notify(
                     new Text() {
                         Summary = "The service executable must not be on a network drive",
                         Details = "Due to unexplicable limitations of Windows, services can't be installed when they're on a network drive. Copy the application to a local drive and try again."
@@ -59,11 +59,11 @@ namespace AmbientOS.Platform
                 return;
             }
 
-            var answer = context.UI.PresentDialog(
+            var answer = context.Shell.PresentDialog(
                 new Text() {
                     Summary = name + " will be installed as a service in the system",
                     Details = "When installed as a service, the application will start in the background every time the computer starts, even when no user is logged in."
-                }, new Option() {
+                }, new Option[] { new Option() {
                     Text = new Text() {
                         Summary = "OK",
                         Details = "Install the service"
@@ -75,11 +75,11 @@ namespace AmbientOS.Platform
                         Details = "Don't install the service"
                     },
                     Level = Level.Easy
-                });
+                } });
 
             if (answer == 0) {
                 System.Configuration.Install.ManagedInstallerClass.InstallHelper(new string[] { System.Reflection.Assembly.GetEntryAssembly().Location });
-                context.UI.Notify(
+                context.Shell.Notify(
                     new Text() {
                         Summary = "Service installed successfully.",
                         Details = string.Format("The service was installed successfully under the name \"{0}\".", name)
@@ -96,11 +96,11 @@ namespace AmbientOS.Platform
                 return;
             }
 
-            var answer = context.UI.PresentDialog(
+            var answer = context.Shell.PresentDialog(
                 new Text() {
                     Summary = name + " will be installed as a service in the system",
                     Details = "When installed as a service, the application will start in the background every time the computer starts, even when no user is logged in."
-                }, new Option() {
+                }, new Option[] { new Option() {
                     Text = new Text() {
                         Summary = "OK",
                         Details = "Uninstall the service"
@@ -112,11 +112,11 @@ namespace AmbientOS.Platform
                         Details = "Leave the service installed for now"
                     },
                     Level = Level.Easy
-                });
+                } });
 
             if (answer == 0) {
                 System.Configuration.Install.ManagedInstallerClass.InstallHelper(new string[] { "/u", System.Reflection.Assembly.GetEntryAssembly().Location });
-                context.UI.Notify(
+                context.Shell.Notify(
                     new Text() {
                         Summary = "Service uninstalled successfully.",
                         Details = string.Format("The service \"{0}\" was uninstalled successfully.", name)

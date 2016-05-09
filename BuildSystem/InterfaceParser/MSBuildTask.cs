@@ -20,33 +20,54 @@ namespace InterfaceParser
         [Output]
         public ITaskItem Output { get; set; }
 
-        //[Output]
-        //public ITaskItem[] GeneratedFiles { get; set; }
-
         public override bool Execute()
         {
             var generatedFileNames = new List<string>();
 
-            foreach (var item in Templates) {
-                string inputFileName = item.ItemSpec;
-                string outputFileName = Output.ItemSpec; // Path.ChangeExtension(inputFileName, ".Designer.cs");
-                string result;
+            var root = NamespaceDefinition.GetNewRootNamespace();
+            var definitionFiles = new DefinitionFile[Templates.Count()];
+            var builder = new StringBuilder();
+
+            builder.GenerateCSPrologue();
+
+            // load all files
+            for (int i = 0; i < Templates.Count(); i++) {
+                var inputFileName = Templates[i].ItemSpec;
 
                 try {
-                    // Build code string
-                    result = "Code generator invoked on " + inputFileName + " at " + DateTime.Now;
-
-                    using (var destination = new FileStream(outputFileName, FileMode.Create)) {
-                        var bytes = Encoding.UTF8.GetBytes(result);
-                        destination.Write(bytes, 0, bytes.Length);
-                    }
-                    generatedFileNames.Add(outputFileName);
+                    definitionFiles[i] = new DefinitionFile(inputFileName, root);
                 } catch (Exception ex) {
-                    Log.LogError("Error while compiling [{0}]", inputFileName);
+                    definitionFiles[i] = null;
+                    Log.LogError("Error while parsing [{0}]", inputFileName);
                     Log.LogErrorFromException(ex, true, true, inputFileName);
                 }
             }
-            //GeneratedFiles = generatedFileNames.Select(name => new TaskItem(name)).ToArray();
+
+            // generate code for all files
+            for (int i = 0; i < Templates.Count(); i++) {
+                if (definitionFiles[i] == null)
+                    continue;
+
+                var inputFileName = Templates[i].ItemSpec;
+
+                try {
+                    builder.GenerateCSChapter(inputFileName);
+                    definitionFiles[i].RootDefinition.GenerateCS("", builder);
+                } catch (Exception ex) {
+                    Log.LogError("Error while generating code for [{0}]", inputFileName);
+                    Log.LogErrorFromException(ex, true, true, inputFileName);
+                }
+            }
+
+            builder.GenerateCSEpilogue();
+
+            string outputFileName = Output.ItemSpec;
+
+            using (var destination = new FileStream(outputFileName, FileMode.Create)) {
+                var bytes = Encoding.UTF8.GetBytes(builder.ToString());
+                destination.Write(bytes, 0, bytes.Length);
+            }
+            generatedFileNames.Add(outputFileName);
 
 
             Log.LogMessage("Finished Generation");

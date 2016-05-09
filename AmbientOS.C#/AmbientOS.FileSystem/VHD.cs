@@ -340,16 +340,16 @@ namespace AmbientOS.FileSystem
             var disk = ParseHeader(file, context.Log, out issues);
 
             if (issues.Count == 0)
-                context.UI.Notify(new Text() {
+                context.Shell.Notify(new Text() {
                     Summary = "The VHD image seems to be healthy."
                 }, Severity.Success);
 
             if (issues.Count > 0) {
-                var answer = context.UI.PresentDialog(new Text() {
+                var answer = context.Shell.PresentDialog(new Text() {
                     Summary = "There are problems with reading this image.",
                     Details = "I found some issues with the file you tried to mount. If you continue, there is no guarantee that it will work.",
                     Debug = string.Join("\n", issues)
-                }, new Option() {
+                }, new Option[] { new Option() {
                     Text = new Text() {
                         Summary = "Cancel",
                         Details = "Don't open the image file"
@@ -361,7 +361,7 @@ namespace AmbientOS.FileSystem
                         Details = "I don't care, try it anyway"
                     },
                     Level = Level.Advanced
-                });
+                } });
                 if (answer == 0)
                     return new DynamicSet<IDisk>();
             }
@@ -381,7 +381,7 @@ namespace AmbientOS.FileSystem
             var disk = ParseHeader(file, context.Log, out issues);
 
             if (issues.Count == 0)
-                context.UI.Notify(new Text() {
+                context.Shell.Notify(new Text() {
                     Summary = "The VHD image seems to be healthy."
                 }, Severity.Success);
 

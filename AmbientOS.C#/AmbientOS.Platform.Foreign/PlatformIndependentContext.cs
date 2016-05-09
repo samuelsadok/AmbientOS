@@ -37,10 +37,10 @@ namespace AmbientOS.Platform
                 var ui = new ConsoleUI(SystemConsole.Console);
                 ui.Start(context);
                 context.Log = ui.LogContext;
-                context.UI = ui.UIRef.Retain();
+                context.Shell = ui.ShellRef.Retain();
             } else {
                 context.Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name.GetValue());
-                context.UI = null; // bad idea: use dummy UI
+                context.Shell = null; // bad idea: use dummy UI
             }
 
             return context;

@@ -24,6 +24,29 @@ namespace InterfaceParser
         }
 
 
+        public static void GenerateCSPrologue(this StringBuilder builder)
+        {
+            builder.AppendLine("using System;");
+            builder.AppendLine("using System.Collections.Generic;");
+            builder.AppendLine("using AmbientOS.Utils;");
+        }
+
+        public static void GenerateCSChapter(this StringBuilder builder, string title)
+        {
+            builder.AppendLine();
+            builder.AppendLine();
+            builder.AppendLine("/*");
+            builder.AppendLine(" * " + title);
+            builder.AppendLine(" */");
+            builder.AppendLine();
+        }
+
+        public static void GenerateCSEpilogue(this StringBuilder builder)
+        {
+            // nothing to do
+        }
+
+
         public static string GenerateCS(this Type type, Type ns)
         {
             var nsPrefix = "";

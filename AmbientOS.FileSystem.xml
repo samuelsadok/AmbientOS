@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8"?>
+<namespace name="AmbientOS.FileSystem">
+  <summary>
+    Contains interfaces related to files, file systems and disks.
+  </summary>
+
+  <enum name="FileSystemFlags">
+    <value name="Hidden" value="0x1" />
+    <value name="SoftLink" value="0x2" />
+    <value name="Sparse" value="0x4" />
+    <value name="Compressed" value="0x8" />
+    <value name="Encrypted" value="0x10" />
+  </enum>
+
+  <enum name="OpenMode" summary="Specifies the mode of creating or opening files or folders.">
+    <value name="New" value="1" summary="Request the creation of a new file or folder. If a file or folder with the same name already exists, the create method shall throw an exception." />
+    <value name="Existing" value="2" summary="Request an existing file or folder. If the specified file or folder does not exist, the create method shall throw an exception." />
+    <value name="NewOrExisting" value="3" summary="The file or folder is only created if it doesn't already exist, otherwise the existing one is returned." />
+  </enum>
+
+  <enum name="DeleteMode" summary="Specifies the mode of file/folder deletion. If deletion is supported on a given object, at least the Permanent option must be supported.">
+    <value name="Permanent" summary="The file or folder is deleted quickly and the allocated disk space becomes free. This cannot be undone. Choose this option for temporary files that contain no user data or if the user explicitly requests it." />
+    <value name="Trash" summary="The file is moved to the trash associated with the containing file system and may automatically be deleted after some time period. Choose this option if the user requested the deletion." />
+  </enum>
+
+  <enum name="MergeMode" summary="Specifies the action that is taken if a conflict arises while copying.">
+    <value name="Abort" value="0x0" summary="If a conflict arises, abort the operation" />
+    <value name="Evict" value="0x1" summary="Override the file at the destination" />
+    <value name="Skip" value="0x2" summary="Don't copy conflicting files" />
+    <value name="Both" value="0x3" summary="Keep both files and rename the file being copied" />
+    <value name="Newer" value="0x4" summary="Keep the file with the most recent modified time" />
+    <value name="Older" value="0x5" summary="Keep the file with the oldest modified time" />
+    <value name="Merge" value="0x8" summary="If the conflicting objects are folders, merge them recursively. This flag can be combined with any of the other options (except for Abort)." />
+  </enum>
+
+  <struct name="DiskInfo">
+    <field name="ID" type="Guid">
+      <summary>
+        The ID reported by the hard disk.
+        Be careful when using this, it could be modified and non-unique, especially for virtual disks.
+      </summary>
+    </field>
+    <field name="Tracks" type="int">
+      <summary>
+        The total number of tracks on the disk.
+        In most cases (i.e. for normal hard drives, SSDs, and most optical disks), this will be 1.
+        There are however some CD's that have multiple tracks.
+      </summary>
+    </field>
+    <field name="Sectors" type="long">
+      <summary>
+        The total number of sectors on one track of the disk.
+        Each track has the same number of sectors.
+      </summary>
+    </field>
+    <field name="MaxSectors" type="long">
+      <summary>
+        The maximum number of sectors the disk could be expanded to.
+        For most real disks, this will be the same as the current sector count.
+      </summary>
+    </field>
+    <field name="BytesPerSector" type="long">
+      <summary>
+        The number of bytes per sector.
+        Most of the time, this will be 512, and sometimes 4096, but you should not rely on that assumption.
+      </summary>
+    </field>
+  </struct>
+
+  <struct name="VolumeInfo">
+    <field name="ID" type="Guid">
+      <summary>
+        The ID of the volume. Volumes on a disk using the MBR partitioning scheme get an ID derived from the disk ID and volume offet.
+        Be careful when using this, it could be modified and non-unique, especially for virtual disks.
+      </summary>
+    </field>
+    <field name="Type" type="Guid">
+      <summary>
+        The type of the volume, as specified in the partition table.
+        Zero if unknown. For legacy MBR partitions, only the last byte specifies the type and the rest is zero.
+      </summary>
+    </field>
+    <field name="Flags" type="FileSystemFlags" />
+  </struct>
+
+  <struct name="VolumeExtent">
+    <field name="Track" type="int" summary="The track of the disk on which the extent resides. In most cases this is 0, since there's mostly only one track." />
+    <field name="StartSector" type="long" summary="The absolute start sector of the extent on the underlying disk." />
+    <field name="Sectors" type="long" summary="The total number of sectors in the extent." />
+    <field name="MaxSectors" type="long" summary="The maximum number of sectors this extent could be expanded to. If there is no free space on disk following the extent, this is the same as the current sector count." />
+    <field name="Disk" type="Disk" summary="The underlying disk." />
+  </struct>
+
+  <struct name="FileTimes">
+    <summary>
+      Contains different kinds of times associated with the file.
+      All times should be in UTC.
+      For reading, null values indicate that the particular value is not available.
+      For writing, set the fields to null that shouldn't be updated.
+    </summary>
+    <field name="CreatedTime" type="Maybe[DateTime]">
+      <summary>
+        Time when the file or folder was created.
+        AmbientOS file system drivers shall initialize this field automatically.
+      </summary>
+    </field>
+    <field name="ModifiedTime" type="Maybe[DateTime]">
+      <summary>
+        Time when the file was modified.
+        Semantics not clearly defined for folders.
+        AmbientOS file system drivers shall update this field automatically.
+      </summary>
+    </field>
+    <field name="ReadTime" type="Maybe[DateTime]">
+      <summary>
+        Time when the file was last read.
+        AmbientOS file system drivers shall NOT update this field automatically, hence it is of limited value.
+      </summary>
+    </field>
+  </struct>
+
+  <struct name="NamingConventions">
+    <field name="ForbiddenChars" type="Array[char]" summary="All characters that must not occur anywhere of a name." />
+    <field name="ForbiddenLeadingChars" type="Array[char]" summary="All characters that must not occur at the beginning of a name." />
+    <field name="ForbiddenTrailingChars" type="Array[char]" summary="All characters that must not occur at the end of a name." />
+    <field name="ForbiddenNames" type="Array[string]" summary="All strings that must not be used as a file or folder name." />
+    <field name="MaxNameLength" type="long" summary="The maximum number of chars in the name. Set to -1 to indicate no limit." />
+    <field name="CaseSensitive" type="bool" summary="Indicates whether the file system uses case sensitive name comparision." />
+  </struct>
+
+  <interface name="Disk">
+    <property name="Info" type="DiskInfo" summary="Indicates information about the disk. It may be possible for virtual disks to change some of this information." />
+    <method name="Read">
+      <summary>
+        Reads the specified sectors.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="track" type="int" />
+      <param name="offset" type="long" summary="The sector number (starting at 0)." />
+      <param name="count" type="long" summary="The number of sectors to read." />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Write">
+      <summary>
+        Writes to the specified sectors.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="track" type="int" />
+      <param name="offset" type="long" summary="The sector number (starting at 0)." />
+      <param name="count" type="long" summary="The number of sectors to write." />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Flush">
+      <summary>
+        Flushes any cached write operations to this disk to the device.
+        The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file should also be flushed.
+        The method must not return until the changes are committed to non-volatile storage.
+      </summary>
+    </method>
+  </interface>
+
+  <interface name="Volume">
+    <property name="Info" type="VolumeInfo" summary="Indicates information about the disk. It may be possible for some volumes to change this information." />
+    <property name="Size" type="long">
+      <summary>
+        Indicates the size of the volume in bytes.
+        It may be possible to change the size of a virtual volume or if there is unused disk space following the last volume extent.
+      </summary>
+    </property>
+    <method name="GetExtents" ret="Array[VolumeExtent]">
+      <summary>
+        Returns the extents that make up this volume.
+        In most cases, the result contains a single element.
+        The result may be incomplete, for instance if the volume is partially virtual.
+      </summary>
+    </method>
+    <method name="Read">
+      <summary>
+        Reads data from the volume.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="offset" type="long" />
+      <param name="count" type="long" />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Write">
+      <summary>
+        Writes data to the volume.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="offset" type="long" />
+      <param name="count" type="long" />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Flush">
+      <summary>
+        Flushes any cached write operations to this volume to disk.
+        The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
+        The method must not return until the changes are committed to non-volatile storage.
+      </summary>
+    </method>
+  </interface>
+
+  <interface name="FileSystem">
+    <summary>
+      Exposes a file system.
+    </summary>
+    <property name="Name" type="string" summary="Gets or sets the human-readable volume name. Returns null if there is no name available." />
+    <method name="GetNamingConventions" ret="NamingConventions">
+      <summary>
+        Returns the naming conventions for this file system.
+      </summary>
+    </method>
+    <method name="GetRoot" ret="Folder">
+      <summary>
+        Returns the root folder of this file system.
+      </summary>
+    </method>
+    <method name="GetTotalSpace" ret="Maybe[long]">
+      <summary>
+        Returns the total size of the volume in bytes.
+        Shall return null if this is not applicable.
+      </summary>
+    </method>
+    <method name="GetFreeSpace" ret="Maybe[long]">
+      <summary>
+        Returns the free space on the volume in bytes.
+        Shall return null if this is not applicable.
+      </summary>
+    </method>
+    <method name="GetFiles" ret="Enumerable[string]">
+      <summary>
+        Runs a search query on the file system and returns all matching files and folders.
+        Search query examples (todo: decide on case sensitivity):
+        abc.txt     returns all files with the name "abc.txt"
+        *.txt       returns all files with the .txt extension (including the file named ".txt")
+        *a*c*       returns all files that have "a" and "c" in their name in this order
+        /abc.txt    returns all files named "abc.txt" in the root folder
+        /*/abc.txt  returns all files named "abc.txt" in any direct subfolder of the root folder
+        abc/**/def.txt returns all files named "def.txt" in any subfolder of a folder named "def.txt"
+        projects/*/build/**/*.exe   returns all exe files that are at some point contained in a "build" folder that have
+
+        todo: rethink this - implemantation probably too complicated
+      </summary>
+      <param name="query" type="string" summary="The query string (see remarks)." />
+    </method>
+    <method name="Move">
+      <summary>
+        Moves a file or folder within this file system.
+      </summary>
+      <param name="file" type="FileSystemObject" summary="The file or folder being moved. If this doesn't belong to this file system, the method shall fail." />
+      <param name="destination" type="Folder" summary="The destination of the move operation. If this doesn't belong to this file system, the method shall fail." />
+      <param name="newName" type="string" summary="The new name of the file or folder being moved." />
+    </method>
+    <method name="Copy" ret="FileSystemObject">
+      <summary>
+        Copies a file or folder within this file system.
+        Returns the object at the destination.
+      </summary>
+      <param name="file" type="FileSystemObject" summary="The file or folder being copied. If this doesn't belong to this file system, the method shall fail." />
+      <param name="destination" type="Folder" summary="The destination of the copy operation. If this doesn't belong to this file system, the method shall fail." />
+      <param name="newName" type="string" summary="The new name of the file or folder being copied." />
+      <param name="mode" type="MergeMode" summary="The behavior in case of conflicts" />
+    </method>
+  </interface>
+
+  <interface name="FileSystemObject">
+    <property name="Name" type="string">
+      <summary>
+        Gets or sets the name of the file or folder.
+        Returns null if the name is not available.
+        Caution should be taken when allowing renaming: it may be possible to misuse this to query the existance of files in the parent folder.
+        todo: think about what names we allow on what file systems (e.g. should we allow on NTFS names that would be invalid in windows? should this be a setting?)
+      </summary>
+    </property>
+    <property name="Path" type="string">
+      <summary>
+        todo: think about what we really want
+        do we want a path that uniquely identifies the object value?
+        relative to what? another object reference? the current kernel realm? globally?
+        or do we just want a path that looks nice to a user?
+
+        to what else can this be applied? any type of object?
+        an object reference?
+        can this be combined with a more complex path class, that
+        would also allow estimation of (different metrics of) cost?
+        maybe an object reference can contain multiple paths and the client can select
+        which one it wants to use.
+        (e.g. the same file may be reachable via bluetooth but also via USB)
+      </summary>
+    </property>
+    <property name="Times" type="FileTimes" summary="Gets or sets various time fields of this file." />
+    <property name="Size" type="Maybe[long]">
+      <summary>
+        Returns the total size of the file or folder in bytes or null if the value cannot be determined.
+        For folders the size is determined recursively.
+        For files, the size may be altered if write access is available.
+        If increasing the size of a file, the slack space is filled with zeros.
+      </summary>
+    </property>
+    <method name="GetSizeOnDisk" ret="Maybe[long]">
+      <summary>
+        Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
+        For folders the size is determined recursively.
+        When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
+        Returns null if the size cannot be determined.
+      </summary>
+    </method>
+    <method name="GetFileSystem" ret="FileSystem">
+      <summary>
+        Returns the file system that contains this file or folder.
+        Returns null if the object does not belong to a filesystem (e.g. for a virtual folder).
+      </summary>
+    </method>
+    <method name="Delete">
+      <summary>
+        Deletes the file or folder.
+        todo: change semantics of this to be insecure,
+        make a separate SecureDelete(int passes) method
+      </summary>
+      <param name="mode" type="DeleteMode" />
+    </method>
+    <method name="SecureDelete">
+      <summary>
+        Deletes the file or folder securely.
+        The associated disk space shall be overwritten with the output of a computationally secure pseudorandom generator.
+        The associated disk space must at least include file content, times, names and size.
+        A solid implementation would scramble the entire file record and any logs where this file may occur.
+        This method must not return until the operation is committed to disk.
+        Choose this method over the normal Delete method for temporary files that may contain user data or if the user explicitly requests it.
+      </summary>
+      <param name="passes" type="int" summary="On most storage devices, the old data is still recoverable after overwriting it. Multiple write passes make this harder. This specifies the number of passes to apply." />
+    </method>
+  </interface>
+
+  <interface name="Folder" inherits="FileSystemObject">
+    <summary>
+      Exposes a container of file system object (i.e. files and folders).
+    </summary>
+    <method name="GetChildren" ret="Enumerable[FileSystemObject]">
+      <summary>
+        Returns the list of files and folders that are direct children of this folder.
+        The caller can check for each item, which interface it implements to distinguish between files and folders.
+        The list is not guaranteed to be in any particular order.
+      </summary>
+    </method>
+    <method name="GetChild" ret="FileSystemObject">
+      <summary>
+        Returns the file or folder with the specified name.
+      </summary>
+      <param name="name" type="string" summary="the name of the child" />
+      <param name="file" type="bool" summary="todo: remove this arg" />
+      <param name="mode" type="OpenMode" summary="the policy to use when retrieving the child" />
+    </method>
+    <method name="ChildExists" ret="bool">
+      <summary>
+        Indicates whether this folder has a direct child with the specified name.
+      </summary>
+      <param name="name" type="string" summary="the name of the child" />
+      <param name="file" type="bool" summary="todo: remove this arg" />
+    </method>
+  </interface>
+
+  <interface name="File" inherits="FileSystemObject">
+    <summary>
+      Exposes raw read and write operations.
+    </summary>
+    <method name="Read">
+      <summary>
+        Reads data from the file.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="offset" type="long" />
+      <param name="count" type="long" />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Write">
+      <summary>
+        Writes data to the file.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="offset" type="long" />
+      <param name="count" type="long" />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Flush">
+      <summary>
+        Flushes any cached write operations to this file to disk.
+        The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
+        The method must not return until the changes are committed to non-volatile storage.
+      </summary>
+    </method>
+  </interface>
+</namespace>
