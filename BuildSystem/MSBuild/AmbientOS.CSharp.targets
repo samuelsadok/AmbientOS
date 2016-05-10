@@ -1,0 +1,157 @@
+<!--
+***********************************************************************************************
+AmbientOS.CSharp.targets
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+  created a backup copy.  Incorrect changes to this file will make it
+  impossible to load or build your projects from the command-line or the IDE.
+
+This file imports the version- and platform-specific targets for the project importing
+this file. This file also defines targets to produce an error if the specified targets
+file does not exist, but the project is built anyway (command-line or IDE build).
+
+***********************************************************************************************
+-->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<Import Project="$(MSBuildThisFileDirectory)$(MSBuildThisFileName).Before.targets"
+			Condition="Exists('$(MSBuildThisFileDirectory)$(MSBuildThisFileName).Before.targets')"/>
+
+	<UsingTask TaskName="InterfaceParser.InterfaceCodeGenerationTask" AssemblyFile="$(MSBuildThisFileDirectory)InterfaceParser.exe" />
+
+
+	<!-- Local Windows Application -->
+
+	<PropertyGroup Condition="'$(Platform)' == 'AnyCPU'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
+		<TargetPlatformVersion>10.0.10586.0</TargetPlatformVersion>
+	</PropertyGroup>
+
+
+	<!-- iOS Application -->
+
+	<PropertyGroup Condition="'$(Platform)' == 'iPhone' OR '$(Platform)' == 'iPhoneSimulator'">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<TargetFrameworkIdentifier>Xamarin.iOS</TargetFrameworkIdentifier>
+		<ConsolePause>false</ConsolePause>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(Platform)' == 'iPhone' OR '$(Platform)' == 'iPhoneSimulator'">
+		<Reference Include="Xamarin.iOS" />
+		<None Include="$(MSBuildThisFileDirectory)iOS\Info.plist">
+			<Link>Info.plist</Link>
+		</None>
+		<Content Include="$(MSBuildThisFileDirectory)iOS\Entitlements.plist">
+			<Link>Entitlements.plist</Link>
+		</Content>
+	</ItemGroup>
+
+	<PropertyGroup Condition="'$(Platform)' == 'iPhone'">
+		<MtouchArch>ARMv7, ARM64</MtouchArch>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Platform)' == 'iPhoneSimulator'">
+		<MtouchLink>None</MtouchLink>
+		<MtouchArch>i386</MtouchArch>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|iPhone' OR '$(Configuration)|$(Platform)' == 'Debug|iPhoneSimulator'">
+		<MtouchDebug>true</MtouchDebug>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Publish|iPhone' OR '$(Configuration)|$(Platform)' == 'Publish|iPhoneSimulator'">
+		<CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
+		<CodesignKey>iPhone Developer</CodesignKey>
+		<CodesignProvision>Automatic:AppStore</CodesignProvision>
+	</PropertyGroup>
+
+
+	<!-- Android Application -->
+
+	<PropertyGroup Condition="'$(Platform)' == 'Android'">
+	    <AndroidApplication>true</AndroidApplication>
+	    <AndroidResgenFile>$(MSBuildThisFileDirectory)Android\Resource.Designer.cs</AndroidResgenFile>
+	    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
+	    <AndroidUseLatestPlatformSdk>True</AndroidUseLatestPlatformSdk>
+	    <TargetFrameworkVersion>v6.0</TargetFrameworkVersion>
+	    <AndroidManifest>$(MSBuildThisFileDirectory)Android\AndroidManifest.xml</AndroidManifest>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(Platform)' == 'Android'">
+		<AndroidResource Include="$(MSBuildThisFileDirectory)Android\Main.axml" />
+		<AndroidResource Include="$(MSBuildThisFileDirectory)Android\Strings.xml" />
+		<AndroidResource Include="$(MSBuildThisFileDirectory)Android\Icon.png" />
+		<None Include="$(MSBuildThisFileDirectory)Android\AndroidManifest.xml" />
+	</ItemGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|Android'">
+	    <AndroidUseSharedRuntime>True</AndroidUseSharedRuntime>
+	    <AndroidLinkMode>None</AndroidLinkMode>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|Android'">
+	    <AndroidUseSharedRuntime>False</AndroidUseSharedRuntime>
+	    <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+	</PropertyGroup>
+
+	
+
+	<!-- AmbientOS Build Targets -->
+
+	<ItemDefinitionGroup>
+		<InterfaceDefinition>
+			<Generator>MSBuild:ConvertInterfaceDefinitions</Generator>
+		</InterfaceDefinition>
+	</ItemDefinitionGroup>
+	
+	<Target Name="BuildInfo">
+		<Message Text="Configuration is $(Configuration)" />
+		<Message Text="Platform is $(Platform)" />
+		<Message Text="MSBuildToolsPath is $(MSBuildToolsPath)" />
+	</Target>
+
+	<Target Name="ConvertInterfaceDefinitions"
+		DependsOnTargets="_ConvertInterfaceDefinitions"
+		Condition="'@(InterfaceDefinition)' != ''">
+
+		<ItemGroup>
+			<Compile Include="$(IntermediateOutputDir)InterfaceDefinitions.g.cs">
+      			<AutoGen>True</AutoGen>
+			      <DesignTime>True</DesignTime>
+			</Compile>
+			<FileWrites Include="$(IntermediateOutputDir)InterfaceDefinitions.g.cs" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="_ConvertInterfaceDefinitions"
+		Inputs="$(MSBuildProjectFile);@(InterfaceDefinition)"
+		Outputs="$(IntermediateOutputDir)InterfaceDefinitions.g.cs">
+
+		<InterfaceCodeGenerationTask
+			Templates="@(InterfaceDefinition)"
+			Output="$(IntermediateOutputDir)InterfaceDefinitions.g.cs" />
+	</Target>
+
+	<Target Name="CleanInterfaceDefinitions">
+		<Message Text="CustomBeforeClean target executed"/>
+		<Delete Files="$(IntermediateOutputDir)InterfaceDefinitions.g.cs"/>
+	</Target>
+
+
+
+	<Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" Condition=" '$(Platform)' == 'AnyCPU' "  />
+	<Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" Condition="'$(Platform)' == 'Android'" />
+	<Import Project="$(MSBuildExtensionsPath)\Xamarin\iOS\Xamarin.iOS.CSharp.targets" Condition="'$(Platform)' == 'iPhone' OR '$(Platform)' == 'iPhoneSimulator'" />
+
+	<Import Project="$(MSBuildThisFileDirectory)$(MSBuildThisFileName).After.targets"
+			Condition="Exists('$(MSBuildThisFileDirectory)$(MSBuildThisFileName).After.targets')"/>
+
+	<PropertyGroup>
+		<CoreCompileDependsOn>$(CoreCompileDependsOn);ConvertInterfaceDefinitions</CoreCompileDependsOn>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<CleanDependsOn>$(CleanDependsOn);CleanInterfaceDefinitions</CleanDependsOn>
+	</PropertyGroup>
+
+</Project>

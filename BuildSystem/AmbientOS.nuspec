@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+    <metadata>
+        <id>AmbientOS</id>
+        <version>0.11</version>
+        <title>AmbientOS Build Target</title>
+        <authors>AppInstall Innovation Labs</authors>
+        <owners>NA</owners>
+        <projectUrl>http://innovation-labs.appinstall.ch/aos</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Provides the facilities required to build AmbientOS projects.</description>
+        <copyright>Not decided yet.</copyright>
+        <language>en-US</language>
+    </metadata>
+    <files>
+        <file src="InterfaceParser\bin\Debug\InterfaceParser.exe" target="build\InterfaceParser.exe" />
+        <file src="InterfaceParser\bin\Debug\InterfaceParser.pdb" target="build\InterfaceParser.pdb" />
+        <file src="MSBuild\AmbientOS.CSharp.targets" target="build\AmbientOS.CSharp.targets" />
+    </files>
+</package>
