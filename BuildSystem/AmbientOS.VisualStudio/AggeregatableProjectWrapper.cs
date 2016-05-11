@@ -15,19 +15,19 @@ namespace AmbientOS.VisualStudio
             this.inner = inner;
         }
 
+#if __DEBUG__
         List<Tuple<Guid, uint, System.Diagnostics.StackTrace>> hits = new List<Tuple<Guid, uint, System.Diagnostics.StackTrace>>();
         string dump = "";
+#endif
 
         public int GetAggregateProjectTypeGuids(out string pbstrProjTypeGuids)
         {
             var result = inner.GetAggregateProjectTypeGuids(out pbstrProjTypeGuids);
-            //if (pbstrProjTypeGuids != null)
-            //    pbstrProjTypeGuids += (pbstrProjTypeGuids == "" ? "" : ";") + string.Join(";", Constants.WrappedProjectTypes.Select(guid => "{" + guid + "}"));
 
-            //hits.Clear();
+#if __DEBUG__
             hits.Add(new Tuple<Guid, uint, System.Diagnostics.StackTrace>(AmbientOSFlavoredProject.cmdGuid, AmbientOSFlavoredProject.cmd, new System.Diagnostics.StackTrace()));
-            //if (!AmbientOSFlavoredProject.IsRightClick)
             dump = string.Join("", hits.Select(trace => trace.ToString() + "\r\n\r\n"));
+#endif
 
             return result;
         }

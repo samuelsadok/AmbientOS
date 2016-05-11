@@ -344,9 +344,16 @@ namespace AmbientOS
         {
             string result;
             switch (format) {
-                case StringFormat.Unicode: length *= 2; result = Encoding.Unicode.GetString(buffer, (int)offset, (int)length); break;
-                case StringFormat.ASCII: result = Encoding.ASCII.GetString(buffer, (int)offset, (int)length); break;
-                default: throw new NotSupportedException();
+                case StringFormat.Unicode:
+                    length *= 2;
+                    var encoding = endianness == Endianness.LittleEndian ? Encoding.Unicode : Encoding.BigEndianUnicode;
+                    result = encoding.GetString(buffer, (int)offset, (int)length);
+                    break;
+                case StringFormat.ASCII:
+                    result = Encoding.ASCII.GetString(buffer, (int)offset, (int)length);
+                    break;
+                default:
+                    throw new NotSupportedException();
             }
             offset += length;
             return result;

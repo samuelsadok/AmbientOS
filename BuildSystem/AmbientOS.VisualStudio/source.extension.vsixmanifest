@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="AmbientOS.VisualStudio.Samuel Sadok.0db159b2-35f3-449a-bf6c-e28f7c753a0f" Version="0.11" Language="en-US" Publisher="Samuel Sadok" />
+    <Identity Id="AmbientOS.VisualStudio.Samuel Sadok.0db159b2-35f3-449a-bf6c-e28f7c753a0f" Version="0.12" Language="en-US" Publisher="Samuel Sadok" />
     <DisplayName>AmbientOS.VisualStudio</DisplayName>
     <Description xml:space="preserve">Allows creating Applications for the platform independent AmbientOS framework. A single AmbientOS project can be deployed and debugged on any of supported platforms.Application</Description>
   </Metadata>
