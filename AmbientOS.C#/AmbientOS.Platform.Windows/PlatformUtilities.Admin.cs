@@ -50,13 +50,13 @@ namespace AmbientOS
         /// Restarts the application with administrator privileges.
         /// On failure, a message is displayed with the specified explanation.
         /// </summary>
-        public static void RestartWithAdminPrivileges(string[] args, string explanation, Context context)
+        public static void RestartWithAdminPrivileges(string[] args, string explanation)
         {
             try {
                 RestartWithAdminPrivileges(args);
                 return;
             } catch (Exception ex) {
-                context.Shell.Notify(
+                Context.CurrentContext.Shell.Notify(
                     new Text() {
                         Summary = "You must grant administrator rights to this application",
                         Details = explanation,

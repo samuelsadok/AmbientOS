@@ -194,7 +194,7 @@ namespace AmbientOS.FileSystem
 
             // .NET framework is not happy with the "?" in //?/Volume
             return new DynamicSet<IFileSystem>(
-                new Foreign.InteropFileSystem(winVol.Name.Replace('?', '.'), (a, b) => {
+                new InteropFileSystem(winVol.Name.Replace('?', '.'), (a, b) => {
                     using (var fs = a.FileSystemRef.Retain())
                         return new WindowsFolder(fs, b).FolderRef.Retain();
                 }).FileSystemRef).Retain();

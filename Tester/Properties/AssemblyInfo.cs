@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("TesterNew")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Tester")]
+[assembly: AssemblyDescription("Facility to test AmbientOS core components and different kinds of services")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("TesterNew")]
+[assembly: AssemblyProduct("AmbientOS")]
 [assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

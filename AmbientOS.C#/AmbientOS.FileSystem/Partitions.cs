@@ -269,7 +269,7 @@ namespace AmbientOS.FileSystem
             if (issues.Count == 0)
                 Log(string.Format("{0} volumes were found. The partitions seem to be healthy.", volumes.Count()), LogType.Success);
             else
-                Context.CurrentContext.Log.Break();
+                Context.CurrentContext.LogContext.Break();
 
             if (issues.Count > 1)
                 Log("Multiple issues were found with the patitions:", LogType.Warning);

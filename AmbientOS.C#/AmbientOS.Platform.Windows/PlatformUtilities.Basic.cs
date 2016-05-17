@@ -15,14 +15,14 @@ namespace AmbientOS
         /// <summary>
         /// Returns the path including name of the executing assembly
         /// </summary>
-        public static IFile Assembly { get; } = FileSystem.Foreign.InteropFileSystem.GetFileFromPath(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        public static IFile Assembly { get; } = InteropFileSystem.GetFileFromPath(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
         /// <summary>
         /// Determines if the application is stored on a network location
         /// </summary>
         public static bool IsOnNetworkDrive(IFileSystemObject file)
         {
-            var f = file.AsImplementation<FileSystem.Foreign.InteropFileSystemObject>();
+            var f = file.AsImplementation<InteropFileSystemObject>();
             string rootPath = Path.GetPathRoot(f.path);
             try {
                 return ((new DriveInfo(rootPath)).DriveType == DriveType.Network);

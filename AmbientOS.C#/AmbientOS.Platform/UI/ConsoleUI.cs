@@ -30,10 +30,8 @@ namespace AmbientOS.UI
             }, "root");
         }
 
-        public void Start(Context context)
+        public void Start()
         {
-            TaskController controller = context.Controller;
-
             Func<Dialog> topDialog = () => {
                 lock (dialogs) {
                     while (dialogs.Any()) {

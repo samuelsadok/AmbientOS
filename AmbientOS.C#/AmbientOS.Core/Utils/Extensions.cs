@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,14 +16,14 @@ namespace AmbientOS
         /// </summary>
         public static void SafeInvoke(this Action handler)
         {
-            if (handler != null) handler();
+            handler?.Invoke();
         }
         /// <summary>
         /// Thread-safely raises an event that might be null
         /// </summary>
         public static void SafeInvoke<T>(this Action<T> handler, T arg)
         {
-            if (handler != null) handler(arg);
+            handler?.Invoke(arg);
         }
 
         /// <summary>
@@ -30,7 +31,7 @@ namespace AmbientOS
         /// </summary>
         public static void SafeInvoke<T1, T2>(this Action<T1, T2> handler, T1 arg1, T2 arg2)
         {
-            if (handler != null) handler(arg1, arg2);
+            handler?.Invoke(arg1, arg2);
         }
 
         /// <summary>
@@ -38,7 +39,7 @@ namespace AmbientOS
         /// </summary>
         public static void SafeInvoke<T>(this EventHandler<T> handler, object o, T e)
         {
-            if (handler != null) handler(o, e);
+            handler?.Invoke(o, e);
         }
 
         /// <summary>
@@ -46,10 +47,37 @@ namespace AmbientOS
         /// </summary>
         public static void SafeInvoke<T>(this EventHandler handler, object o)
         {
-            if (handler != null) handler(o, EventArgs.Empty);
+            handler?.Invoke(o, EventArgs.Empty);
         }
 
-        #region "Stream Extensions"
+        #region Assembly Extensions
+
+        /// <summary>
+        /// Returns the title of the assembly as specified in the manifest.
+        /// </summary>
+        public static string GetTitle(this Assembly assembly, string fallback)
+        {
+            var attribute = assembly
+                .GetCustomAttributes(typeof(AssemblyTitleAttribute), false)
+                .FirstOrDefault() as AssemblyTitleAttribute;
+            return attribute?.Title ?? fallback;
+        }
+
+        /// <summary>
+        /// Returns the description of the assembly as specified in the manifest.
+        /// </summary>
+        public static string GetDescription(this Assembly assembly, string fallback)
+        {
+            var attribute = assembly
+                .GetCustomAttributes(typeof(AssemblyDescriptionAttribute), false)
+                .FirstOrDefault() as AssemblyDescriptionAttribute;
+            return attribute?.Description ?? fallback;
+        }
+
+        #endregion
+
+
+        #region Stream Extensions
 
         /// <summary>
         /// Writes the contents of this stream to another stream.
@@ -182,10 +210,12 @@ namespace AmbientOS
         /// </summary>
         public static Exception Condense(this Exception ex)
         {
-            var aggEx = ex as AggregateException;
-            if (aggEx == null) return ex;
-            if (aggEx.InnerExceptions.Count() != 1) return ex;
-            return aggEx.InnerExceptions[0];
+            while (true) {
+                var aggEx = ex as AggregateException;
+                if (aggEx?.InnerExceptions?.Count() != 1)
+                    return ex;
+                ex = aggEx.InnerExceptions[0];
+            }
         }
 
 

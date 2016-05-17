@@ -4,7 +4,7 @@ using System.Linq;
 using System.IO;
 using AmbientOS.Environment;
 
-namespace AmbientOS.FileSystem.Foreign
+namespace AmbientOS.FileSystem
 {
     public class InteropFileSystem : IFileSystemImpl
     {

@@ -224,7 +224,7 @@ namespace AmbientOS.Net.DHT
         /// </summary>
         /// <param name="hash">The node ID to which the closest nodes are requested.</param>
         /// <param name="nodes">The list to which to append the new nodes.</param>
-        public bool FindNodes(BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4, bool includeIPv6, Context context)
+        public bool FindNodes(BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4, bool includeIPv6)
         {
             return FindNodesOrPeers("target", DHT.FIND_NODES_FUNC, hash, ref nodes, includeIPv4, includeIPv6) != null;
         }
@@ -235,7 +235,7 @@ namespace AmbientOS.Net.DHT
         /// </summary>
         /// <param name="includeIPv4">If true, the node is explicitly queried for IPv4 nodes. If false, they may be included anyway.</param>
         /// <param name="includeIPv6">If true, the node is explicitly queried for IPv6 nodes. If false, they may be included anyway.</param>
-        public IEnumerable<IPEndPoint> GetPeers(BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4, bool includeIPv6, Context context)
+        public IEnumerable<IPEndPoint> GetPeers(BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4, bool includeIPv6)
         {
             var response = FindNodesOrPeers("info_hash", DHT.GET_PEERS_FUNC, hash, ref nodes, includeIPv4, includeIPv6);
             try {

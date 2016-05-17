@@ -21,7 +21,7 @@ namespace AmbientOS.FileSystem
         [AOSAction("mount", "ext=vhd")]
         public DynamicSet<IDisk> Mount(IFile file, Context context)
         {
-            var foreignFile = file.AsImplementation<Foreign.InteropFile>();
+            var foreignFile = file.AsImplementation<InteropFile>();
             if (foreignFile == null)
                 throw new NotSupportedException("Windows can only mount native files as disk images");
 

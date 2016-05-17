@@ -70,7 +70,7 @@ namespace AmbientOS
         /// </summary>
         public static void Log(string message, LogType type = LogType.Info)
         {
-            Context.CurrentContext.Log.LogEx(message, type);
+            Context.CurrentContext.LogContext.LogEx(message, type);
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace AmbientOS
         /// </summary>
         public static void DebugLog(string message, params object[] args)
         {
-            Context.CurrentContext.Log.LogEx(string.Format(message, args), LogType.Debug);
+            Context.CurrentContext.LogContext.LogEx(string.Format(message, args), LogType.Debug);
         }
 
         /// <summary>

@@ -295,7 +295,7 @@ namespace AmbientOS.FileSystem
                 issues.Add("some parent locator entries point beyond file boundaries");
 
 
-            Context.CurrentContext.Log.Break();
+            Context.CurrentContext.LogContext.Break();
             DebugLog("Dynamic Disk Header:");
             DebugLog("Cookie: \"{0}\"", Encoding.ASCII.GetString(dynheader.Take(8).ToArray()));
             DebugLog("Data Offset (not used): 0x{0:X16}", header2.offset);

@@ -13,25 +13,13 @@ using static AmbientOS.LogContext;
 namespace AmbientOS
 {
     [AOSMainApplication()]
-    public class Tester : IApplicationImpl
+    public class Tester
     {
         static void Main(string[] args)
         {
-            Platform.Platform.Init(args);
-        }
+            AmbientOS.Platform.Platform.Initialize(args);
 
-        public IApplication ApplicationRef { get; }
 
-        public DynamicEndpoint<string> Name { get; } = new DynamicEndpoint<string>("AmbientOS Testing Tool", PropertyAccess.ReadOnly);
-        public DynamicEndpoint<string> Description { get; } = new DynamicEndpoint<string>("Facility to test AmbientOS core components and different kinds of services.", PropertyAccess.ReadOnly);
-
-        public Tester()
-        {
-            ApplicationRef = new ApplicationRef(this);
-        }
-
-        public void Run()
-        {
             //ApplicationRegistry.InstallApp<VHDService>();
             //ApplicationRegistry.InstallApp<PartitionService>();
             //ApplicationRegistry.InstallApp<AmbientOS.FileSystem.NTFS.NTFSService>();
@@ -54,7 +42,8 @@ namespace AmbientOS
             //
             //});
 
-            //var answer = 0;
+            // your code goes here
+
             var answer = Context.CurrentContext.Shell.PresentDialog(new Text() {
                 Summary = "This is a summary",
                 Details = "and these are the details"
@@ -85,7 +74,7 @@ namespace AmbientOS
 
             Log("selected option: " + answer);
 
-            //context.Controller.Cancel();
+            AmbientOS.Platform.Platform.Exit();
         }
     }
 }

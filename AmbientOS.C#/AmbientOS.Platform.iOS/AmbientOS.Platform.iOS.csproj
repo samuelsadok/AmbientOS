@@ -53,10 +53,6 @@
       <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
       <Name>AmbientOS.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.Platform.Foreign\AmbientOS.Platform.Foreign.csproj">
-      <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
-      <Name>AmbientOS.Platform.Foreign</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\AmbientOS\AmbientOS.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -54,9 +54,12 @@
     <Reference Include="Windows.Foundation" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ServicePlatform.cs" />
+    <Compile Include="WindowsServiceInstaller.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="WindowsServicePlatform.cs" />
     <Compile Include="Net\BluetoothLE.cs" />
-    <Compile Include="Service.cs">
+    <Compile Include="WindowsService.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="FileSystem\File.cs" />
@@ -74,9 +77,9 @@
       <Project>{0327687c-82bc-432f-a3f2-692d33eff782}</Project>
       <Name>AmbientOS.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.Platform.Foreign\AmbientOS.Platform.Foreign.csproj">
-      <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
-      <Name>AmbientOS.Platform.Foreign</Name>
+    <ProjectReference Include="..\AmbientOS.FileSystem\AmbientOS.FileSystem.csproj">
+      <Project>{5c90ab4c-ece3-4d15-a935-83eccf892e90}</Project>
+      <Name>AmbientOS.FileSystem</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

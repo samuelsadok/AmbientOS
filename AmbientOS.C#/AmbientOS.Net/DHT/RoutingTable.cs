@@ -214,9 +214,9 @@ namespace AmbientOS.Net.DHT
         /// <summary>
         /// Starts the maintainer threads of the routing table.
         /// </summary>
-        public void Start(Context context)
+        public void Start()
         {
-            context.Log.Debug("starting routing table");
+            DebugLog("starting routing table");
 
             Action<IPEndPoint, IPEndPoint> updateLocalID = (localEndpoint, publicEndpoint) => {
                 // todo: implement BEP45, create and dispose IP-address-specific routing tables on demand and share some information accross the tables.
@@ -236,7 +236,7 @@ namespace AmbientOS.Net.DHT
 
                 if (oldID != null)
                     RemoveInterest(oldID);
-                AddInterest(LocalID, InterestFlags.LocalID, context);
+                AddInterest(LocalID, InterestFlags.LocalID);
                 Log(string.Format("local node ID updated: {0}", LocalID), LogType.Info);
             };
 
@@ -276,19 +276,19 @@ namespace AmbientOS.Net.DHT
                     while (true) {
                         var freshNode = nodesToBeInquired.WaitDequeue();
                         foreach (var specialInterest in CheckRelevance(freshNode)) {
-                            context.Log.Debug("maintainer thread {0}: find_node on {1}", threadID, freshNode.ToString());
+                            DebugLog("maintainer thread {0}: find_node on {1}", threadID, freshNode.ToString());
                             var nodes = Enumerable.Empty<Tuple<BigInt, IPEndPoint>>();
                             bool success = false;
                             bool didCooperate = true;
                             try {
-                                success = freshNode.FindNodes(specialInterest.Item1, ref nodes, true, true, context);
+                                success = freshNode.FindNodes(specialInterest.Item1, ref nodes, true, true);
 
                                 if (success && specialInterest.Item4) {
                                     dht.storage.Inquire(specialInterest.Item1, () => {
-                                        context.Log.Debug("peer exchange with " + freshNode);
+                                        DebugLog("peer exchange with " + freshNode);
 
-                                        var peers = freshNode.GetPeers(specialInterest.Item1, ref nodes, true, true, context).ToArray();
-                                        context.Log.Debug("maintainer thread {0}: get_peers on {1} returned {2} peers", threadID, freshNode.ToString(), peers.Count());
+                                        var peers = freshNode.GetPeers(specialInterest.Item1, ref nodes, true, true).ToArray();
+                                        DebugLog("maintainer thread {0}: get_peers on {1} returned {2} peers", threadID, freshNode.ToString(), peers.Count());
                                         //var peerList = dht.GetPeerList(searchJob.Key, freshNode.Endpoint.AddressFamily, true);
 
                                         var announceError = freshNode.AnnouncePeer(specialInterest.Item1);
@@ -300,7 +300,7 @@ namespace AmbientOS.Net.DHT
                                         string message;
                                         if (!freshNode.Sync(data, ref nodes, out message))
                                             didCooperate = false;
-                                        context.Log.Debug("data exchange with {0} ({1}): {2}", freshNode, didCooperate ? "have token" : "no token", message);
+                                        DebugLog("data exchange with {0} ({1}): {2}", freshNode, didCooperate ? "have token" : "no token", message);
                                     });
                                 }
 
@@ -359,9 +359,9 @@ namespace AmbientOS.Net.DHT
                         var refresh = bucket.ReevaluateRefresh();
                         if (refresh.HasValue) {
                             if (refresh.Value) {
-                                context.Log.Debug("refresh thread {0}: refreshing {1}, in queue: {2}", threadID, bucket.ToString(), refreshingBuckets.Count());
+                                DebugLog("refresh thread {0}: refreshing {1}, in queue: {2}", threadID, bucket.ToString(), refreshingBuckets.Count());
                                 var hash = BigInt.FromRandom(bucket.MinValue, bucket.MaxValue);
-                                AddInterest(hash, InterestFlags.NoInterest, context); // add interest with NoInterest, to inquire close nodes in a one-time shot
+                                AddInterest(hash, InterestFlags.NoInterest); // add interest with NoInterest, to inquire close nodes in a one-time shot
                                 bucket.EndRefresh(true);
                             } else {
                                 bucket.EndRefresh(false);
@@ -668,7 +668,7 @@ namespace AmbientOS.Net.DHT
         /// Adds the specified hash to the set of special interest hashes and re-considers the specified nodes.
         /// </summary>
         /// <param name="interestFlags">If set to no interest, and there is not already interest in the hash, the interest is not added permanently, but close nodes are still inquired.</param>
-        public void AddInterest(BigInt hash, InterestFlags interestFlags, Context context)
+        public void AddInterest(BigInt hash, InterestFlags interestFlags)
         {
             Tuple<Bucket, DynamicQueue<Node>, InterestFlags> specialInterestStore;
             lock (specialInterestStores) {

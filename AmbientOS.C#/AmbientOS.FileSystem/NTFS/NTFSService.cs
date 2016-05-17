@@ -34,7 +34,7 @@ namespace AmbientOS.FileSystem.NTFS
             if (issues.Count == 0)
                 Log("The VHD image seems to be healthy.", LogType.Success);
             else
-                Context.CurrentContext.Log.Break();
+                Context.CurrentContext.LogContext.Break();
 
             if (issues.Count > 1)
                 Log("Multiple issues were found with the VHD image:", LogType.Warning);

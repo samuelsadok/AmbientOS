@@ -5,6 +5,7 @@ using System.Threading;
 using AmbientOS.Environment;
 using AmbientOS.Utils;
 using AmbientOS.FileSystem;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS
 {
@@ -105,9 +106,9 @@ namespace AmbientOS
         {
             this.implementation = implementation;
 
-            new Thread(() => {
-                while (true) { // todo: what about shutdown?
-                    communicationSignal.WaitOne();
+            new CancelableThread(() => {
+                while (true) {
+                    Wait(communicationSignal);
                     Barrier();
                 }
             }).Start(); 

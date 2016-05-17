@@ -97,9 +97,9 @@
       <Project>{51475512-c2fe-4bac-a80f-e23bcf838bb4}</Project>
       <Name>AmbientOS.Net</Name>
     </ProjectReference>
-    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Platform.Foreign\AmbientOS.Platform.Foreign.csproj">
+    <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Platform\AmbientOS.Platform.csproj">
       <Project>{3374b1f8-298b-4c66-a4fa-098dc4c57f42}</Project>
-      <Name>AmbientOS.Platform.Foreign</Name>
+      <Name>AmbientOS.Platform</Name>
     </ProjectReference>
     <ProjectReference Include="..\AmbientOS.C#\AmbientOS.Platform.iOS\AmbientOS.Platform.iOS.csproj">
       <Project>{d1a49596-e194-4f29-9732-22cb4ae9c118}</Project>

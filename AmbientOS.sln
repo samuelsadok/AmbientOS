@@ -5,7 +5,7 @@ VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Core", "AmbientOS.C#\AmbientOS.Core\AmbientOS.Core.csproj", "{0327687C-82BC-432F-A3F2-692D33EFF782}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Platform.Foreign", "AmbientOS.C#\AmbientOS.Platform.Foreign\AmbientOS.Platform.Foreign.csproj", "{3374B1F8-298B-4C66-A4FA-098DC4C57F42}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Platform", "AmbientOS.C#\AmbientOS.Platform\AmbientOS.Platform.csproj", "{3374B1F8-298B-4C66-A4FA-098DC4C57F42}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Platform.Windows", "AmbientOS.C#\AmbientOS.Platform.Windows\AmbientOS.Platform.Windows.csproj", "{1E1CB682-915D-452E-961E-C47BAE9863A6}"
 EndProject

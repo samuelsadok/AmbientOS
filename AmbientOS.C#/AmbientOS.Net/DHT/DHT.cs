@@ -105,8 +105,11 @@ namespace AmbientOS.Net.DHT
         {
             this.context = context;
 
-            foreach (var routingTable in routingTables)
-                routingTable.Start(context.SubContext(routingTable.Socket.LocalEndpoint.ToString()));
+            foreach (var routingTable in routingTables) {
+                using (var subContext = Context.EnterSubContext(routingTable.Socket.LocalEndpoint.ToString())) {
+                    routingTable.Start();
+                }
+            }
 
             var startBootBarrier = new Barrier(BOOT_THREADS);
             var endBootBarrier = new Barrier(BOOT_THREADS);
@@ -143,7 +146,7 @@ namespace AmbientOS.Net.DHT
 
                             foreach (var addr in addressList) {
                                 var endpoint = new IPEndPoint(addr, hostAndPort.Item2);
-                                context.Log.Debug("boot thread {0}: ping on {1}", threadID, endpoint.ToString());
+                                context.LogContext.Debug("boot thread {0}: ping on {1}", threadID, endpoint.ToString());
                                 Consider(endpoint);
                             }
                         }
@@ -371,9 +374,9 @@ namespace AmbientOS.Net.DHT
         /// </summary>
         private void AddInterest(BigInt hash, InterestFlags interestFlags)
         {
-            context.Log.Debug("adding interest in hash {0}", hash);
+            context.LogContext.Debug("adding interest in hash {0}", hash);
             foreach (var routingTable in routingTables)
-                routingTable.AddInterest(hash, interestFlags, context);
+                routingTable.AddInterest(hash, interestFlags);
         }
 
         /// <summary>

@@ -19,7 +19,7 @@ namespace AmbientOS.Environment
 
         public IFolder GetTempFolder()
         {
-            using (var temp = FileSystem.Foreign.InteropFileSystem.GetFolderFromPath(Path.GetTempPath()))
+            using (var temp = FileSystem.InteropFileSystem.GetFolderFromPath(Path.GetTempPath()))
                 return temp.GetFolder("AmbientOS", OpenMode.NewOrExisting);
         }
     }
