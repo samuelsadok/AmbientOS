@@ -7,6 +7,8 @@ namespace AmbientOS
     {
         private Thread thread;
 
+        public Context Context { get { return Context.GetContext(thread); } }
+
         public CancelableThread(Action action)
         {
             thread = new Thread(() => {
@@ -16,6 +18,7 @@ namespace AmbientOS
                     // ignore
                 }
             });
+            Context.ForwardContext(thread);
         }
 
         public void Start()

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Net;
 using AmbientOS.Net.KRPC;
+using static AmbientOS.LogContext;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS.Net.DHT
 {
@@ -235,7 +237,7 @@ namespace AmbientOS.Net.DHT
                 if (oldID != null)
                     RemoveInterest(oldID);
                 AddInterest(LocalID, InterestFlags.LocalID, context);
-                context.Log.Log(string.Format("local node ID updated: {0}", LocalID), LogType.Info);
+                Log(string.Format("local node ID updated: {0}", LocalID), LogType.Info);
             };
 
             // init local ID
@@ -246,7 +248,7 @@ namespace AmbientOS.Net.DHT
             // start info thread (this thread logs routing table statistics every now and then)
             new CancelableThread(() => {
                 while (true) {
-                    context.Controller.Wait(STATS_INTERVAL);
+                    Wait(STATS_INTERVAL);
                     bool?[] nodeStats;
                     int bucketCount;
                     int hashCount;
@@ -261,9 +263,9 @@ namespace AmbientOS.Net.DHT
                     int bad = nodeStats.Sum(node => node.HasValue ? node.Value ? 0 : 1 : 0);
                     int questionnable = nodeStats.Sum(node => node.HasValue ? node.Value ? 0 : 0 : 1);
                     if (good + bad + questionnable > 0)
-                        context.Log.Log(string.Format("buckets: {0}, good: {1}, questionnable: {2}, bad: {3}, in queue: {4}, threads: {5}, hashes: {6}", bucketCount, good, questionnable, bad, nodesToBeInquired.Count(), System.Diagnostics.Process.GetCurrentProcess().Threads.Count, hashCount), LogType.Info);
+                        Log(string.Format("buckets: {0}, good: {1}, questionnable: {2}, bad: {3}, in queue: {4}, threads: {5}, hashes: {6}", bucketCount, good, questionnable, bad, nodesToBeInquired.Count(), System.Diagnostics.Process.GetCurrentProcess().Threads.Count, hashCount), LogType.Info);
                     else
-                        context.Log.Log("routing table is empty", LogType.Info);
+                        Log("routing table is empty", LogType.Info);
                 }
             }).Start();
 
@@ -272,7 +274,7 @@ namespace AmbientOS.Net.DHT
                 var threadID = i;
                 new CancelableThread(() => {
                     while (true) {
-                        var freshNode = nodesToBeInquired.Dequeue(context.Controller);
+                        var freshNode = nodesToBeInquired.WaitDequeue();
                         foreach (var specialInterest in CheckRelevance(freshNode)) {
                             context.Log.Debug("maintainer thread {0}: find_node on {1}", threadID, freshNode.ToString());
                             var nodes = Enumerable.Empty<Tuple<BigInt, IPEndPoint>>();
@@ -289,14 +291,14 @@ namespace AmbientOS.Net.DHT
                                         context.Log.Debug("maintainer thread {0}: get_peers on {1} returned {2} peers", threadID, freshNode.ToString(), peers.Count());
                                         //var peerList = dht.GetPeerList(searchJob.Key, freshNode.Endpoint.AddressFamily, true);
 
-                                        var announceError = freshNode.AnnouncePeer(specialInterest.Item1, context);
+                                        var announceError = freshNode.AnnouncePeer(specialInterest.Item1);
                                         if (announceError != null)
-                                            context.Log.Log(string.Format("announce_peer failed on {0}: {1}", freshNode, announceError), LogType.Warning);
+                                            Log(string.Format("announce_peer failed on {0}: {1}", freshNode, announceError), LogType.Warning);
 
                                         return peers;
                                     }, (data) => {
                                         string message;
-                                        if (!freshNode.Sync(data, ref nodes, out message, context))
+                                        if (!freshNode.Sync(data, ref nodes, out message))
                                             didCooperate = false;
                                         context.Log.Debug("data exchange with {0} ({1}): {2}", freshNode, didCooperate ? "have token" : "no token", message);
                                     });
@@ -306,7 +308,7 @@ namespace AmbientOS.Net.DHT
                                 if (nodes.Contains(null))
                                     throw new Exception();
                             } catch (Exception ex) when (!(ex is OperationCanceledException)) {
-                                context.Log.Log(string.Format("find_node failed on {0}: {1}", freshNode, ex.Message), LogType.Warning);
+                                Log(string.Format("find_node failed on {0}: {1}", freshNode, ex.Message), LogType.Warning);
                                 success = false;
                                 continue;
                             }
@@ -319,7 +321,7 @@ namespace AmbientOS.Net.DHT
 
                             foreach (var reportedNode in nodes) {
                                 //dht.Consider(reportedNode.Item1, reportedNode.Item2, specialInterest.Item1, ConsiderationReason.Rumor, cancellationToken);
-                                dht.Consider(reportedNode.Item1, reportedNode.Item2, null, InterestFlags.NoInterest, ConsiderationReason.Rumor, context);
+                                dht.Consider(reportedNode.Item1, reportedNode.Item2, null, InterestFlags.NoInterest, ConsiderationReason.Rumor);
                                 //Consider(reportedNode.Item1, reportedNode.Item2, specialInterest.Item1, specialInterest.Item2, specialInterest.Item3, ConsiderationReason.Rumor, cancellationToken);
                             }
                         }
@@ -344,7 +346,7 @@ namespace AmbientOS.Net.DHT
                                 nextInterval = refreshTime;
                         }
                     }
-                    context.Controller.Wait(nextInterval);
+                    Wait(nextInterval);
                 }
             }).Start();
 
@@ -353,7 +355,7 @@ namespace AmbientOS.Net.DHT
                 var threadID = i;
                 new CancelableThread(() => {
                     while (true) {
-                        var bucket = refreshingBuckets.Dequeue(context.Controller);
+                        var bucket = refreshingBuckets.WaitDequeue();
                         var refresh = bucket.ReevaluateRefresh();
                         if (refresh.HasValue) {
                             if (refresh.Value) {
@@ -375,16 +377,16 @@ namespace AmbientOS.Net.DHT
         /// If it responds, the corresponding node may be stored and enqueued for further inquiry later on.
         /// </summary>
         /// <param name="endpoint">An endpoint that the underlying socket can handle.</param>
-        public void Consider(IPEndPoint endpoint, Context context)
+        public void Consider(IPEndPoint endpoint)
         {
             // create a node without ID and ping it.
             // the ID is set automatically in the Ping call
             // also, the Ping call honours the response by calling Consider for the new node.
             var node = new Node(this, null, endpoint);
-            BDict response = node.Ping(context);
+            BDict response = node.Ping();
         }
 
-        public void Consider(BigInt nodeID, IPEndPoint endpoint, BigInt specialInterestHash, InterestFlags interestFlags, ConsiderationReason reason, Context context)
+        public void Consider(BigInt nodeID, IPEndPoint endpoint, BigInt specialInterestHash, InterestFlags interestFlags, ConsiderationReason reason)
         {
             BigInt[] hashes;
 
@@ -408,7 +410,7 @@ namespace AmbientOS.Net.DHT
                     }
                 }
 
-                Consider(nodeID, endpoint, hash, specialInterestStore.Item1, specialInterestStore.Item2, specialInterestStore.Item3, reason, context);
+                Consider(nodeID, endpoint, hash, specialInterestStore.Item1, specialInterestStore.Item2, specialInterestStore.Item3, reason);
             }
         }
 
@@ -419,7 +421,7 @@ namespace AmbientOS.Net.DHT
         /// If there is no space and the node cannot evict any other node, the node is ignored.
         /// If the node is newly added, it may be added to the queue of nodes to be inquired.
         /// </summary>
-        public void Consider(BigInt nodeID, IPEndPoint endpoint, BigInt specialInterestHash, Bucket specialInterestBucket, DynamicQueue<Node> specialInterestQueue, InterestFlags interestFlags, ConsiderationReason reason, Context context)
+        public void Consider(BigInt nodeID, IPEndPoint endpoint, BigInt specialInterestHash, Bucket specialInterestBucket, DynamicQueue<Node> specialInterestQueue, InterestFlags interestFlags, ConsiderationReason reason)
         {
             if (!nodeID.IsIDCompliant(endpoint.Address)) {
                 //LogDHT("found non-compliant node", 2);
@@ -454,7 +456,7 @@ namespace AmbientOS.Net.DHT
                                 continue;
                         }
 
-                        newlyAdded |= bucket.AddNode(ref node, nodeID, endpoint, reason, context);
+                        newlyAdded |= bucket.AddNode(ref node, nodeID, endpoint, reason);
                         if (node != null) {
                             addLocation = "routing table";
                             break;
@@ -480,7 +482,7 @@ namespace AmbientOS.Net.DHT
                 //node = node ?? new Node(this, nodeID, endpoint);
                 bool addedToBucket;
                 lock (specialInterestBucket) {
-                    addedToBucket = specialInterestBucket.AddNode(ref node, nodeID, endpoint, reason, context);
+                    addedToBucket = specialInterestBucket.AddNode(ref node, nodeID, endpoint, reason);
                 }
                 if (addedToBucket)
                     addLocation = "specific bucket";
@@ -518,7 +520,7 @@ namespace AmbientOS.Net.DHT
                 // if the node was newly added to any of the places where we store nodes, enqueue it for further inquiry.
                 if (newlyAdded) {
                     if (nodesToBeInquired.StrongEnqueueDistinct(node))
-                        context.Log.Debug("newly added {0} to {1}", node, addLocation);
+                        DebugLog("newly added {0} to {1}", node, addLocation);
                 }
             }
         }
@@ -680,7 +682,7 @@ namespace AmbientOS.Net.DHT
             }
 
             foreach (var node in FindNodesLocally(hash, 8))
-                Consider(node.ID, node.Endpoint, hash, specialInterestStore.Item1, specialInterestStore.Item2, specialInterestStore.Item3, ConsiderationReason.Refresh, context);
+                Consider(node.ID, node.Endpoint, hash, specialInterestStore.Item1, specialInterestStore.Item2, specialInterestStore.Item3, ConsiderationReason.Refresh);
         }
 
         /// <summary>

@@ -216,42 +216,27 @@ namespace AmbientOS
         }
 
         /// <summary>
-        /// Waits for the specified timespan.
-        /// As soon as the task is cancelled, the method throws an exception.
-        /// todo: this should block while the task is paused, even if the operation times out
-        /// </summary>
-        public void Wait(TimeSpan timeout)
-        {
-            CancellationHandle.WaitOne(timeout);
-            ThrowIfCancellationRequested();
-        }
-
-        /// <summary>
-        /// Waits for the specified WaitHandle.
-        /// As soon as the task is cancelled, the method throws an exception.
-        /// todo: this should block while the task is paused, even if the handle is signaled
-        /// </summary>
-        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
-        public void WaitOne(WaitHandle handle)
-        {
-            WaitHandle.WaitAny(new WaitHandle[] { handle, CancellationHandle });
-            ThrowIfCancellationRequested();
-        }
-
-        /// <summary>
-        /// Waits for any the specified WaitHandles.
+        /// Waits for any of the specified WaitHandles, but at most for the specified time span.
         /// As soon as the task is cancelled, the method throws an exception.
         /// todo: this should block while the task is paused, even if a handle is signaled
         /// </summary>
+        /// <returns>The index of the WaitHandle that caused the continuation or a negative number if a timeout occurred.</returns>
+        /// <param name="timeout">-1 milliseconds to wait indefinitely</param>
         /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
-        public int WaitAny(params WaitHandle[] handles)
+        private int WaitEx(TimeSpan timeout, WaitHandle[] handles)
         {
-            var result = WaitHandle.WaitAny(handles.Concat(new WaitHandle[] { CancellationHandle }).ToArray());
+            var result = WaitHandle.WaitAny(handles.Concat(new WaitHandle[] { CancellationHandle }).ToArray(), timeout);
             ThrowIfCancellationRequested();
+            if (result == WaitHandle.WaitTimeout)
+                return -1;
             return result;
         }
-        
-        public void ThrowIfCancellationRequested()
+
+        /// <summary>
+        /// Throws an OperationCanceledException if the task was cancelled.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        private void ThrowIfCancellationRequestedEx()
         {
             if (currentState == (int)TaskState.Terminated)
                 throw new OperationCanceledException();
@@ -261,5 +246,71 @@ namespace AmbientOS
         {
             Cancel();
         }
+
+        #region Static Methods
+
+        /// <summary>
+        /// Waits for the specified timespan.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        public static void Wait(TimeSpan timeout)
+        {
+            Context.CurrentContext.Controller.WaitEx(timeout, new WaitHandle[0]);
+        }
+
+        /// <summary>
+        /// Waits for the specified WaitHandle.
+        /// As soon as the current context is cancelled, the method throws an exception.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        public static void Wait(WaitHandle handle)
+        {
+            Context.CurrentContext.Controller.WaitEx(TimeSpan.FromMilliseconds(-1), new WaitHandle[] { handle });
+        }
+
+        /// <summary>
+        /// Waits for the specified WaitHandle, but at most for the specified timespan.
+        /// As soon as the current context is cancelled, the method throws an exception.
+        /// </summary>
+        /// <returns>True if the WaitHandle was signalled, false if a timeout occurred.</returns>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        public static bool Wait(WaitHandle handle, TimeSpan timeout)
+        {
+            return Context.CurrentContext.Controller.WaitEx(timeout, new WaitHandle[] { handle }) >= 0;
+        }
+
+        /// <summary>
+        /// Waits for any of the specified WaitHandles.
+        /// As soon as the current context is cancelled, the method throws an exception.
+        /// </summary>
+        /// <returns>The index of the WaitHandle that caused the continuation.</returns>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        public static int WaitAny(params WaitHandle[] handles)
+        {
+            return Context.CurrentContext.Controller.WaitEx(TimeSpan.FromMilliseconds(-1), handles);
+        }
+
+        /// <summary>
+        /// Waits for any of the specified WaitHandles, but at most for the specified timespan.
+        /// As soon as the current context is cancelled, the method throws an exception.
+        /// </summary>
+        /// <returns>The index of the WaitHandle that caused the continuation or a negative number if a timeout occurred.</returns>
+        /// <param name="timeout">-1 milliseconds to wait indefinitely</param>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        public static int WaitAny(TimeSpan timeout, params WaitHandle[] handles)
+        {
+            return Context.CurrentContext.Controller.WaitEx(timeout, handles);
+        }
+
+        /// <summary>
+        /// Throws an OperationCanceledException if the current context was cancelled.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">The task was cancelled.</exception>
+        public static void ThrowIfCancellationRequested()
+        {
+            Context.CurrentContext.Controller.ThrowIfCancellationRequestedEx();
+        }
+
+        #endregion
     }
 }

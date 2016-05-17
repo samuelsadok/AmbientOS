@@ -38,7 +38,7 @@ namespace AmbientOS.Net.DHT
 
                         var subscriber = new DynamicSet<IPEndPoint>((item, moreToFollow) => {
                             dht.Consider(item);
-                        }, null, controller);
+                        }, null);
 
                         controller.OnResume(() => {
                             list.Subscribe(subscriber);

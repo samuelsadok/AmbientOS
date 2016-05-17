@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using AmbientOS.Environment;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS.UI
 {
@@ -25,8 +25,8 @@ namespace AmbientOS.UI
         {
             ShellRef = new ShellRef(this);
             this.console = console;
-            LogContext = LogContext.FromConsole((str, foregroundColor, backgroundColor, controller) => {
-                queue.Enqueue(new Tuple<string, ConsoleColor, ConsoleColor>(str, foregroundColor, backgroundColor), controller);
+            LogContext = LogContext.FromConsole((str, foregroundColor, backgroundColor) => {
+                queue.WaitEnqueue(new Tuple<string, ConsoleColor, ConsoleColor>(str, foregroundColor, backgroundColor));
             }, "root");
         }
 
@@ -69,9 +69,9 @@ namespace AmbientOS.UI
             // logging thread
             new CancelableThread(() => {
                 while (true) {
-                    var item = queue.Dequeue(controller);
+                    var item = queue.WaitDequeue();
                     while (true) {
-                        controller.WaitOne(stackEmpty);
+                        Wait(stackEmpty);
                         lock (dialogs) {
                             if (!dialogs.Any()) {
                                 console.Write(item.Item1, item.Item2, item.Item3);
@@ -85,7 +85,7 @@ namespace AmbientOS.UI
             // draw dialog thread
             new CancelableThread(() => {
                 while (true) {
-                    controller.WaitOne(updateDialogs);
+                    Wait(updateDialogs);
                     Dialog dialog = topDialog();
                     if (dialog != null) {
                         lock (dialog) {
@@ -103,11 +103,11 @@ namespace AmbientOS.UI
             // input thread
             new CancelableThread(() => {
                 while (true) {
-                    var keyPress = console.Read(context);
-                    controller.ThrowIfCancellationRequested();
+                    var keyPress = console.Read();
+                    ThrowIfCancellationRequested();
                     Dialog dialog = topDialog();
                     if (dialog != null)
-                        dialog.KeyPresses.Enqueue(keyPress, controller);
+                        dialog.KeyPresses.WaitEnqueue(keyPress);
                 }
             }).Start();
         }
@@ -179,8 +179,8 @@ namespace AmbientOS.UI
             }
 
             try {
-                while (true) { // todo: use real task controller
-                    var keyPress = dialog.KeyPresses.Dequeue(new TaskController());
+                while (true) {
+                    var keyPress = dialog.KeyPresses.WaitDequeue();
 
                     if (keyPress.Key == Key.Enter)
                         break;

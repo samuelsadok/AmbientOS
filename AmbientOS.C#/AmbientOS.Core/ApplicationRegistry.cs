@@ -68,9 +68,9 @@ namespace AmbientOS.Environment
             //    return app;
             //}
 
-            public DynamicSet<IObjectRef> Invoke(IObjectRef obj, Context context)
+            public DynamicSet<IObjectRef> Invoke(IObjectRef obj)
             {
-                var set = (DynamicSet)method.Invoke(app.GetInstance(), new object[] { obj, context });
+                var set = (DynamicSet)method.Invoke(app.GetInstance(), new object[] { obj });
 
                 if (OutputType.Get() == typeof(void))
                     return new DynamicSet<IObjectRef>().Retain();

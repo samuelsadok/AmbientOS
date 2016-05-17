@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
 using AmbientOS.Environment;
 using AmbientOS.Utils;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem
 {
@@ -136,18 +137,18 @@ namespace AmbientOS.FileSystem
             }
         }
 
-        private List<string> ParseDisk(IDisk disk, LogContext info, bool verbose, out List<Volume> volumes)
+        private List<string> ParseDisk(IDisk disk, bool verbose, out List<Volume> volumes)
         {
             DiskInfo diskInfo = disk.Info.GetValue();
 
             volumes = new List<Volume>(4);
             var issues = new List<string>();
 
-            info.Log("parsing partition tables...");
+            DebugLog("parsing partition tables...");
 
             for (int track = 0; track < diskInfo.Tracks; track++) {
                 if (verbose)
-                    info.Log(string.Format("Track {0}:", track));
+                    DebugLog(string.Format("Track {0}:", track));
 
                 // todo: test with 4k sectors
                 var mbrSectors = Math.Max((512 + diskInfo.BytesPerSector - 1) / diskInfo.BytesPerSector, 1); // get the first sector, but at least 512 bytes
@@ -194,14 +195,12 @@ namespace AmbientOS.FileSystem
                     else
                         volumes.Add(new Volume(disk, type, volInfo, new VolumeExtent[] { extent }));
 
-                    if (info != null) {
-                        info.Log(string.Format("MBR partition entry at 0x{0:X2}:", i));
-                        info.Log(string.Format("ID: {0}", volInfo.ID));
-                        info.Log(string.Format("Status: 0x{0:X2}", status));
-                        info.Log(string.Format("Type: 0x{0:X2}{1}", type, type == 0xEE ? " (protective MBR for GPT)" : ""));
-                        info.Log(string.Format("Number of Sectors: {0} (0x{0:X16}), that's {1}", extent.Sectors, Utilities.GetSizeString(extent.Sectors * diskInfo.BytesPerSector, true)));
-                        info.Log(string.Format("Start Sector: {0} (0x{0:X16})", extent.StartSector));
-                    }
+                    DebugLog(string.Format("MBR partition entry at 0x{0:X2}:", i));
+                    DebugLog(string.Format("ID: {0}", volInfo.ID));
+                    DebugLog(string.Format("Status: 0x{0:X2}", status));
+                    DebugLog(string.Format("Type: 0x{0:X2}{1}", type, type == 0xEE ? " (protective MBR for GPT)" : ""));
+                    DebugLog(string.Format("Number of Sectors: {0} (0x{0:X16}), that's {1}", extent.Sectors, Utilities.GetSizeString(extent.Sectors * diskInfo.BytesPerSector, true)));
+                    DebugLog(string.Format("Start Sector: {0} (0x{0:X16})", extent.StartSector));
                 }
 
                 // todo: check if volumes overlap, calculate max sector information
@@ -247,11 +246,11 @@ namespace AmbientOS.FileSystem
         }
 
         [AOSAction("init")]
-        public DynamicSet<IVolume> Init(IDisk disk, Context context)
+        public DynamicSet<IVolume> Init(IDisk disk)
         {
             // todo: locking
             List<Volume> list;
-            var issues = ParseDisk(disk, context.Log, false, out list);
+            var issues = ParseDisk(disk, false, out list);
 
             return new DynamicSet<IVolume>(list.Select(vol => vol.VolumeRef).ToArray()).Retain();
             //ObjectStore.PublishObject(volume, new Dictionary<string, string>() {
@@ -261,22 +260,22 @@ namespace AmbientOS.FileSystem
         }
 
         [AOSAction("info")]
-        public void Info(IDisk disk, Context context)
+        public void Info(IDisk disk)
         {
             // todo: locking
             List<Volume> volumes;
-            var issues = ParseDisk(disk, context.Log, false, out volumes);
+            var issues = ParseDisk(disk, false, out volumes);
 
             if (issues.Count == 0)
-                context.Log.Log(string.Format("{0} volumes were found. The partitions seem to be healthy.", volumes.Count()), LogType.Success);
+                Log(string.Format("{0} volumes were found. The partitions seem to be healthy.", volumes.Count()), LogType.Success);
             else
-                context.Log.Break();
+                Context.CurrentContext.Log.Break();
 
             if (issues.Count > 1)
-                context.Log.Log("Multiple issues were found with the patitions:", LogType.Warning);
+                Log("Multiple issues were found with the patitions:", LogType.Warning);
 
             foreach (var issue in issues)
-                context.Log.Log(issue, LogType.Warning);
+                Log(issue, LogType.Warning);
         }
 
     }

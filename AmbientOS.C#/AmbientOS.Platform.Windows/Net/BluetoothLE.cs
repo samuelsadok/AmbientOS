@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Devices.Bluetooth.Advertisement;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.Net
 {
@@ -28,16 +29,16 @@ namespace AmbientOS.Net
 
         }
 
-        public DynamicSet<IBluetoothLEPeripheral> Scan(int parameters, Context context)
+        public DynamicSet<IBluetoothLEPeripheral> Scan(int parameters)
         {
             var set = new DynamicSet<IBluetoothLEPeripheral>().Retain();
 
             TypedEventHandler<BluetoothLEAdvertisementWatcher, BluetoothLEAdvertisementReceivedEventArgs> onReveiced = (o, e) => {
-                context.Log.Debug("received advertisement");
+                DebugLog("received advertisement");
             };
 
             TypedEventHandler<BluetoothLEAdvertisementWatcher, BluetoothLEAdvertisementWatcherStoppedEventArgs> onStopped = (o, e) => {
-                context.Log.Debug("scanner stopped");
+                DebugLog("scanner stopped");
                 // todo: handle stopped watcher
             };
 

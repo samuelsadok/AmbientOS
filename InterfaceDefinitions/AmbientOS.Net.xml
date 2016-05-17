@@ -16,7 +16,6 @@
         If the reference count of the dynamic set reaches 0, the scan is stopped. It is restarted if the set is referenced again.
       </summary>
       <param name="parameters" type="int" />
-      <param name="context" type="Context" />
     </method>
   </interface>
   

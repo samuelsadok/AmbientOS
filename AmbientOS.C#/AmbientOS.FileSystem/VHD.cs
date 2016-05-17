@@ -6,6 +6,7 @@ using System.Diagnostics.Contracts;
 using AmbientOS.Environment;
 using AmbientOS.UI;
 using AmbientOS.Utils;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem
 {
@@ -168,7 +169,7 @@ namespace AmbientOS.FileSystem
         /// Returns a list of messages about issues that occurred.
         /// </summary>
         /// <param name="info">If not null, receives human readable information about the VHD image.</param>
-        private VHD ParseHeader(IFile file, LogContext info, out List<string> issues)
+        private VHD ParseHeader(IFile file, out List<string> issues)
         {
             var fileLength = file.Size.GetValue();
             if (fileLength.HasValue)
@@ -229,22 +230,22 @@ namespace AmbientOS.FileSystem
             //if ((ulong)diskC * diskH * diskS != currSize / 512)
             //    issues.Add("The current-size field doesn't match cylinders * heads * sectorsPerTrack * sectorSize");
 
-            info.Debug("VHD {0} (length: {1}):", usingFooter ? "Footer" : "Header", footer.Length);
-            info.Debug("Cookie: \"{0}\"", Encoding.ASCII.GetString(footer.Take(8).ToArray()));
-            info.Debug("Features: 0x{0:X8}{1}", header.features, (header.features & 1) != 0 ? " (temporary)" : "");
-            info.Debug("Version: 0x{0:X8}", header.version);
-            info.Debug("Data Offset: 0x{0:X16}", header.offset);
-            info.Debug("Time Stamp: 0x{0:X8} ({1})", header.timeStamp, new DateTime(2000, 1, 1, 0, 0, 0).AddSeconds(header.timeStamp).ToString());
-            info.Debug("Creator Application: 0x{0:X8} ({1})", header.creatorApp, header.creatorApp == 0x00001337 ? "AmbientOS VHD Service" : "unknown");
-            info.Debug("Creator Version: 0x{0:X8}", header.creatorVersion);
-            info.Debug("Creator OS: 0x{0:X8} ({1})", header.creatorOS, header.creatorOS == 0x5769326B ? "Windows" : header.creatorOS == 0x4D616320 ? "Mac" : "unknown");
-            info.Debug("Original Virtual Size (at creation time): {0}", Utilities.GetSizeString(header.origSize, true));
-            info.Debug("Current Virtual Size: {0}", Utilities.GetSizeString(header.currSize, true));
-            info.Debug("Disk Geometry: {0} cylinders, {1} heads, {2} sectors per track", header.diskC, header.diskH, header.diskS);
-            info.Debug("Disk Type: {0} ({1})", header.diskType, header.diskType < 7 ? new string[] { "none", "deprecated", "fixed", "dynamic", "differencing", "deprecated", "deprecated" }[header.diskType] : "unknown");
-            info.Debug("Checksum: 0x{0:X8}", header.checksum);
-            info.Debug("Saved State: {0}", header.savedState);
-            info.Debug("Unique ID: {0}", header.guid);
+            DebugLog("VHD {0} (length: {1}):", usingFooter ? "Footer" : "Header", footer.Length);
+            DebugLog("Cookie: \"{0}\"", Encoding.ASCII.GetString(footer.Take(8).ToArray()));
+            DebugLog("Features: 0x{0:X8}{1}", header.features, (header.features & 1) != 0 ? " (temporary)" : "");
+            DebugLog("Version: 0x{0:X8}", header.version);
+            DebugLog("Data Offset: 0x{0:X16}", header.offset);
+            DebugLog("Time Stamp: 0x{0:X8} ({1})", header.timeStamp, new DateTime(2000, 1, 1, 0, 0, 0).AddSeconds(header.timeStamp).ToString());
+            DebugLog("Creator Application: 0x{0:X8} ({1})", header.creatorApp, header.creatorApp == 0x00001337 ? "AmbientOS VHD Service" : "unknown");
+            DebugLog("Creator Version: 0x{0:X8}", header.creatorVersion);
+            DebugLog("Creator OS: 0x{0:X8} ({1})", header.creatorOS, header.creatorOS == 0x5769326B ? "Windows" : header.creatorOS == 0x4D616320 ? "Mac" : "unknown");
+            DebugLog("Original Virtual Size (at creation time): {0}", Utilities.GetSizeString(header.origSize, true));
+            DebugLog("Current Virtual Size: {0}", Utilities.GetSizeString(header.currSize, true));
+            DebugLog("Disk Geometry: {0} cylinders, {1} heads, {2} sectors per track", header.diskC, header.diskH, header.diskS);
+            DebugLog("Disk Type: {0} ({1})", header.diskType, header.diskType < 7 ? new string[] { "none", "deprecated", "fixed", "dynamic", "differencing", "deprecated", "deprecated" }[header.diskType] : "unknown");
+            DebugLog("Checksum: 0x{0:X8}", header.checksum);
+            DebugLog("Saved State: {0}", header.savedState);
+            DebugLog("Unique ID: {0}", header.guid);
 
 
             // a fixed disk doesn't have any more structures
@@ -294,20 +295,20 @@ namespace AmbientOS.FileSystem
                 issues.Add("some parent locator entries point beyond file boundaries");
 
 
-            info.Break();
-            info.Debug("Dynamic Disk Header:");
-            info.Debug("Cookie: \"{0}\"", Encoding.ASCII.GetString(dynheader.Take(8).ToArray()));
-            info.Debug("Data Offset (not used): 0x{0:X16}", header2.offset);
-            info.Debug("Bitmap Allocation Table Offset (not used): 0x{0:X16}", header2.tableOffset);
-            info.Debug("Header Version: 0x{0:X8}", header2.version);
-            info.Debug("Max Table Entries: {0}", header2.maxTableEntries);
-            info.Debug("Block Size: {0}", header2.blockSize);
-            info.Debug("Checksum: 0x{0:X8}", header2.checksum);
-            info.Debug("Parent Unique ID: {0}", header2.parentGuid);
-            info.Debug("Parent Time Stamp: 0x{0:X8} ({1})", header2.parentTimeStamp, new DateTime(2000, 1, 1, 0, 0, 0).AddSeconds(header2.parentTimeStamp).ToString());
-            info.Debug("Parent Unicode Name: \"{0}\"", Encoding.Unicode.GetString(dynheader.Skip(64).Take(512).ToArray()));
+            Context.CurrentContext.Log.Break();
+            DebugLog("Dynamic Disk Header:");
+            DebugLog("Cookie: \"{0}\"", Encoding.ASCII.GetString(dynheader.Take(8).ToArray()));
+            DebugLog("Data Offset (not used): 0x{0:X16}", header2.offset);
+            DebugLog("Bitmap Allocation Table Offset (not used): 0x{0:X16}", header2.tableOffset);
+            DebugLog("Header Version: 0x{0:X8}", header2.version);
+            DebugLog("Max Table Entries: {0}", header2.maxTableEntries);
+            DebugLog("Block Size: {0}", header2.blockSize);
+            DebugLog("Checksum: 0x{0:X8}", header2.checksum);
+            DebugLog("Parent Unique ID: {0}", header2.parentGuid);
+            DebugLog("Parent Time Stamp: 0x{0:X8} ({1})", header2.parentTimeStamp, new DateTime(2000, 1, 1, 0, 0, 0).AddSeconds(header2.parentTimeStamp).ToString());
+            DebugLog("Parent Unicode Name: \"{0}\"", Encoding.Unicode.GetString(dynheader.Skip(64).Take(512).ToArray()));
             foreach (var locator in header2.parentLocatorEntries) {
-                info.Debug("Parent Locator: platform code: 0x{0:X8}, space: {1} sectors, length: {2} bytes, offset: 0x{3:X16}",
+                DebugLog("Parent Locator: platform code: 0x{0:X8}, space: {1} sectors, length: {2} bytes, offset: 0x{3:X16}",
                     locator.platformCode,
                     locator.dataSpace,
                     locator.dataLength,
@@ -333,19 +334,19 @@ namespace AmbientOS.FileSystem
         /// Opens the specified file as a virtual hard disk and makes it available as a disk object.
         /// </summary>
         [AOSAction("mount", "ext=vhd")]
-        public DynamicSet<IDisk> Mount(IFile file, Context context)
+        public DynamicSet<IDisk> Mount(IFile file)
         {
             // todo: think about locking
             List<string> issues;
-            var disk = ParseHeader(file, context.Log, out issues);
+            var disk = ParseHeader(file, out issues);
 
             if (issues.Count == 0)
-                context.Shell.Notify(new Text() {
+                Context.CurrentContext.Shell.Notify(new Text() {
                     Summary = "The VHD image seems to be healthy."
                 }, Severity.Success);
 
             if (issues.Count > 0) {
-                var answer = context.Shell.PresentDialog(new Text() {
+                var answer = Context.CurrentContext.Shell.PresentDialog(new Text() {
                     Summary = "There are problems with reading this image.",
                     Details = "I found some issues with the file you tried to mount. If you continue, there is no guarantee that it will work.",
                     Debug = string.Join("\n", issues)
@@ -375,21 +376,21 @@ namespace AmbientOS.FileSystem
         /// Parses the header of a VHD image and returns information about it.
         /// </summary>
         [AOSAction("info", "ext=vhd")]
-        public void Info(IFile file, Context context)
+        public void Info(IFile file)
         {
             List<string> issues;
-            var disk = ParseHeader(file, context.Log, out issues);
+            var disk = ParseHeader(file, out issues);
 
             if (issues.Count == 0)
-                context.Shell.Notify(new Text() {
+                Context.CurrentContext.Shell.Notify(new Text() {
                     Summary = "The VHD image seems to be healthy."
                 }, Severity.Success);
 
             if (issues.Count > 1)
-                context.Log.Log("Multiple issues were found with the VHD image:", LogType.Warning);
+                Log("Multiple issues were found with the VHD image:", LogType.Warning);
 
             foreach (var issue in issues)
-                context.Log.Log(issue, LogType.Warning);
+                Log(issue, LogType.Warning);
         }
     }
 }

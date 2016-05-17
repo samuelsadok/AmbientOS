@@ -29,7 +29,7 @@ namespace AmbientOS.Platform
                 Name = name.GetValue(),
                 Controller = new TaskController(TaskState.Inactive),
                 Environment = new ForeignEnvironment().EnvironmentRef.Retain(),
-                Log = new LogContext((c, m, t, controller) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name.GetValue()),
+                Log = new LogContext((c, m, t) => { System.Diagnostics.Debug.WriteLine(c + ": " + m); }, null, name.GetValue()),
                 Shell = null
             };
 

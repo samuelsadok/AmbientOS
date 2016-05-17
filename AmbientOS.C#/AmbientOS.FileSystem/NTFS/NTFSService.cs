@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using AmbientOS.Environment;
 using AmbientOS.Utils;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem.NTFS
 {
@@ -25,21 +26,21 @@ namespace AmbientOS.FileSystem.NTFS
         [AOSAction("mount", "type=E3C9E316-0B5C-4DB8-817D-F92DF00215AE")] // Microsoft Reserved Partition
         [AOSAction("mount", "type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7")] // Basic Data Partition
         [AOSAction("mount", "type=DE94BBA4-06D1-4D40-A16A-BFD50179D6AC")] // Windows Recovery Environment
-        public DynamicSet<IFileSystem> Mount(IVolume volume, Context context)
+        public DynamicSet<IFileSystem> Mount(IVolume volume)
         {
             List<string> issues;
-            var vol = new NTFSVolume(volume, "info", context, out issues);
+            var vol = new NTFSVolume(volume, "info", out issues);
 
             if (issues.Count == 0)
-                context.Log.Log("The VHD image seems to be healthy.", LogType.Success);
+                Log("The VHD image seems to be healthy.", LogType.Success);
             else
-                context.Log.Break();
+                Context.CurrentContext.Log.Break();
 
             if (issues.Count > 1)
-                context.Log.Log("Multiple issues were found with the VHD image:", LogType.Warning);
+                Log("Multiple issues were found with the VHD image:", LogType.Warning);
 
             foreach (var issue in issues)
-                context.Log.Log(issue, LogType.Warning);
+                Log(issue, LogType.Warning);
 
             return new DynamicSet<IFileSystem>(vol.FileSystemRef).Retain();
         }

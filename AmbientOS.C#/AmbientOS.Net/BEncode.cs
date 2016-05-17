@@ -18,11 +18,11 @@ namespace AmbientOS.Net
         public byte[] Encode()
         {
             var result = new MemoryStream();
-            Encode(result, new TaskController()).Wait();
+            Encode(result).Wait();
             return result.ToArray();
         }
 
-        public abstract Task Encode(Stream stream, TaskController controller);
+        public abstract Task Encode(Stream stream);
 
         public static BEncode Decode(byte[] buffer)
         {
@@ -72,11 +72,11 @@ namespace AmbientOS.Net
             return new BInt(long.Parse(s.ToString()));
         }
 
-        public override async Task Encode(Stream stream, TaskController controller)
+        public override async Task Encode(Stream stream)
         {
-            await stream.Write("i", Encoding, controller);
-            await stream.Write(Value.ToString(), Encoding, controller);
-            await stream.Write("e", Encoding, controller);
+            await stream.Write("i", Encoding);
+            await stream.Write(Value.ToString(), Encoding);
+            await stream.Write("e", Encoding);
         }
 
         public override string ToString()
@@ -123,11 +123,11 @@ namespace AmbientOS.Net
             return new BString(val);
         }
 
-        public override async Task Encode(Stream stream, TaskController controller)
+        public override async Task Encode(Stream stream)
         {
-            await stream.Write(BinaryValue.Count().ToString(), Encoding, controller);
-            await stream.Write(":", Encoding, controller);
-            await stream.Write(BinaryValue, controller);
+            await stream.Write(BinaryValue.Count().ToString(), Encoding);
+            await stream.Write(":", Encoding);
+            await stream.Write(BinaryValue);
         }
 
         public override string ToString()
@@ -169,12 +169,12 @@ namespace AmbientOS.Net
             return new BList(val);
         }
 
-        public override async Task Encode(Stream stream, TaskController controller)
+        public override async Task Encode(Stream stream)
         {
-            await stream.Write("l", Encoding, controller);
+            await stream.Write("l", Encoding);
             foreach (var value in List)
-                await value.Encode(stream, controller);
-            await stream.Write("e", Encoding, controller);
+                await value.Encode(stream);
+            await stream.Write("e", Encoding);
         }
 
         public override string ToString()
@@ -215,14 +215,14 @@ namespace AmbientOS.Net
             return new BDict(val);
         }
 
-        public override async Task Encode(Stream stream, TaskController controller)
+        public override async Task Encode(Stream stream)
         {
-            await stream.Write("d", Encoding, controller);
+            await stream.Write("d", Encoding);
             foreach (var kv in Dict) {
-                await new BString(kv.Key).Encode(stream, controller);
-                await kv.Value.Encode(stream, controller);
+                await new BString(kv.Key).Encode(stream);
+                await kv.Value.Encode(stream);
             }
-            await stream.Write("e", Encoding, controller);
+            await stream.Write("e", Encoding);
         }
 
         public override string ToString()

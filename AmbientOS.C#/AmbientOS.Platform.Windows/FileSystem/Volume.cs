@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using AmbientOS.Environment;
-using AmbientOS.Utils;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem
 {
@@ -170,14 +170,14 @@ namespace AmbientOS.FileSystem
         /// <summary>
         /// Enumerates all Windows volumes on the system.
         /// </summary>
-        public static IEnumerable<WindowsVolume> EnumerateVolumes(LogContext log)
+        public static IEnumerable<WindowsVolume> EnumerateVolumes()
         {
             foreach (var name in PInvoke.FindVolumes()) {
                 WindowsVolume volume;
                 try {
                     volume = new WindowsVolume(name);
                 } catch (Exception ex) {
-                    log.Log(string.Format("encountered faulty volume ({0}): {1}", name, ex), LogType.Warning);
+                    Log(string.Format("encountered faulty volume ({0}): {1}", name, ex), LogType.Warning);
                     continue;
                 }
                 yield return volume;

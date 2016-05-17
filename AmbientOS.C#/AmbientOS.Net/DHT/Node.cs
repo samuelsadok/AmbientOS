@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Net;
 using AmbientOS.Net.KRPC;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.Net.DHT
 {
@@ -96,29 +97,29 @@ namespace AmbientOS.Net.DHT
             }
         }
 
-        private void HonourResponse(BDict response, Context context)
+        private void HonourResponse(BDict response)
         {
-            routingTable.dht.Consider(ID, Endpoint, null, InterestFlags.NoInterest, ConsiderationReason.DidRespond, context);
+            routingTable.dht.Consider(ID, Endpoint, null, InterestFlags.NoInterest, ConsiderationReason.DidRespond);
         }
 
-        private void HonourResponse(BDict response, BigInt hashForWhichWeGotAToken, Context context)
+        private void HonourResponse(BDict response, BigInt hashForWhichWeGotAToken)
         {
-            context.Log.Debug(this + " received a token");
+            DebugLog(this + " received a token");
 
-            routingTable.dht.Consider(ID, Endpoint, null, InterestFlags.Peers, ConsiderationReason.DidCooperate, context);
+            routingTable.dht.Consider(ID, Endpoint, null, InterestFlags.Peers, ConsiderationReason.DidCooperate);
 
             if (hashForWhichWeGotAToken != null)
-                routingTable.dht.Consider(ID, Endpoint, hashForWhichWeGotAToken, InterestFlags.Data, ConsiderationReason.DidCooperate, context);
+                routingTable.dht.Consider(ID, Endpoint, hashForWhichWeGotAToken, InterestFlags.Data, ConsiderationReason.DidCooperate);
         }
 
         /// <summary>
         /// Ping the node to see if it's still alive.
         /// </summary>
         /// <param name="count">Number of attempts.</param>
-        public bool Ping(int count, Context context)
+        public bool Ping(int count)
         {
             while (count-- > 0)
-                if (Ping(context) != null)
+                if (Ping() != null)
                     return true;
             return false;
         }
@@ -136,35 +137,35 @@ namespace AmbientOS.Net.DHT
             }
         }
 
-        internal BDict Ping(Context context)
+        internal BDict Ping()
         {
             var args = new BDict();
             args.Dict["id"] = routingTable.Contact;
             try {
                 var startTime = DateTime.Now;
-                var response = routingTable.Socket.Call(DHT.PING_FUNC, args, Endpoint, context.Controller);
+                var response = routingTable.Socket.Call(DHT.PING_FUNC, args, Endpoint);
 
                 if (response == null) {
-                    context.Log.Log("ping failed", LogType.Warning);
+                    Log("ping failed", LogType.Warning);
                     return null;
                 }
 
                 var latency = DateTime.Now - startTime;
                 if (ID == null)
                     ID = DHTUtils.DeserializeHashes((BString)response.Dict["id"]).Single();
-                HonourResponse(response, context);
+                HonourResponse(response);
 
-                context.Log.Log(string.Format("ping succeeded ({0} ms), response: {1}", latency.TotalMilliseconds, response), LogType.Success);
+                Log(string.Format("ping succeeded ({0} ms), response: {1}", latency.TotalMilliseconds, response), LogType.Success);
 
                 return response;
             } catch (Exception ex) when (!(ex is OperationCanceledException)) {
-                context.Log.Log(string.Format("unexpected error in {0} request to {1}: {2}", "ping", Endpoint, ex.Message), LogType.Error);
+                Log(string.Format("unexpected error in {0} request to {1}: {2}", "ping", Endpoint, ex.Message), LogType.Error);
                 return null;
             }
         }
 
 
-        private BDict FindNodesOrPeers(string hashKey, string method, BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4Nodes, bool includeIPv6Nodes, Context context)
+        private BDict FindNodesOrPeers(string hashKey, string method, BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4Nodes, bool includeIPv6Nodes)
         {
             var args = new BDict();
             args.Dict["id"] = routingTable.Contact;
@@ -177,13 +178,13 @@ namespace AmbientOS.Net.DHT
                 want.List.Add(new BString("n6"));
             args.Dict["want"] = want;
 
-            return GetValue(args, method, null, ref nodes, context);
+            return GetValue(args, method, null, ref nodes);
         }
 
-        private BDict GetValue(BDict args, string method, BigInt tokenStoreHash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, Context context)
+        private BDict GetValue(BDict args, string method, BigInt tokenStoreHash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes)
         {
             try {
-                var response = routingTable.Socket.Call(method, args, Endpoint, context.Controller);
+                var response = routingTable.Socket.Call(method, args, Endpoint);
                 if (response == null)
                     return null;
 
@@ -203,16 +204,16 @@ namespace AmbientOS.Net.DHT
                         else
                             tokens[tokenStoreHash] = token;
                     }
-                    HonourResponse(response, tokenStoreHash, context);
+                    HonourResponse(response, tokenStoreHash);
                 } else {
-                    HonourResponse(response, context);
+                    HonourResponse(response);
                 }
 
 
                 return response;
 
             } catch (Exception ex) when (!(ex is OperationCanceledException)) {
-                context.Log.Log(string.Format("unexpected error in {0} request to {1}: {2}", method, Endpoint, ex.Message), LogType.Error);
+                Log(string.Format("unexpected error in {0} request to {1}: {2}", method, Endpoint, ex.Message), LogType.Error);
             }
             return null;
         }
@@ -225,7 +226,7 @@ namespace AmbientOS.Net.DHT
         /// <param name="nodes">The list to which to append the new nodes.</param>
         public bool FindNodes(BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4, bool includeIPv6, Context context)
         {
-            return FindNodesOrPeers("target", DHT.FIND_NODES_FUNC, hash, ref nodes, includeIPv4, includeIPv6, context) != null;
+            return FindNodesOrPeers("target", DHT.FIND_NODES_FUNC, hash, ref nodes, includeIPv4, includeIPv6) != null;
         }
 
         /// <summary>
@@ -236,14 +237,14 @@ namespace AmbientOS.Net.DHT
         /// <param name="includeIPv6">If true, the node is explicitly queried for IPv6 nodes. If false, they may be included anyway.</param>
         public IEnumerable<IPEndPoint> GetPeers(BigInt hash, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, bool includeIPv4, bool includeIPv6, Context context)
         {
-            var response = FindNodesOrPeers("info_hash", DHT.GET_PEERS_FUNC, hash, ref nodes, includeIPv4, includeIPv6, context);
+            var response = FindNodesOrPeers("info_hash", DHT.GET_PEERS_FUNC, hash, ref nodes, includeIPv4, includeIPv6);
             try {
                 BEncode values;
                 if (response != null)
                     if (response.Dict.TryGetValue("values", out values))
                         return DHTUtils.DeserializePeers((BList)values);
             } catch (Exception ex) {
-                context.Log.Log(string.Format("unexpected error in {0} request to {1}: {2}", "get_peers", Endpoint, ex.Message), LogType.Error);
+                Log(string.Format("unexpected error in {0} request to {1}: {2}", "get_peers", Endpoint, ex.Message), LogType.Error);
             }
             return Enumerable.Empty<IPEndPoint>();
         }
@@ -254,7 +255,7 @@ namespace AmbientOS.Net.DHT
         /// This call does nothing on a node that has no token. A token is obtained by calling GetPeers first.
         /// Returns a string that describes the announce error (or null on success).
         /// </summary>
-        public string AnnouncePeer(BigInt hash, Context context)
+        public string AnnouncePeer(BigInt hash)
         {
             Token token;
             lock (tokens) {
@@ -269,14 +270,14 @@ namespace AmbientOS.Net.DHT
             args.Dict["port"] = new BInt(0);
             args.Dict["token"] = new BString(token.Value);
             try {
-                var response = routingTable.Socket.Call(DHT.ANNOUNCE_PEER_FUNC, args, Endpoint, context.Controller);
+                var response = routingTable.Socket.Call(DHT.ANNOUNCE_PEER_FUNC, args, Endpoint);
                 if (response != null) {
-                    HonourResponse(response, context);
+                    HonourResponse(response);
                     return null;
                 }
                 return "no response from server";
             } catch (Exception ex) when (!(ex is OperationCanceledException)) {
-                context.Log.Log(string.Format("unexpected error in {0} request to {1}: {2}", "announce_peer", Endpoint, ex.Message), LogType.Error);
+                Log(string.Format("unexpected error in {0} request to {1}: {2}", "announce_peer", Endpoint, ex.Message), LogType.Error);
                 return ex.Message;
             }
         }
@@ -287,7 +288,7 @@ namespace AmbientOS.Net.DHT
         /// </summary>
         /// <param name="sequenceNumber">Set to the sequence number that the node reported. Null if no sequence number was reported.</param>
         /// <param name="hash">For immutable items: the hash of the item. For mutable data: the hash of the public key and salt.</param>
-        public bool Get(DHTData data, out long? sequenceNumber, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, out string message, Context context)
+        public bool Get(DHTData data, out long? sequenceNumber, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, out string message)
         {
             sequenceNumber = null;
 
@@ -299,7 +300,7 @@ namespace AmbientOS.Net.DHT
                     args.Dict["seq"] = new BInt(data.SequenceNumber.Value);
             }
 
-            var response = GetValue(args, DHT.GET_DATA_FUNC, data.Hash, ref nodes, context);
+            var response = GetValue(args, DHT.GET_DATA_FUNC, data.Hash, ref nodes);
             if (response == null) {
                 message = "timeout";
                 return false;
@@ -327,7 +328,7 @@ namespace AmbientOS.Net.DHT
                     return true;
                 }
             } catch (Exception ex) {
-                context.Log.Log(string.Format("unexpected error in {0} request to {1}: {2}", "get", Endpoint, ex.Message), LogType.Error);
+                Log(string.Format("unexpected error in {0} request to {1}: {2}", "get", Endpoint, ex.Message), LogType.Error);
                 message = "get failed: " + ex.Message;
                 return false;
             }
@@ -361,7 +362,7 @@ namespace AmbientOS.Net.DHT
         /// Should return false if there was no newer data (including if the request failed).
         /// </summary>
         /// <param name="oldSeqNo">The expected old sequence number. If the node has a mismatching sequence number, it will reject the value.</param>
-        internal bool Put(DHTData data, long? oldSeqNo, ref string message, Context context)
+        internal bool Put(DHTData data, long? oldSeqNo, ref string message)
         {
             Token token;
             lock (tokens) {
@@ -388,25 +389,25 @@ namespace AmbientOS.Net.DHT
                 args.Dict["salt"] = new BString(data.Salt);
 
             try {
-                var response = routingTable.Socket.Call(DHT.PUT_DATA_FUNC, args, Endpoint, context.Controller);
+                var response = routingTable.Socket.Call(DHT.PUT_DATA_FUNC, args, Endpoint);
                 if (response == null) {
                     message += "timeout";
                     return false;
                 }
 
-                HonourResponse(response, context);
+                HonourResponse(response);
                 message += "data was stored on the node";
                 return false;
             } catch (ServerException ex) {
                 if (ex.Code == ServerException.ErrorCode.ProtocolError && ex.Message == "invalid token")
-                    context.Log.Log(string.Format("invalid token in put request to {1}:", "put", Endpoint, ex.Message, ex.Code), LogType.Warning);
+                    Log(string.Format("invalid token in put request to {1}:", "put", Endpoint, ex.Message, ex.Code), LogType.Warning);
                 else
-                    context.Log.Log(string.Format("server error {3} in {0} request to {1}: {2}", "put", Endpoint, ex.Message, ex.Code), LogType.Warning);
+                    Log(string.Format("server error {3} in {0} request to {1}: {2}", "put", Endpoint, ex.Message, ex.Code), LogType.Warning);
                 message += "put failed: " + ex.Message;
                 return false;
             } catch (Exception ex) when (!(ex is OperationCanceledException)) {
                 //if (ex.Message == "invalid")
-                context.Log.Log(string.Format("unexpected error in {0} request to {1}: {2}", "put", Endpoint, ex.Message), LogType.Error);
+                Log(string.Format("unexpected error in {0} request to {1}: {2}", "put", Endpoint, ex.Message), LogType.Error);
                 message += "put failed: " + ex.Message;
                 return false;
             }
@@ -416,16 +417,16 @@ namespace AmbientOS.Net.DHT
         /// Retrieves the specified data item from the node and stores the most recent version back on the node.
         /// Returns true if the node did cooperate.
         /// </summary>
-        public bool Sync(DHTData data, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, out string message, Context context)
+        public bool Sync(DHTData data, ref IEnumerable<Tuple<BigInt, IPEndPoint>> nodes, out string message)
         {
             long? sequenceNumber;
 
-            while (Get(data, out sequenceNumber, ref nodes, out message, context)) {
+            while (Get(data, out sequenceNumber, ref nodes, out message)) {
                 message += " and ";
                 if (data.Data == null) {
                     message += "data is empty";
                     break;
-                } else if (!Put(data, sequenceNumber, ref message, context)) {
+                } else if (!Put(data, sequenceNumber, ref message)) {
                     break;
                 }
             }

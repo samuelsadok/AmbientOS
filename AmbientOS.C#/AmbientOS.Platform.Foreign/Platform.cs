@@ -7,6 +7,7 @@ using System.IO;
 using System.Reflection;
 using AmbientOS.UI;
 using AmbientOS.Environment;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.Platform
 {
@@ -62,9 +63,9 @@ namespace AmbientOS.Platform
             foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(location), "AmbientOS.Platform.*.dll", SearchOption.AllDirectories)) {
                 try {
                     var assembly = Assembly.LoadFrom(file);
-                    context.Log.Log(string.Format("loaded assembly {0}", assembly), LogType.Debug);
+                    Log(string.Format("loaded assembly {0}", assembly), LogType.Debug);
                 } catch (Exception ex) {
-                    context.Log.Log(string.Format("could not load assembly {0}: {1}", file, ex.Message), LogType.Warning);
+                    Log(string.Format("could not load assembly {0}: {1}", file, ex.Message), LogType.Warning);
                 }
             }
 
@@ -104,8 +105,8 @@ namespace AmbientOS.Platform
                 }
             }
 
-            context.Log.Log(string.Format("available platforms: {0}", availablePlatforms.Any() ? string.Join(", ", availablePlatforms.Select(p => p == null ? "(null)" : string.Format("{0} ({1})", p.GetType(), p.Text.Summary))) : "none"), LogType.Debug);
-            context.Log.Log(string.Format("unavailable platforms: {0}", unavailablePlatforms.Any() ? string.Join(", ", unavailablePlatforms.Select(p => p == null ? "(null)" : string.Format("{0} ({1})", p.Item1, p.Item2.Message))) : "none"), LogType.Debug);
+            Log(string.Format("available platforms: {0}", availablePlatforms.Any() ? string.Join(", ", availablePlatforms.Select(p => p == null ? "(null)" : string.Format("{0} ({1})", p.GetType(), p.Text.Summary))) : "none"), LogType.Debug);
+            Log(string.Format("unavailable platforms: {0}", unavailablePlatforms.Any() ? string.Join(", ", unavailablePlatforms.Select(p => p == null ? "(null)" : string.Format("{0} ({1})", p.Item1, p.Item2.Message))) : "none"), LogType.Debug);
 
 
             IPlatform platform;
@@ -160,14 +161,14 @@ namespace AmbientOS.Platform
 
                     try {
                         ApplicationRegistry.InstallService(t);
-                        context.Log.Log(string.Format("installed service {0}", t), LogType.Debug);
+                        Log(string.Format("installed service {0}", t), LogType.Debug);
                     } catch (Exception ex) {
-                        context.Log.Log(string.Format("failed to install service {0}: {1} ", t, ex.Message), LogType.Error);
+                        Log(string.Format("failed to install service {0}: {1} ", t, ex.Message), LogType.Error);
                     }
                 }
 
 
-                mainApp.Run(context);
+                mainApp.Run();
             }
         }
     }

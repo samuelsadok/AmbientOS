@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using AmbientOS.Environment;
 using AmbientOS.UI;
 using AmbientOS.Utils;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace AmbientOS
 {
@@ -26,6 +28,43 @@ namespace AmbientOS
                 Log = Log.SubContext(name),
                 Controller = Controller
             };
+        }
+
+        
+
+
+        static readonly ConditionalWeakTable<Thread, Context> contexts = new ConditionalWeakTable<Thread, Context>();
+
+        /// <summary>
+        /// Returns the context that is associated with the current thread.
+        /// </summary>
+        public static Context CurrentContext
+        {
+            get
+            {
+                return contexts.GetOrCreateValue(Thread.CurrentThread);
+            }
+            set
+            {
+                contexts.Add(Thread.CurrentThread, value);
+            }
+        }
+
+        /// <summary>
+        /// Returns the context of the specified thread.
+        /// </summary>
+        public static Context GetContext(Thread thread)
+        {
+            return contexts.GetOrCreateValue(thread);
+        }
+
+        /// <summary>
+        /// Associates the specified thread with the same context as the current thread.
+        /// </summary>
+        /// <param name="thread"></param>
+        public static void ForwardContext(Thread thread)
+        {
+            contexts.Add(thread, CurrentContext);
         }
     }
 }

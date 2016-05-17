@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS.Utils
 {
@@ -15,23 +16,23 @@ namespace AmbientOS.Utils
     /// </summary>
     public class SlowAction
     {
-        private readonly Action<TaskController> action;
+        private readonly Action action;
         private readonly object lockRef = new object();
         private EventWaitHandle nextExecutionFinishedHandle; // a non-null value in this field indicates that another execution of the action must be done
         private EventWaitHandle executionFinishedHandle; // a non-null value in this field indicates that an execution is currently in progress
 
         public ActivityTracker Tracker { get; private set; }
 
-        public SlowAction(Action<TaskController> action)
+        public SlowAction(Action action)
         {
             if (action == null) throw new ArgumentNullException("action");
 
             Tracker = new ActivityTracker();
 
-            this.action = (c) => {
+            this.action = () => {
                 Tracker.SwitchToActive();
                 try {
-                    action(c);
+                    action();
                 } catch (Exception ex) {
                     Tracker.SwitchToFailed(ex);
                     return;
@@ -92,14 +93,16 @@ namespace AmbientOS.Utils
         /// </summary>
         /// <param name="soft">if true and an execution is already in progress, no new execution is enqueued</param>
         /// <param name="cancellationToken">cancels the action (must be the same in every call => todo: fix)</param>
-        public WaitHandle Trigger(bool soft, TaskController controller)
+        public WaitHandle Trigger(bool soft)
         {
+            var parentContext = Context.CurrentContext;
             WaitHandle result;
             if (ShouldExecute(soft, out result))
                 Task.Run(() => {
+                    Context.CurrentContext = parentContext;
                     EventWaitHandle handle;
                     while ((handle = AcquireHandleForExecution()) != null) {
-                        action(controller);
+                        action();
                         handle.Set();
                     }
                 });
@@ -110,9 +113,9 @@ namespace AmbientOS.Utils
         /// Triggers the underlying action and returns a wait handle that will be triggered upon completition of the first execution of the action that was started after triggering.
         /// </summary>
         /// <param name="cancellationToken">cancels the action</param>
-        public WaitHandle Trigger(TaskController controller)
+        public WaitHandle Trigger()
         {
-            return Trigger(false, controller);
+            return Trigger(false);
         }
 
         /// <summary>
@@ -120,18 +123,18 @@ namespace AmbientOS.Utils
         /// If an execution is already in progress, no new execution is enqueued.
         /// </summary>
         /// <param name="controller">cancels the action</param>
-        public WaitHandle SoftTrigger(TaskController controller)
+        public WaitHandle SoftTrigger()
         {
-            return Trigger(true, controller);
+            return Trigger(true);
         }
 
         /// <summary>
         /// Triggers the underlying action and blocks until it was completed.
         /// </summary>
         /// <param name="controller">causes the routine to stop waiting but does not revoke or cancel the triggered action</param>
-        public async Task TriggerAndWait(TaskController controller)
+        public async Task TriggerAndWait()
         {
-            await Trigger(false, controller).WaitAsync(controller); // todo: propagate errors from this triggering
+            await Trigger(false).WaitAsync(); // todo: propagate errors from this triggering
         }
 
         /// <summary>
@@ -139,9 +142,9 @@ namespace AmbientOS.Utils
         /// If an execution is already in progress, no new execution is enqueued and this function blocks until the current execution completes.
         /// </summary>
         /// <param name="controller">causes the routine to stop waiting but does not revoke or cancel the triggered action</param>
-        public async Task SoftTriggerAndWait(TaskController controller)
+        public async Task SoftTriggerAndWait()
         {
-            await Trigger(true, controller).WaitAsync(controller); // todo: propagate errors from this triggering
+            await Trigger(true).WaitAsync(); // todo: propagate errors from this triggering
         }
 
         /// <summary>
@@ -151,12 +154,13 @@ namespace AmbientOS.Utils
         /// </summary>
         /// <param name="interval">interval in milliseconds</param>
         /// <param name="cancellationToken">Cancels the periodic triggering.</param>
-        public void TriggerPeriodically(int interval, TaskController controller)
+        public void TriggerPeriodically(TimeSpan interval)
         {
             Task.Run(() => {
-                do {
-                    Trigger(false, controller);
-                } while (!controller.CancellationHandle.WaitOne(interval));
+                while (true) {
+                    Trigger(false);
+                    Wait(interval); // throws an exception when cancelled.
+                };
             });
         }
     }

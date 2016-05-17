@@ -187,7 +187,6 @@
         Modifier keys are not recognized on their own.
         The pressed key is not printed to the console.
       </summary>
-      <param name="context" type="Context" />
     </method>
     <method name="Clear">
       <summary>

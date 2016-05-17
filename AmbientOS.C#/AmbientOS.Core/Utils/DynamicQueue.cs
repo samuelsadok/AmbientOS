@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS
 {
@@ -235,9 +236,9 @@ namespace AmbientOS
         /// Enqueues an item and signals one of the blocked consumers (if any).
         /// This method blocks while the queue is full.
         /// </summary>
-        public void Enqueue(T item, TaskController controller)
+        public void WaitEnqueue(T item)
         {
-            controller.WaitOne(freeSlots);
+            Wait(freeSlots);
             StrongEnqueueUnsafe(item, false);
             usedSlots.Release();
         }
@@ -377,9 +378,9 @@ namespace AmbientOS
         /// Dequeues the oldest item from the queue.
         /// If neccessary, the call blocks until an item becomes available.
         /// </summary>
-        public T Dequeue(TaskController controller)
+        public T WaitDequeue()
         {
-            controller.WaitOne(usedSlots);
+            Wait(usedSlots);
 
             T item;
             lock (lockRef) {

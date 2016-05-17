@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS.UI
 {
@@ -103,7 +104,7 @@ namespace AmbientOS.UI
             return result;
         }
 
-        public KeyPress Read(Context context)
+        public KeyPress Read()
         {
 
             ConsoleKeyInfo key = default(ConsoleKeyInfo);
@@ -118,7 +119,7 @@ namespace AmbientOS.UI
 
 
             System.Console.Title = "lol this is a title";
-            context.Controller.OnCancellation(() => {
+            Context.CurrentContext.Controller.OnCancellation(() => {
 
                 // todo: this works like this but it's not great, we need to unsubscribe the handler if readkey succeeds
 
@@ -127,7 +128,7 @@ namespace AmbientOS.UI
             });
 
             s.WaitOne();
-            context.Controller.ThrowIfCancellationRequested();
+            ThrowIfCancellationRequested();
 
             return new KeyPress() {
                 Key = Convert(key.Key),

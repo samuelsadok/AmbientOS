@@ -5,12 +5,14 @@ using System.Threading;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.NetworkInformation;
+using static AmbientOS.LogContext;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS.Net.KRPC
 {
     public abstract class KRPCSocket
     {
-        public abstract void Start(Context context);
+        public abstract void Start();
 
         /// <summary>
         /// Issues an RPC to a remote peer.
@@ -18,7 +20,7 @@ namespace AmbientOS.Net.KRPC
         /// Returns null if the server does not respond.
         /// On any other error, an exception is thrown.
         /// </summary>
-        internal abstract BDict Call(string method, BDict args, IPEndPoint endpoint, TaskController controller);
+        internal abstract BDict Call(string method, BDict args, IPEndPoint endpoint);
     }
 
     public class SingleEndpointSocket : KRPCSocket
@@ -27,8 +29,6 @@ namespace AmbientOS.Net.KRPC
         /// I could not find any place where this timespan is defined in relation to BitTorrent.
         /// </summary>
         private static TimeSpan TIMEOUT = TimeSpan.FromSeconds(5);
-
-        private Context context;
 
         private readonly UdpClient udp;
         private readonly ManualResetEvent canReceive = new ManualResetEvent(false);
@@ -89,36 +89,34 @@ namespace AmbientOS.Net.KRPC
         /// <summary>
         /// Launches the KRPC socket.
         /// </summary>
-        public override void Start(Context context)
+        public override void Start()
         {
-            this.context = context;
-
             reportedEndpoints.MostCommonElementChanged += (newEndpoint) => {
-                context.Log.Debug("public endpoint for socket at {0} updated: {1}", LocalEndpoint, newEndpoint);
+                DebugLog("public endpoint for socket at {0} updated: {1}", LocalEndpoint, newEndpoint);
                 IPEndpointChanged.SafeInvoke(LocalEndpoint, newEndpoint);
             };
 
-            new CancelableThread(() => {
+            var thread = new CancelableThread(() => {
                 byte[] buffer;
-                
-                context.Controller.WaitOne(canReceive);
+
+                Wait(canReceive);
 
                 while (true) {
-                    context.Controller.ThrowIfCancellationRequested();
+                    ThrowIfCancellationRequested();
 
                     var endpoint = new IPEndPoint(IPAddress.Any, 0);
 
                     try {
                         buffer = udp.Receive(ref endpoint);
                     } catch (Exception ex) {
-                        context.Controller.ThrowIfCancellationRequested();
-                        context.Log.Log(string.Format("UDP error in socket at {0}: {1}", LocalEndpoint, ex), LogType.Warning); // what to do? maybe log
+                        ThrowIfCancellationRequested();
+                        Log(string.Format("UDP error in socket at {0}: {1}", LocalEndpoint, ex), LogType.Warning); // what to do? maybe log
                         Thread.Sleep(500);
                         continue;
                     }
 
                     try {
-                        context.Log.Debug("received message from {0}", endpoint);
+                        DebugLog("received message from {0}", endpoint);
 
                         var msg = Message.FromBytes(buffer);
 
@@ -128,12 +126,12 @@ namespace AmbientOS.Net.KRPC
                                 var port = msg.IPAddress.ReadUInt16(msg.IPAddress.Count() - 2, Endianness.NetworkByteOrder);
                                 reportedEndpoints.StrongEnqueue(new IPEndPoint(addr, port));
                             } catch (Exception ex) {
-                                context.Log.Log(string.Format("failed to parse reported local IP address: {0}", ex.Message), LogType.Warning);
+                                Log(string.Format("failed to parse reported local IP address: {0}", ex.Message), LogType.Warning);
                             }
                         }
 
                         if (msg is QueryMessage) {
-                            new Thread(() => Handle(udp, (QueryMessage)msg, endpoint, context)).Start();
+                            new CancelableThread(() => Handle(udp, (QueryMessage)msg, endpoint)).Start();
                         } else {
                             lock (transactions) {
                                 Transaction t;
@@ -144,12 +142,14 @@ namespace AmbientOS.Net.KRPC
                             }
                         }
                     } catch (Exception) {
-                        context.Log.Log("unknown KRPC error",  LogType.Warning);
+                        Log("unknown KRPC error", LogType.Warning);
                     }
                 }
-            }).Start();
+            });
+            
+            thread.Start();
 
-            context.Controller.OnCancellation(() => {
+            thread.Context.Controller.OnCancellation(() => {
                 lock (udp) {
                     udp.Close();
                 }
@@ -159,12 +159,12 @@ namespace AmbientOS.Net.KRPC
         /// <summary>
         /// Handles a remote procedure call to the local host.
         /// </summary>
-        private void Handle(UdpClient client, QueryMessage query, IPEndPoint endpoint, Context context)
+        private void Handle(UdpClient client, QueryMessage query, IPEndPoint endpoint)
         {
             try {
                 Message response;
                 try {
-                    context.Log.Debug("incoming KRPC query from {0}: {1}", endpoint, query.Method);
+                    DebugLog("incoming KRPC query from {0}: {1}", endpoint, query.Method);
 
                     Func<BDict, IPEndPoint, BDict> method;
                     lock (methods) {
@@ -177,7 +177,7 @@ namespace AmbientOS.Net.KRPC
                     };
                 } catch (Exception ex) {
                     response = new ErrorMessage(ex);
-                    context.Log.Log(string.Format("KRPC error in handling {0}: {1}", query.Method, ex), LogType.Warning);
+                    Log(string.Format("KRPC error in handling {0}: {1}", query.Method, ex), LogType.Warning);
                 }
 
                 response.IPAddress = endpoint.Address.GetAddressBytes().Concat(ByteConverter.WriteVal((ushort)endpoint.Port, Endianness.NetworkByteOrder)).ToArray();
@@ -185,11 +185,11 @@ namespace AmbientOS.Net.KRPC
 
                 var buffer = response.Serialize();
                 lock (client) {
-                    context.Controller.ThrowIfCancellationRequested();
+                    ThrowIfCancellationRequested();
                     client.Send(buffer, buffer.Length, endpoint);
                 }
             } catch (Exception ex) {
-                context.Log.Log(string.Format("error in sending KRPC response: {0}", ex.Message), LogType.Warning);
+                Log(string.Format("error in sending KRPC response: {0}", ex.Message), LogType.Warning);
             }
         }
 
@@ -210,7 +210,7 @@ namespace AmbientOS.Net.KRPC
         }
 
         
-        internal override BDict Call(string method, BDict args, IPEndPoint endpoint, TaskController controller)
+        internal override BDict Call(string method, BDict args, IPEndPoint endpoint)
         {
             var t = new Transaction();
             lock (transactions)
@@ -224,7 +224,7 @@ namespace AmbientOS.Net.KRPC
             // At least we ensure exclusive send access and exclusive receive access. So far it worked.
 
             lock (udp) {
-                context.Controller.ThrowIfCancellationRequested();
+                ThrowIfCancellationRequested();
                 udp.Send(buffer, buffer.Length, endpoint);
                 if (LocalEndpoint == null) {
                     LocalEndpoint = (IPEndPoint)udp.Client.LocalEndPoint;
@@ -233,15 +233,15 @@ namespace AmbientOS.Net.KRPC
             }
             canReceive.Set();
 
-            context.Log.Debug("started KRPC call \"{0}\" on {1}", method, endpoint);
+            DebugLog("started KRPC call \"{0}\" on {1}", method, endpoint);
 
             // wait for result
-            var success = WaitHandle.WaitAny(new WaitHandle[] { t.WaitHandle, controller.CancellationHandle }, (int)TIMEOUT.TotalMilliseconds) == 0;
+            var success = Wait(t.WaitHandle, TIMEOUT);
             lock (transactions)
                 if (transactions[t.ID] == t)
                     transactions.Remove(t.ID);
 
-            controller.ThrowIfCancellationRequested();
+            ThrowIfCancellationRequested();
             if (!success)
                 return null;
 
@@ -285,10 +285,10 @@ namespace AmbientOS.Net.KRPC
             }).ToArray());
         }
 
-        public override void Start(Context context)
+        public override void Start()
         {
             foreach (var socket in Sockets)
-                socket.Start(context);
+                socket.Start();
         }
 
         /// <summary>
@@ -301,12 +301,12 @@ namespace AmbientOS.Net.KRPC
                 socket.Register(name, handler);
         }
 
-        internal override BDict Call(string method, BDict args, IPEndPoint endpoint, TaskController controller)
+        internal override BDict Call(string method, BDict args, IPEndPoint endpoint)
         {
             BDict response;
             foreach (var socket in Sockets)
                 if (socket.CanSendTo(endpoint))
-                    if ((response = socket.Call(method, args, endpoint, controller)) != null)
+                    if ((response = socket.Call(method, args, endpoint)) != null)
                         return response;
             return null;
         }

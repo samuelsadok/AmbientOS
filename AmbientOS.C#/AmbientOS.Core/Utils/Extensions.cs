@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS
 {
@@ -153,14 +154,14 @@ namespace AmbientOS
         }
 
 
-        public static async Task Write(this System.IO.Stream stream, byte[] buffer, TaskController controller)
+        public static async Task Write(this System.IO.Stream stream, byte[] buffer)
         {
-            await stream.WriteAsync(buffer, 0, buffer.Count(),  controller.CancellationToken);
+            await stream.WriteAsync(buffer, 0, buffer.Count(), Context.CurrentContext.Controller.CancellationToken);
         }
 
-        public static async Task Write(this System.IO.Stream stream, string buffer, Encoding encoding, TaskController controller)
+        public static async Task Write(this System.IO.Stream stream, string str, Encoding encoding)
         {
-            await stream.Write(encoding.GetBytes(buffer), controller);
+            await stream.Write(encoding.GetBytes(str));
         }
 
         #endregion
@@ -248,11 +249,10 @@ namespace AmbientOS
         /// Waits until either the wait handle is triggered or the cancellation token is asserted.
         /// </summary>
         /// <exception cref="OperationCancelledException">the cancellation token was asserted before the wait handle triggered</exception>
-        public static Task WaitAsync(this WaitHandle waitHandle, TaskController controller)
+        public static Task WaitAsync(this WaitHandle waitHandle)
         {
             return Task.Run(() => {
-                WaitHandle.WaitAny(new WaitHandle[] { waitHandle, controller.CancellationHandle });
-                controller.ThrowIfCancellationRequested();
+                WaitAny(waitHandle);
             });
         }
 

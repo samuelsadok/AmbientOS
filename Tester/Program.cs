@@ -8,6 +8,7 @@ using AmbientOS.Environment;
 using AmbientOS.FileSystem;
 using AmbientOS.UI;
 using AmbientOS.Utils;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS
 {
@@ -29,7 +30,7 @@ namespace AmbientOS
             ApplicationRef = new ApplicationRef(this);
         }
 
-        public void Run(Context context)
+        public void Run()
         {
             //ApplicationRegistry.InstallApp<VHDService>();
             //ApplicationRegistry.InstallApp<PartitionService>();
@@ -54,7 +55,7 @@ namespace AmbientOS
             //});
 
             //var answer = 0;
-            var answer = context.Shell.PresentDialog(new Text() {
+            var answer = Context.CurrentContext.Shell.PresentDialog(new Text() {
                 Summary = "This is a summary",
                 Details = "and these are the details"
             }, new Option[] {
@@ -82,7 +83,7 @@ namespace AmbientOS
             }
             );
 
-            context.Log.Log("selected option: " + answer);
+            Log("selected option: " + answer);
 
             //context.Controller.Cancel();
         }

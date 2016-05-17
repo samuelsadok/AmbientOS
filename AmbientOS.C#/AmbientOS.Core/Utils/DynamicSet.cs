@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS
 {
@@ -107,14 +108,13 @@ namespace AmbientOS
         /// </summary>
         /// <param name="addedItemHandler">Called exactly once for every item that is added to the set. Can be null.</param>
         /// <param name="removedItemHandler">Called exactly once for every item that is removed from the set. Can be null.</param>
-        /// <param name="controller">Can be used to terminate the event handler thread.</param>
-        public DynamicSet(ItemHandler<T> addedItemHandler, ItemHandler<T> removedItemHandler, TaskController controller, params T[] initialItems)
+        public DynamicSet(ItemHandler<T> addedItemHandler, ItemHandler<T> removedItemHandler, params T[] initialItems)
             : this(initialItems)
         {
             asyncAddedListener = addedItemHandler;
             asyncRemovedListener = removedItemHandler;
 
-            StartSerializer(controller);
+            StartSerializer();
         }
 
 
@@ -122,14 +122,14 @@ namespace AmbientOS
         /// Starts the serializer thread that invokes the async events.
         /// This does not have to be called if async events are not used.
         /// </summary>
-        private void StartSerializer(TaskController controller)
+        private void StartSerializer()
         {
-            var thread = new Thread(() => {
+            var thread = new CancelableThread(() => {
                 while (true) {
                     T item = default(T);
                     bool remove = false, add = false, moreToFollow = false;
 
-                    controller.WaitOne(dataChanged);
+                    Wait(dataChanged);
 
                     lock (content) {
                         if (add = justAdded.Any()) {

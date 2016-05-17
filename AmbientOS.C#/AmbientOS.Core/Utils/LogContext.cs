@@ -15,7 +15,7 @@ namespace AmbientOS
     }
 
 
-    public delegate void LogDelegate(string context, string message, LogType type, TaskController controller);
+    public delegate void LogDelegate(string context, string message, LogType type);
 
     /// <summary>
     /// todo: make this an interface
@@ -24,7 +24,7 @@ namespace AmbientOS
     {
         Dictionary<string, LogContext> children = new Dictionary<string, LogContext>();
         LogDelegate logDelegate;
-        Action<TaskController> breakDelegate;
+        Action breakDelegate;
         string name;
 
         /// <summary>
@@ -33,16 +33,16 @@ namespace AmbientOS
         /// <param name="logDelegate">The delegate that accepts a log message and writes it to the output.</param>
         /// <param name="breakDelegate">An action that inserts a break (e.g. new line) on the log context. If null, a break equals an empty log entry.</param>
         /// <param name="name">The root name of the context (e.g. the application name).</param>
-        public LogContext(LogDelegate logDelegate, Action<TaskController> breakDelegate, string name)
+        public LogContext(LogDelegate logDelegate, Action breakDelegate, string name)
         {
             this.name = name;
             this.logDelegate = logDelegate;
-            this.breakDelegate = breakDelegate == null ? (controller) => logDelegate("", "", LogType.Info, controller) : breakDelegate;
+            this.breakDelegate = breakDelegate == null ? () => logDelegate("", "", LogType.Info) : breakDelegate;
         }
 
-        public static LogContext FromConsole(Action<string, UI.ConsoleColor, UI.ConsoleColor, TaskController> writeDelegate, string name)
+        public static LogContext FromConsole(Action<string, UI.ConsoleColor, UI.ConsoleColor> writeDelegate, string name)
         {
-            return new LogContext((c, m, t, controller) => {
+            return new LogContext((c, m, t) => {
                 var color = UI.ConsoleColor.DefaultForeground;
                 switch (t) {
                     case LogType.Debug: color = UI.ConsoleColor.DarkGray; break;
@@ -51,18 +51,26 @@ namespace AmbientOS
                     case LogType.Warning: color = UI.ConsoleColor.Yellow; break;
                     case LogType.Error: color = UI.ConsoleColor.Red; break;
                 }
-                writeDelegate(c + ": " + m + "\n", color, UI.ConsoleColor.DefaultBackground, controller);
-            }, (controller) => {
-                writeDelegate("\n", UI.ConsoleColor.DefaultForeground, UI.ConsoleColor.DefaultBackground, controller);
+                writeDelegate(c + ": " + m + "\n", color, UI.ConsoleColor.DefaultBackground);
+            }, () => {
+                writeDelegate("\n", UI.ConsoleColor.DefaultForeground, UI.ConsoleColor.DefaultBackground);
             }, name);
         }
 
         /// <summary>
         /// Writes a log message to the context.
         /// </summary>
-        public void Log(string message, LogType type = LogType.Info, TaskController controller = null)
+        public void LogEx(string message, LogType type)
         {
-            logDelegate(name, message, type, controller ?? new TaskController());
+            logDelegate(name, message, type);
+        }
+
+        /// <summary>
+        /// Writes a log message to the current context.
+        /// </summary>
+        public static void Log(string message, LogType type = LogType.Info)
+        {
+            Context.CurrentContext.Log.LogEx(message, type);
         }
 
         /// <summary>
@@ -70,7 +78,15 @@ namespace AmbientOS
         /// </summary>
         public void Debug(string message, params object[] args)
         {
-            logDelegate(name, string.Format(message, args), LogType.Debug, new TaskController());
+            logDelegate(name, string.Format(message, args), LogType.Debug);
+        }
+
+        /// <summary>
+        /// Writes a log message to the current context using the debug type.
+        /// </summary>
+        public static void DebugLog(string message, params object[] args)
+        {
+            Context.CurrentContext.Log.LogEx(string.Format(message, args), LogType.Debug);
         }
 
         /// <summary>
@@ -78,9 +94,9 @@ namespace AmbientOS
         /// On consoles this is an empty line.
         /// On other log contexts, this may have no effect.
         /// </summary>
-        public void Break(TaskController controller = null)
+        public void Break()
         {
-            breakDelegate(controller ?? new TaskController());
+            breakDelegate();
         }
 
         /// <summary>
@@ -99,7 +115,7 @@ namespace AmbientOS
         {
             LogContext result;
             if (!children.TryGetValue(name, out result))
-                result = (children[name] = new LogContext((c, m, t, controller) => { logDelegate(this.name + "->" + c, m, t, controller); }, breakDelegate, name));
+                result = (children[name] = new LogContext((c, m, t) => { logDelegate(this.name + "->" + c, m, t); }, breakDelegate, name));
             return result;
         }
     }

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Net;
 using AmbientOS.Net.KRPC;
+using static AmbientOS.LogContext;
+using static AmbientOS.TaskController;
 
 namespace AmbientOS.Net.DHT
 {
@@ -135,7 +137,7 @@ namespace AmbientOS.Net.DHT
                             try {
                                 addressList = Dns.GetHostAddresses(hostAndPort.Item1);
                             } catch (Exception ex) {
-                                context.Log.Log(string.Format("DNS lookup for {0} failed: {1}", hostAndPort.Item1, ex.Message), LogType.Warning);
+                                Log(string.Format("DNS lookup for {0} failed: {1}", hostAndPort.Item1, ex.Message), LogType.Warning);
                                 addressList = new IPAddress[0];
                             }
 
@@ -158,14 +160,14 @@ namespace AmbientOS.Net.DHT
 
                         if (threadID == 0) {
                             if (successfulBoot) {
-                                context.Log.Log("DHT boot was successful", LogType.Success);
+                                Log("DHT boot was successful", LogType.Success);
                                 foreach (var routingTable in routingTables) {
-                                    context.Log.Log("Routing Table for local endpoint " + routingTable.Socket.LocalEndpoint + ", public endpoint " + routingTable.Socket.PublicEndpoint, LogType.Info);
-                                    context.Log.Log(routingTable.Dump(), LogType.Debug);
+                                    Log("Routing Table for local endpoint " + routingTable.Socket.LocalEndpoint + ", public endpoint " + routingTable.Socket.PublicEndpoint, LogType.Info);
+                                    Log(routingTable.Dump(), LogType.Debug);
                                 }
                             } else {
-                                context.Log.Log("DHT boot failed (no node responded successfully - maybe your internet connection is broken)\nnext boot attempt in 5 seconds", LogType.Warning);
-                                context.Controller.Wait(TimeSpan.FromSeconds(5));
+                                Log("DHT boot failed (no node responded successfully - maybe your internet connection is broken)\nnext boot attempt in 5 seconds", LogType.Warning);
+                                Wait(TimeSpan.FromSeconds(5));
                             }
                         }
                     }
@@ -180,7 +182,7 @@ namespace AmbientOS.Net.DHT
             if (!args.Dict.TryGetValue("id", out contact))
                 throw new ArgumentException("unspecified querier ID");
             var hash = DHTUtils.DeserializeHashes((BString)contact).Single();
-            routingTable.Consider(hash, endpoint, null, InterestFlags.NoInterest, ConsiderationReason.DidTalk, context);
+            routingTable.Consider(hash, endpoint, null, InterestFlags.NoInterest, ConsiderationReason.DidTalk);
         }
 
         private BDict PingHandler(BDict args, IPEndPoint endpoint, RoutingTable routingTable)
@@ -338,14 +340,14 @@ namespace AmbientOS.Net.DHT
         {
             foreach (var routingTable in routingTables)
                 if (routingTable.Socket.CanSendTo(endpoint))
-                    routingTable.Consider(endpoint, context);
+                    routingTable.Consider(endpoint);
         }
 
-        public void Consider(BigInt nodeID, IPEndPoint endpoint, BigInt specialInterestHash, InterestFlags interestFlags, ConsiderationReason reason, Context context)
+        public void Consider(BigInt nodeID, IPEndPoint endpoint, BigInt specialInterestHash, InterestFlags interestFlags, ConsiderationReason reason)
         {
             foreach (var routingTable in routingTables)
                 if (routingTable.Socket.CanSendTo(endpoint))
-                    routingTable.Consider(nodeID, endpoint, specialInterestHash, interestFlags, reason, context);
+                    routingTable.Consider(nodeID, endpoint, specialInterestHash, interestFlags, reason);
         }
 
         private Node[] FindIPv4NodesLocally(BigInt hash, int maxElements)

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using AmbientOS.Utils;
-using AmbientOS.Environment;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem.NTFS
 {
@@ -165,20 +165,20 @@ namespace AmbientOS.FileSystem.NTFS
 
 
 
-        private void DumpFile(string path, string target, LogContext log)
+        private void DumpFile(string path, string target)
         {
-            log.Debug("dumping " + path + "...");
+            DebugLog("dumping " + path + "...");
             var file = GetRoot().NavigateToFile(path, OpenMode.Existing).AsImplementation<NTFSFile>();
             foreach (var attr in file.FileRecord.attributes)
-                log.Debug("  attribute: 0x{0:X8} \"{1}\"", Utilities.EnumToInt(attr.type), attr.name);
+                DebugLog("  attribute: 0x{0:X8} \"{1}\"", Utilities.EnumToInt(attr.type), attr.name);
             var buffer = file.FileRef.Read(0, file.Size.Get().Value);
             using (var logFile = System.IO.File.OpenWrite(target))
                 logFile.Write(buffer, 0, buffer.Count());
-            log.Debug("dump succeeded, length was {0}", buffer.Length);
+            DebugLog("dump succeeded, length was {0}", buffer.Length);
         }
 
 
-        public NTFSVolume(IVolume rawVolume, string verb, Context context, out List<string> issues)
+        public NTFSVolume(IVolume rawVolume, string verb, out List<string> issues)
         {
             FileSystemRef = new FileSystemRef(this);
 
@@ -215,17 +215,17 @@ namespace AmbientOS.FileSystem.NTFS
             // todo: compare with mirror VBR (last sector/cluster?)
 
 
-            context.Log.Debug("Magic Number: 0x{0:X16}", vbr.magicNumber);
-            context.Log.Debug("Bytes per sector: {0}", vbr.bytesPerSector);
-            context.Log.Debug("Sectors per cluster: 0x{0:X2}", vbr.sectorsPerCluster);
-            context.Log.Debug("Media Type: 0x{0:X2}", vbr.mediaType);
-            context.Log.Debug("Whatever: 0x{0:X8}", vbr.whatever);
-            context.Log.Debug("Volume Length (Sectors): 0x{0:X8}", vbr.volumeLength);
-            context.Log.Debug("MFT location (cluster): 0x{0:X16}", vbr.mftLocation);
-            context.Log.Debug("MFT mirror location (cluster): 0x{0:X16}", vbr.mftMirrLocation);
-            context.Log.Debug("Clusters per MFT record (cluster): 0x{0:X2} => {1}", vbr.clustersPerMFTRecord, Utilities.GetSizeString(bytesPerMFTRecord, false));
-            context.Log.Debug("Clusters per index record (cluster): 0x{0:X2}", vbr.clustersPerIndexRecord);
-            context.Log.Debug("Volume Serial Number: 0x{0:X16}", vbr.volumeSerialNumber);
+            DebugLog("Magic Number: 0x{0:X16}", vbr.magicNumber);
+            DebugLog("Bytes per sector: {0}", vbr.bytesPerSector);
+            DebugLog("Sectors per cluster: 0x{0:X2}", vbr.sectorsPerCluster);
+            DebugLog("Media Type: 0x{0:X2}", vbr.mediaType);
+            DebugLog("Whatever: 0x{0:X8}", vbr.whatever);
+            DebugLog("Volume Length (Sectors): 0x{0:X8}", vbr.volumeLength);
+            DebugLog("MFT location (cluster): 0x{0:X16}", vbr.mftLocation);
+            DebugLog("MFT mirror location (cluster): 0x{0:X16}", vbr.mftMirrLocation);
+            DebugLog("Clusters per MFT record (cluster): 0x{0:X2} => {1}", vbr.clustersPerMFTRecord, Utilities.GetSizeString(bytesPerMFTRecord, false));
+            DebugLog("Clusters per index record (cluster): 0x{0:X2}", vbr.clustersPerIndexRecord);
+            DebugLog("Volume Serial Number: 0x{0:X16}", vbr.volumeSerialNumber);
 
 
 
@@ -271,12 +271,12 @@ namespace AmbientOS.FileSystem.NTFS
             // the remaining entries are only available on higher NTFS versions
 
 
-            context.Log.Debug("Volume name: \"{0}\"", Name.Get());
+            DebugLog("Volume name: \"{0}\"", Name.Get());
 
             var ntfsVolInfo = Volume.FileRecord.ReadAttribute(NTFSAttributeType.VolumeInformation, null);
             var flags = ntfsVolInfo.ReadInt16(0, Endianness.LittleEndian);
-            context.Log.Debug("NTFS Version: {0}.{1}", ntfsVolInfo[8], ntfsVolInfo[9]);
-            context.Log.Debug("Volume flags: 0x{0:X4}{1}", flags,
+            DebugLog("NTFS Version: {0}.{1}", ntfsVolInfo[8], ntfsVolInfo[9]);
+            DebugLog("Volume flags: 0x{0:X4}{1}", flags,
                 ((flags & 0x1) != 0 ? " dirty" : "") +
                 ((flags & 0x2) != 0 ? " resize-logfile" : "") +
                 ((flags & 0x4) != 0 ? " upgrade-on-mount" : "") +
@@ -298,7 +298,7 @@ namespace AmbientOS.FileSystem.NTFS
 
 
             foreach (var f in GetRoot().NavigateToFolder("$Extend/$RmMetadata/$TxfLog", OpenMode.Existing).GetChildren())
-                context.Log.Debug("{0}: {1}", f.Cast<IFile>() != null ? "f" : "d", f.Name.GetValue());
+                DebugLog("{0}: {1}", f.Cast<IFile>() != null ? "f" : "d", f.Name.GetValue());
 
 
             //for (long i = 0; i < MFT.DataAttribute.GetSize() / bytesPerMFTRecord; i++) {
@@ -316,10 +316,10 @@ namespace AmbientOS.FileSystem.NTFS
 
 
             System.IO.Directory.CreateDirectory(@"C:\Developer\vhd\newdump");
-            DumpFile("$MFT", @"C:\Developer\vhd\newdump\mft.bin", context.Log);
-            DumpFile("$LogFile", @"C:\Developer\vhd\newdump\logfile.bin", context.Log);
-            DumpFile("$Bitmap", @"C:\Developer\vhd\newdump\bitmap.bin", context.Log);
-            LogFile.Dump(@"C:\Developer\vhd\newdump", context.Controller);
+            DumpFile("$MFT", @"C:\Developer\vhd\newdump\mft.bin");
+            DumpFile("$LogFile", @"C:\Developer\vhd\newdump\logfile.bin");
+            DumpFile("$Bitmap", @"C:\Developer\vhd\newdump\bitmap.bin");
+            LogFile.Dump(@"C:\Developer\vhd\newdump");
             //LogFile.Recover(@"C:\Developer\vhd\newdump\recovery_debug.txt", true);
         }
 

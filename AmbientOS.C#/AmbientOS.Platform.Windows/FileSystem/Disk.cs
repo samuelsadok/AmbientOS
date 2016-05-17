@@ -4,8 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Management;
 using Microsoft.Win32.SafeHandles;
-using AmbientOS.Environment;
-using AmbientOS.Utils;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem
 {
@@ -246,14 +245,14 @@ namespace AmbientOS.FileSystem
         /// <summary>
         /// Enumerates all Windows disks on the system.
         /// </summary>
-        public static IEnumerable<WindowsDisk> EnumerateDisks(LogContext log)
+        public static IEnumerable<WindowsDisk> EnumerateDisks()
         {
             foreach (var name in PInvoke.GetAllDevices().Where(dev => dev.StartsWith("PhysicalDrive"))) {
                 WindowsDisk disk;
                 try {
                     disk = new WindowsDisk(name);
                 } catch (Exception ex) {
-                    log.Log(string.Format("encountered faulty drive ({0}): {1}", name, ex), LogType.Warning);
+                    Log(string.Format("encountered faulty drive ({0}): {1}", name, ex), LogType.Warning);
                     continue;
                 }
                 yield return disk;
@@ -262,13 +261,13 @@ namespace AmbientOS.FileSystem
 
 
         [AOSAction("mount", "isWrapper=true")] // windows can only mount disks that are actually native windows disks
-        public DynamicSet<IVolume> Mount(IDisk disk, Context context)
+        public DynamicSet<IVolume> Mount(IDisk disk)
         {
             var winDisk = disk.AsImplementation<WindowsDisk>();
             if (winDisk == null)
                 throw new ArgumentException("This service can only mount volumes of a native Windows disk");
 
-            var volumes = WindowsVolumeService.EnumerateVolumes(context.Log)
+            var volumes = WindowsVolumeService.EnumerateVolumes()
                 .Where(vol => vol.GetExtents()?.Any(extent => extent.Disk.AsImplementation<WindowsDisk>().Number == winDisk.Number) ?? false)
                 .Select(vol => vol.VolumeRef).ToArray();
             return new DynamicSet<IVolume>(volumes).Retain();

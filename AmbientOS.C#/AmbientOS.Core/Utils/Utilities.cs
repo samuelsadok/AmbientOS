@@ -8,7 +8,7 @@ using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
-using AmbientOS.Environment;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.Utils
 {
@@ -53,18 +53,18 @@ namespace AmbientOS.Utils
         /// <summary>
         /// Logs the top-level contents of a direcory (for debugging).
         /// </summary>
-        public static void DumpDir(string directory, LogContext logContext)
+        public static void DumpDir(string directory)
         {
             try {
-                logContext.Log(directory + ":");
+                Log(directory + ":");
                 foreach (var dir in Directory.EnumerateDirectories(directory)) {
-                    logContext.Log("dir " + dir);
+                    Log("dir " + dir);
                 }
                 foreach (var file in Directory.EnumerateFiles(directory)) {
-                    logContext.Log("file " + file);
+                    Log("file " + file);
                 }
             } catch (Exception ex) {
-                logContext.Log(ex.ToString());
+                Log(ex.ToString());
             }
         }
 

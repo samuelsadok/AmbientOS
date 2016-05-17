@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.ServiceProcess;
 using System.Threading.Tasks;
 using AmbientOS.UI;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS
 {
@@ -99,7 +100,7 @@ namespace AmbientOS
         /// <param name="name">the path of the executable</param>
         public static void TerminateProcess(string name, LogContext log)
         {
-            log.Log("terminating process " + name);
+            Log("terminating process " + name);
 
             do {
                 //if (waitFirst)
@@ -109,7 +110,7 @@ namespace AmbientOS
                     p.Kill();
             } while (AllInstances(name).Any());
 
-            log.Log("all processes terminated");
+            Log("all processes terminated");
         }
         
 
@@ -120,14 +121,14 @@ namespace AmbientOS
         /// <param name="timeout">timeout in seconds to wait for the program to terminate</param>
         public static void TerminateService(string name, int timeout, LogContext log)
         {
-            log.Log("terminating service " + name);
+            Log("terminating service " + name);
 
             using (ServiceController c = new ServiceController(name)) {
                 if (c.Status == ServiceControllerStatus.StopPending) {
                     try {
                         c.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(timeout));
                     } catch (System.ServiceProcess.TimeoutException) {
-                        log.Log("service did not shut down properly, forcing shutdown...", LogType.Warning);
+                        Log("service did not shut down properly, forcing shutdown...", LogType.Warning);
                     }
                 }
                 if (c.Status != ServiceControllerStatus.Stopped) {
@@ -136,7 +137,7 @@ namespace AmbientOS
                 }
             }
 
-            log.Log("service terminated");
+            Log("service terminated");
         }
 
         public static IEnumerable<Process> AllInstances(string executable)

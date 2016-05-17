@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AmbientOS.Environment;
 using AmbientOS.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem.NTFS
 {
@@ -108,21 +109,21 @@ namespace AmbientOS.FileSystem.NTFS
             }
 
 
-            public static void DoTest(IFile vhd, Context context)
+            public static void DoTest(IFile vhd)
             {
-                context.Log.Log("loading temp folder");
-                var destination = context.Environment.GetTempFolder();
+                Log("loading temp folder");
+                var destination = Context.CurrentContext.Environment.GetTempFolder();
 
                 // mount test VHD using AmbientOS services and the NTFS driver we want to test
-                context.Log.Log("copying test VHD");
+                Log("copying test VHD");
                 var tstVHD = vhd.Copy(destination, "vhd - test.vhd", MergeMode.Evict);
-                context.Log.Log("mounting test file system");
-                var tstVol = ObjectStore.Action<IFile, IVolume>(tstVHD, context);
+                Log("mounting test file system");
+                var tstVol = ObjectStore.Action<IFile, IVolume>(tstVHD);
                 if (tstVol == null)
                     throw new Exception("The test disk must contain one single volume");
-                var tstFS = new NTFSService().Mount(tstVol, context).AsSingle();
+                var tstFS = new NTFSService().Mount(tstVol).AsSingle();
 
-                context.Log.Log("running test on test file system");
+                Log("running test on test file system");
                 TestFS(tstFS, true, false);
 
 
@@ -139,25 +140,25 @@ namespace AmbientOS.FileSystem.NTFS
                     throw new Exception("Cannot continue NTFS test, native Windows Volume service is not available (this is only available on a native Windows system)");
 
                 // mount reference VHD using Windows services (i.e. native Windows NTFS driver)
-                context.Log.Log("copying reference VHD");
+                Log("copying reference VHD");
                 var refVHD = vhd.Copy(destination, "vhd - reference.vhd", MergeMode.Evict);
-                context.Log.Log("mounting reference disk");
-                var refDisk = vhdMountAction.Invoke(refVHD, context).AsSingle()?.Cast<IDisk>();
+                Log("mounting reference disk");
+                var refDisk = vhdMountAction.Invoke(refVHD).AsSingle()?.Cast<IDisk>();
                 if (refDisk == null)
                     throw new Exception("The reference VHD must contain one single disk");
-                context.Log.Log("mounting reference volume");
-                var refVol = diskMountAction.Invoke(refDisk, context).AsSingle()?.Cast<IVolume>();
+                Log("mounting reference volume");
+                var refVol = diskMountAction.Invoke(refDisk).AsSingle()?.Cast<IVolume>();
                 if (refVol == null)
                     throw new Exception("The reference disk must contain one single volume");
-                context.Log.Log("mounting reference file system");
-                var refFS = volumeMountAction.Invoke(refVol, context).AsSingle()?.Cast<IFileSystem>();
+                Log("mounting reference file system");
+                var refFS = volumeMountAction.Invoke(refVol).AsSingle()?.Cast<IFileSystem>();
                 if (refFS == null)
                     throw new Exception("The reference volume must contain one single file system");
 
-                context.Log.Log("running test on reference file system");
+                Log("running test on reference file system");
                 TestFS(refFS, false, false);
 
-                context.Log.Log("all tests passed");
+                Log("all tests passed");
             }
 
 
@@ -287,9 +288,9 @@ namespace AmbientOS.FileSystem.NTFS
             }
         }
 
-        public void Test(IFile vhd, Context context)
+        public void Test(IFile vhd)
         {
-            NTFSTest.DoTest(vhd, context);
+            NTFSTest.DoTest(vhd);
         }
     }
 }

@@ -256,7 +256,7 @@ namespace AmbientOS.FileSystem.NTFS
             /// </summary>
             /// <param name="restartLSN">This will typically be the client's last known restart LSN. For testing purposes, this can also be any other LSN that points to a restart entry.</param>
             /// <param name="debugFile">Null in normal operation</param>
-            public long Redo(long restartLSN, string debugFile, TaskController controller)
+            public long Redo(long restartLSN, string debugFile)
             {
                 StringBuilder log = new StringBuilder();
 
@@ -275,13 +275,13 @@ namespace AmbientOS.FileSystem.NTFS
 
                 if (debugFile != null)
                     using (var file = System.IO.File.Open(debugFile, System.IO.FileMode.Create, System.IO.FileAccess.ReadWrite, System.IO.FileShare.Read))
-                        file.Write(log.ToString(), Encoding.ASCII, controller).Wait();
+                        file.Write(log.ToString(), Encoding.ASCII).Wait();
 
                 return lastLSN;
             }
 
 
-            public void DumpRecords(byte[] rawFile, long firstLSN, string target, TaskController controller)
+            public void DumpRecords(byte[] rawFile, long firstLSN, string target)
             {
                 //AttributeNameList = new LogFileEntry.AttributeNameList(this);
                 //AttributeList = new LogFileEntry.AttributeList(this);
@@ -293,7 +293,7 @@ namespace AmbientOS.FileSystem.NTFS
                         if (entry.LSN == 0x005848C1)
                             Console.WriteLine("found lsn");
                         entry.Redo(true);
-                        log.Write(string.Format("{0}\r\n", entry.ToString()), Encoding.ASCII, controller).Wait();
+                        log.Write(string.Format("{0}\r\n", entry.ToString()), Encoding.ASCII).Wait();
                     }
                 }
             }
@@ -428,17 +428,17 @@ namespace AmbientOS.FileSystem.NTFS
 
 
 
-        private void DumpPages(byte[] rawFile, long openCount, string target, TaskController controller)
+        private void DumpPages(byte[] rawFile, long openCount, string target)
         {
             using (var log = System.IO.File.Open(target, System.IO.FileMode.Create, System.IO.FileAccess.ReadWrite, System.IO.FileShare.Read)) {
-                log.Write(string.Format("open count: {0:X8}\r\n", Encoding.ASCII, openCount), Encoding.ASCII, controller).Wait();
+                log.Write(string.Format("open count: {0:X8}\r\n", Encoding.ASCII, openCount), Encoding.ASCII).Wait();
 
                 for (var offset = 0; offset < rawFile.Length; offset += 0x1000) {
                     if (rawFile.ReadInt32(offset, Endianness.LittleEndian) != 0x44524352) {
                         var block = new byte[0x1000];
                         Array.Copy(rawFile, offset, block, 0, 0x1000);
                         if (!Array.TrueForAll(block, b => b == 0xFF))
-                            log.Write(string.Format("page {0:X8} is not a page header but not all 0xFF\r\n", (offset >> 12)), Encoding.ASCII, controller).Wait();
+                            log.Write(string.Format("page {0:X8} is not a page header but not all 0xFF\r\n", (offset >> 12)), Encoding.ASCII).Wait();
                         continue;
                     }
 
@@ -457,23 +457,23 @@ namespace AmbientOS.FileSystem.NTFS
                         pageHeader.lastEndLSN,
                         rawFile.ReadInt32(offset + 0x3C, Endianness.LittleEndian),
                         checksum);
-                    log.Write(str, Encoding.ASCII, controller).Wait();
+                    log.Write(str, Encoding.ASCII).Wait();
                 }
             }
         }
 
-        public void Dump(string folder, TaskController controller)
+        public void Dump(string folder)
         {
             var restartLsn = ClientRecords[0].clientRestartLSN;
             var firstLsn = restartLsn - (restartLsn % (RestartArea.fileSize >> 3)) + 0x4408;
 
             var rawFile = File.Read();
-            DumpPages(rawFile, RestartArea.restartOpenLogCount, folder + @"\logpages.txt", controller);
-            NTFSClient.DumpRecords(rawFile, firstLsn, folder + @"\logrecords.txt", controller);
+            DumpPages(rawFile, RestartArea.restartOpenLogCount, folder + @"\logpages.txt");
+            NTFSClient.DumpRecords(rawFile, firstLsn, folder + @"\logrecords.txt");
         }
 
 
-        public void Recover(string debugFile, bool veryDebug, TaskController controller)
+        public void Recover(string debugFile, bool veryDebug)
         {
             foreach (var clientRecord in GetClientRecords()) {
                 var client = clientRecord.client;
@@ -486,7 +486,7 @@ namespace AmbientOS.FileSystem.NTFS
                 var lsn = clientRecord.clientRestartLSN;
                 if (veryDebug)
                     lsn = lsn - (lsn % (RestartArea.fileSize >> 3)) + 0x4408;
-                client.Redo(lsn, debugFile, controller);
+                client.Redo(lsn, debugFile);
             }
 
 

@@ -181,7 +181,7 @@ namespace AmbientOS.Net.DHT
         /// This method is not thread-safe.
         /// </summary>
         /// <param name="node">If not null, this instance is inserted (except if it's already present). Iif after the call, the node is in the bucket, this argument is set to the instance in the bucket, else it remains unchanged.</param>
-        public bool AddNode(ref Node node, BigInt nodeID, IPEndPoint endpoint, ConsiderationReason reason, Context context)
+        public bool AddNode(ref Node node, BigInt nodeID, IPEndPoint endpoint, ConsiderationReason reason)
         {
             if (!InRange(nodeID))
                 throw new ArgumentException(string.Format("The node with ID {0} is not in the range {1} ... {2}", nodeID.ToString(), MinValue.ToString(), MaxValue.ToString()));
@@ -233,7 +233,7 @@ namespace AmbientOS.Net.DHT
                 questionnableNodes = Enumerable.Range(0, BUCKET_SIZE - 1).ToList();
             
             if (reason == ConsiderationReason.Rumor && Center != null) { // this should not happen (maybe remove)
-                if (newInstance.Ping(PING_COUNT, context))
+                if (newInstance.Ping(PING_COUNT))
                     reason = ConsiderationReason.DidRespond;
             }
 
@@ -269,7 +269,7 @@ namespace AmbientOS.Net.DHT
                 //        //    evict = !worstNode.Ping(PING_COUNT, cancellationToken);
                 //    }
                 //} else {
-                    evict = !worstNode.Ping(PING_COUNT, context);
+                    evict = !worstNode.Ping(PING_COUNT);
                 //}
 
                 if (evict) {
