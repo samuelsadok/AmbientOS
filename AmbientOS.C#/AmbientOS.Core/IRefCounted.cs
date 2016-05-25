@@ -116,7 +116,7 @@ namespace AmbientOS
 
         /// <summary>
         /// Executes the specified action only if the reference count is non-zero.
-        /// The caller is responsible of ensuring that the specified does not conflict with concurrent Alloc and Free calls.
+        /// The caller is responsible of ensuring that the provided action does not conflict with concurrent Alloc and Free calls.
         /// We can't provide this guarantee through this method as it may lead to deadlocks.
         /// </summary>
         public static void DoIfReferenced<T>(this T reference, Action action)

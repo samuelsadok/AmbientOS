@@ -43,9 +43,10 @@
 
   
   <!-- C# additional types -->
+  <type lang="C#" name="DynamicSet" code="DynamicSet" />
   <type lang="C#" name="DynamicSet[T]" code="DynamicSet&lt;T&gt;" />
   <type lang="C#" name="DynamicList[T]" code="DynamicList&lt;T&gt;" />
-  <type lang="C#" name="ObjRef" code="IObjectRef" />
+  <type lang="C#" name="Object" code="IObjectRef" />
   <type lang="C#" name="Vector2D[T]" code="Vector2D&lt;T&gt;" />
   <type lang="C#" name="Matrix[T]" code="IMatrix&lt;T&gt;" />
 </namespace>

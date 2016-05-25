@@ -32,6 +32,7 @@ namespace AmbientOS
     }
     */
 
+            
         public static T AsImplementation<T>(this IObjectRef objRef)
             where T : IObjectImpl
         {
@@ -43,6 +44,28 @@ namespace AmbientOS
             return (T)impl;
         }
 
+        /// <summary>
+        /// Retrieves an object reference that points to the specified interface on the specified implementation.
+        /// </summary>
+        public static IObjectRef AsReference(this IObjectImpl implementation, Type type)
+        {
+            return type.GetCustomAttribute<AOSInterfaceAttribute>().Store.GetReference(implementation);
+        }
+
+        /// <summary>
+        /// Retrieves an object reference that points to the specified interface on the specified implementation.
+        /// </summary>
+        public static T AsReference<T>(this IObjectImpl implementation)
+            where T : IObjectRef
+        {
+            return (T)implementation.AsReference(typeof(T));
+        }
+
+        public static T Cast<T>(this IObjectRef objRef)
+            where T : IObjectRef
+        {
+            return (T)objRef.Cast(typeof(T));
+        }
 
         /// <summary>
         /// Checks if the object matches the specified constraints.
@@ -54,23 +77,36 @@ namespace AmbientOS
                 .Where(kv => kv.Value != null)
                 .Select(kv => new {
                     name = kv.Key,
-                    expectedValue = kv.Value,
+                    acceptedValues = kv.Value,
                     property = obj.GetType().GetProperty(kv.Key)?.GetValue(obj) as DynamicProperty
                 }).ToArray();
 
-            var extensionProperties = obj.GetExtensionProperties();
-            
             return constraintsArray.All(constraint => {
                 object value;
-                if (constraint.property != null)
-                    value = constraint.property.GetValueAsObject();
-                else if (!extensionProperties.TryGetValue(constraint.name, out value))
+                if (constraint.property == null)
                     return true;
-                return Equals(constraint.expectedValue, value);
+                value = constraint.property.GetValueAsObject();
+                return constraint.acceptedValues.Contains(value);
             });
         }
 
+        public static bool IsAmbientOSInterface(this Type type)
+        {
+            return type.GetCustomAttribute<AOSInterfaceAttribute>() != null;
+        }
 
+        public static string GetAmbientOSTypeName(this Type type)
+        {
+            if (type == typeof(void))
+                return "void";
+
+            if (!IsAmbientOSInterface(type))
+                throw new Exception(string.Format("The type {0} is not an AmbientOS interface.", type));
+            return type.GetCustomAttribute<AOSInterfaceAttribute>().TypeName;
+        }
+
+
+        /*
         /// <summary>
         /// Returns the constraints that a handler must comply to to be able to handle this object.
         /// </summary>
@@ -87,7 +123,7 @@ namespace AmbientOS
             constraints["InputTypeName"] = obj.GetTypeName();
             return new ObjectConstraints(constraints);
         }
-
+        */
 
         /*
         public static T GetDecremented<T>(this T reference)

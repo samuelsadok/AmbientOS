@@ -2,13 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
-using AmbientOS.Environment;
 
 namespace AmbientOS.FileSystem
 {
     public class InteropFileSystem : IFileSystemImpl
     {
-        public IFileSystem FileSystemRef { get; }
         public DynamicEndpoint<string> Name { get; }
 
         private readonly string root;
@@ -26,8 +24,6 @@ namespace AmbientOS.FileSystem
 
         public InteropFileSystem(string root, Func<InteropFileSystem, string, IFolder> folderConstructor)
         {
-            FileSystemRef = new FileSystemRef(this);
-
             this.root = root;
             this.folderConstructor = folderConstructor;
 
@@ -45,7 +41,7 @@ namespace AmbientOS.FileSystem
         }
 
         public InteropFileSystem(string root)
-            : this(root, (fileSystem, path) => new InteropFolder(fileSystem, path).FolderRef.Retain())
+            : this(root, (fileSystem, path) => new InteropFolder(fileSystem, path).AsReference<IFolder>())
         {
         }
 
@@ -105,29 +101,26 @@ namespace AmbientOS.FileSystem
 
         public static IFolder GetFolderFromPath(string path)
         {
-            return new InteropFolder(null, path).FolderRef.Retain();
+            return new InteropFolder(null, path).AsReference<IFolder>();
         }
 
         public static IFile GetFileFromPath(string path)
         {
-            return new InteropFile(null, path).FileRef.Retain();
+            return new InteropFile(null, path).AsReference<IFile>();
         }
     }
 
     public abstract class InteropFileSystemObject : IFileSystemObjectImpl
     {
-        public IFileSystemObject FileSystemObjectRef { get; }
         public DynamicEndpoint<string> Name { get; }
         public DynamicEndpoint<string> Path { get; }
         public DynamicEndpoint<FileTimes> Times { get; protected set; }
-        public DynamicEndpoint<long?> Size { get; protected set; }
 
         public readonly InteropFileSystem fileSystem;
         public readonly string path;
 
         public InteropFileSystemObject(InteropFileSystem fileSystem, string path)
         {
-            FileSystemObjectRef = new FileSystemObjectRef(this);
             this.fileSystem = fileSystem;
             this.path = path;
 
@@ -141,7 +134,7 @@ namespace AmbientOS.FileSystem
 
         public IFileSystem GetFileSystem()
         {
-            return fileSystem?.FileSystemRef.Retain();
+            return fileSystem?.AsReference<IFileSystem>();
         }
 
         protected abstract void SetName(string name);
@@ -150,20 +143,16 @@ namespace AmbientOS.FileSystem
 
         public void SecureDelete(int passes)
         {
-            using (var fsObj = FileSystemObjectRef.Retain())
-                fsObj.SecureDelete(passes, true);
+            using (var reference = this.AsReference<IFileSystemObject>())
+                reference.SecureDelete(passes, true);
         }
     }
 
     public class InteropFolder : InteropFileSystemObject, IFolderImpl
     {
-        public IFolder FolderRef { get; }
-
         public InteropFolder(InteropFileSystem fileSystem, string path)
             : base(fileSystem, path)
         {
-            FolderRef = new FolderRef(this);
-
             Times = new DynamicEndpoint<FileTimes>(
                 () => new FileTimes() {
                     CreatedTime = Directory.GetCreationTimeUtc(path),
@@ -175,8 +164,6 @@ namespace AmbientOS.FileSystem
                     Directory.SetLastAccessTimeUtc(path, val.ReadTime.Value);
                     Directory.SetLastWriteTimeUtc(path, val.ModifiedTime.Value);
                 });
-
-            Size = new DynamicEndpoint<long?>(() => new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Select(f => f.Length).Sum());
         }
 
         protected override void SetName(string name)
@@ -204,10 +191,17 @@ namespace AmbientOS.FileSystem
             Directory.Delete(path, true);
         }
 
+        public long? GetContentSize()
+        {
+            return new DirectoryInfo(path)
+                .EnumerateFiles("*", SearchOption.AllDirectories)
+                .Select(f => f.Length).Sum();
+        }
+
         public IEnumerable<IFileSystemObject> GetChildren()
         {
-            var files = Directory.GetFiles(path).Select(p => new InteropFolder(fileSystem, path + "\\" + p).FileSystemObjectRef.Retain());
-            var folders = Directory.GetDirectories(path).Select(p => new InteropFolder(fileSystem, path + "\\" + p).FileSystemObjectRef.Retain());
+            var files = Directory.GetFiles(path).Select(p => new InteropFolder(fileSystem, path + "\\" + p).AsReference<IFileSystemObject>());
+            var folders = Directory.GetDirectories(path).Select(p => new InteropFolder(fileSystem, path + "\\" + p).AsReference<IFileSystemObject>());
             return files.Concat(folders);
         }
 
@@ -227,9 +221,9 @@ namespace AmbientOS.FileSystem
             }
 
             if (file)
-                return new InteropFile(fileSystem, path + "\\" + name).FileSystemObjectRef.Retain();
+                return new InteropFile(fileSystem, path + "\\" + name).AsReference<IFileSystemObject>();
             else
-                return new InteropFolder(fileSystem, path + "\\" + name).FileSystemObjectRef.Retain();
+                return new InteropFolder(fileSystem, path + "\\" + name).AsReference<IFileSystemObject>();
         }
 
 
@@ -244,16 +238,12 @@ namespace AmbientOS.FileSystem
 
     public class InteropFile : InteropFileSystemObject, IFileImpl
     {
-        public IFile FileRef { get; }
-
-
-        //private FileStream file = null;
+        public DynamicEndpoint<string> Type { get; }
+        public DynamicEndpoint<long?> Length { get; }
 
         public InteropFile(InteropFileSystem fileSystem, string path)
             : base(fileSystem, path)
         {
-            FileRef = new FileRef(this);
-
             Times = new DynamicEndpoint<FileTimes>(
                 () => new FileTimes() {
                     CreatedTime = File.GetCreationTimeUtc(path),
@@ -266,7 +256,13 @@ namespace AmbientOS.FileSystem
                     File.SetLastWriteTimeUtc(path, val.ModifiedTime.Value);
                 });
 
-            Size = new DynamicEndpoint<long?>(
+            Type = new DynamicEndpoint<string>(() => {
+                var name = Name.Get();
+                var point = name.LastIndexOf('.');
+                return point >= 0 ? name.Substring(point + 1) : name;
+            });
+
+            Length = new DynamicEndpoint<long?>(
                 () => new FileInfo(path).Length,
                 val => {
                     if (val == null)
@@ -275,15 +271,6 @@ namespace AmbientOS.FileSystem
                         file.SetLength(val.Value);
                 });
         }
-
-        //private void OpenFile()
-        //{
-        //    lock (path)
-        //        if (file == null)
-        //            file = File.Open(path, FileMode.Open);
-        //}
-        //
-        //private void CloseFile
 
         protected override void SetName(string name)
         {
@@ -334,31 +321,10 @@ namespace AmbientOS.FileSystem
                 file.Write(buffer, (int)bufferOffset, (int)count);
             }
         }
-
-
+        
         public void Flush()
         {
             // the file is closed after each write, which flushes the cache automatically
         }
-
-        public void AddCustomAppearance(Dictionary<string, string> dict, Type type)
-        {
-            if (type == typeof(IFile))
-                ((IFile)this).AddCustomAppearance(dict);
-        }
     }
-
-
-
-
-    //[AOSApplication("FileSystem Mount service", Description = "Mounts a filesystem of a volume that is provided by the underlying host OS")]
-    //public class InteropFileSystemService
-    //{
-    //    [AOSAction("info", "volume", "type=00000000-0000-0000-0000-000000000000")]
-    //    public IAOSFileSystem Init(IAOSVolume volume, AOSShell shell, bool deliberate, LogContext log)
-    //    {
-    //        var v = volume;
-    //        return new InteropFileSystem()
-    //    }
-    //}
 }

@@ -8,14 +8,12 @@ namespace AmbientOS.FileSystem
 {
     abstract class WindowsFileSystemObject : IFileSystemObjectImpl, IDisposable
     {
-        public IFileSystemObject FileSystemObjectRef { get; }
         public DynamicEndpoint<string> Name { get; }
         public DynamicEndpoint<string> Path { get; }
         public DynamicEndpoint<FileTimes> Times { get; }
-        public DynamicEndpoint<long?> Size { get; }
 
-        private readonly PInvoke.ByHandleFileInformation info;
         private readonly WindowsFolder parent;
+        protected readonly PInvoke.ByHandleFileInformation info;
         protected readonly IFileSystem fs;
 
         /// <summary>
@@ -31,8 +29,6 @@ namespace AmbientOS.FileSystem
         /// </summary>
         public WindowsFileSystemObject(IFileSystem fs, string path)
         {
-            FileSystemObjectRef = new FileSystemObjectRef(this);
-
             this.fs = fs;
 
             // get file info
@@ -83,10 +79,6 @@ namespace AmbientOS.FileSystem
                             FileAttributes = info.dwFileAttributes
                         });
                 });
-
-            Size = new DynamicEndpoint<long?>(
-                () => ((long)info.nFileSizeHigh << 32) | (info.nFileSizeLow & 0xFFFFFFFF),
-                val => { throw new NotImplementedException(); });
         }
 
         public void Dispose()
@@ -108,8 +100,8 @@ namespace AmbientOS.FileSystem
 
         public void SecureDelete(int passes)
         {
-            using (var fsObj = FileSystemObjectRef.Retain())
-                fsObj.SecureDelete(passes, true);
+            using (var reference = this.AsReference<IFileSystemObject>())
+                reference.SecureDelete(passes, true);
         }
 
         public override int GetHashCode()
@@ -126,13 +118,21 @@ namespace AmbientOS.FileSystem
 
     class WindowsFile : WindowsFileSystemObject, IFileImpl
     {
-        public IFile FileRef { get; }
-
+        public DynamicEndpoint<string> Type { get; }
+        public DynamicEndpoint<long?> Length { get; }
 
         public WindowsFile(IFileSystem fs, string path)
             : base(fs, path)
         {
-            FileRef = new FileRef(this);
+            Type = new DynamicEndpoint<string>(() => {
+                var name = Name.Get();
+                var point = name.LastIndexOf('.');
+                return point >= 0 ? name.Substring(point + 1) : name;
+            });
+
+            Length = new DynamicEndpoint<long?>(
+                () => ((long)info.nFileSizeHigh << 32) | (info.nFileSizeLow & 0xFFFFFFFF),
+                val => { throw new NotImplementedException(); });
         }
 
         protected override SafeFileHandle OpenFile(PInvoke.Access access)
@@ -163,17 +163,10 @@ namespace AmbientOS.FileSystem
         {
             // the handle is closed after each write, which presumably flushes the cache
         }
-
-        public void AddCustomAppearance(Dictionary<string, string> dict, Type type)
-        {
-            throw new NotImplementedException();
-        }
     }
 
     class WindowsFolder : WindowsFileSystemObject, IFolderImpl
     {
-        public IFolder FolderRef { get; }
-
         protected override SafeFileHandle OpenFile(PInvoke.Access access)
         {
             return PInvoke.CreateDirectory(Path + "\\", access, PInvoke.ShareMode.ReadWrite, IntPtr.Zero, PInvoke.CreationDisposition.OPEN_EXISTING, PInvoke.FileFlags.OVERLAPPED | PInvoke.FileFlags.BACKUP_SEMANTICS, IntPtr.Zero);
@@ -182,7 +175,6 @@ namespace AmbientOS.FileSystem
         public WindowsFolder(IFileSystem fs, string path)
             : base(fs, path)
         {
-            FolderRef = new FolderRef(this);
         }
 
         public override void Delete(DeleteMode mode)
@@ -192,13 +184,35 @@ namespace AmbientOS.FileSystem
             PInvoke.RemoveDirectory(Path + "\\");
         }
 
-        public IEnumerable<IFileSystemObject> GetChildren()
+        public long? GetContentSize()
+        {
+            long? size = 0;
+
+            foreach (var child in GetChildren()) {
+                var file = child as WindowsFile;
+                if (file != null)
+                    size += file.Length.Get();
+
+                var folder = child as WindowsFolder;
+                if (folder != null)
+                    size += folder.GetContentSize();
+            }
+
+            return size;
+        }
+
+        private IEnumerable<WindowsFileSystemObject> GetChildren()
         {
             return PInvoke.FindFiles(Path + "\\*").Where(result => !result.cFileName.StartsWith(".\0") && !result.cFileName.StartsWith("..\0")).Select(result =>
                 (result.dwFileAttributes & 0x10) == 0 ?
-                (IFileSystemObject)new WindowsFile(fs, Path + "\\" + result.cFileName.TrimEnd('\0')) : // todo: include zero termination to byte converter
-                (IFileSystemObject)new WindowsFolder(fs, Path + "\\" + result.cFileName.TrimEnd('\0'))
+                (WindowsFileSystemObject)new WindowsFile(fs, Path + "\\" + result.cFileName.TrimEnd('\0')) : // todo: include zero termination to byte converter
+                (WindowsFileSystemObject)new WindowsFolder(fs, Path + "\\" + result.cFileName.TrimEnd('\0'))
             );
+        }
+
+        IEnumerable<IFileSystemObject> IFolderImpl.GetChildren()
+        {
+            return GetChildren().Select(child => child.AsReference<IFileSystemObject>());
         }
 
         public IFileSystemObject GetChild(string name, bool file, OpenMode mode)
@@ -222,9 +236,9 @@ namespace AmbientOS.FileSystem
             }
 
             if (file)
-                return new WindowsFile(fs, newName).FileSystemObjectRef.Retain();
+                return new WindowsFile(fs, newName).AsReference<IFile>();
             else
-                return new WindowsFolder(fs, newName).FileSystemObjectRef.Retain();
+                return new WindowsFolder(fs, newName).AsReference<IFolder>();
         }
 
         public bool ChildExists(string name, bool file)

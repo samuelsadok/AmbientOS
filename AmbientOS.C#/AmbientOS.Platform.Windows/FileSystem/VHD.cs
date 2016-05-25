@@ -8,22 +8,20 @@ using AmbientOS.Utils;
 
 namespace AmbientOS.FileSystem
 {
-    [AOSService(
-        "Windows Virtual Image Service",
-        Description = "Opens virtual image files (*.vhd) and makes them available as a disk. The differencing disk image part of the specification is not yet implemented."
-        )]
+    [AOSObjectProvider()]
     [ForPlatform(PlatformType.Windows)]
-    public class WindowsVHDService
+    public static class WindowsVHD
     {
         /// <summary>
-        /// Opens the specified file as a virtual hard disk and makes it available as a disk object.
+        /// Opens a virtual image file (*.vhd) and makes it available as a disk object.
+        /// todo: add support for ISO files
         /// </summary>
-        [AOSAction("mount", "ext=vhd")]
-        public DynamicSet<IDisk> Mount(IFile file, Context context)
+        [AOSObjectProvider()]
+        public static IDisk Mount([AOSObjectConstraint("Type", "file:vhd")] IFile file)
         {
-            var foreignFile = file.AsImplementation<InteropFile>();
-            if (foreignFile == null)
-                throw new NotSupportedException("Windows can only mount native files as disk images");
+            var fileImpl = file.AsImplementation<InteropFile>();
+            if (fileImpl == null)
+                throw new AOSRejectException("Windows can only mount native files as disk images", file);
 
             // open disk handle
             var openParameters = new PInvoke.OpenVirtualDiskParameters() {
@@ -36,7 +34,7 @@ namespace AmbientOS.FileSystem
                 VendorId = PInvoke.VirtualStorageTypeVendorMicrosoft
             };
 
-            PInvoke.SafeDiskHandle disk = PInvoke.OpenVirtualDisk(virtualStorageType, foreignFile.path, PInvoke.VirtualDiskAccessFlags.All, PInvoke.OpenVirtualDiskFlags.None, openParameters);
+            PInvoke.SafeDiskHandle disk = PInvoke.OpenVirtualDisk(virtualStorageType, fileImpl.path, PInvoke.VirtualDiskAccessFlags.All, PInvoke.OpenVirtualDiskFlags.None, openParameters);
 
             try {
                 // attach disk - permanently
@@ -44,11 +42,13 @@ namespace AmbientOS.FileSystem
                     Version = PInvoke.AttachVirtualDiskVersion.Version1,
                     Version1 = new PInvoke.AttachVirtualDiskParametersVersion1()
                 };
+
                 // This fails normally, when executed as a normal user.
                 // Run as admin or add current account in Group Policies => Windows Settings => Security Settings => Local Policies => User Rights Assignment => Perform volume maintenance tasks
                 PInvoke.AttachVirtualDisk(disk, IntPtr.Zero, PInvoke.AttachVirtualDiskFlags.NoDriveLetter, 0, attachParameters);
+
                 var diskName = PInvoke.GetVirtualDiskPhysicalPath(disk);
-                return new DynamicSet<IDisk>(new WindowsDiskService.WindowsDisk(diskName) { Handle = disk }.DiskRef).Retain();
+                return (new WindowsDisk(diskName) { Handle = disk }).AsReference<IDisk>();
             } catch {
                 disk.Dispose();
                 throw;

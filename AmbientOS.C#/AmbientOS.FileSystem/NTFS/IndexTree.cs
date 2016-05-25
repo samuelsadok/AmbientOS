@@ -146,7 +146,7 @@ namespace AmbientOS.FileSystem.NTFS
         /// <summary>
         /// The file that contains this index tree.
         /// </summary>
-        private NTFSFile file;
+        private NTFSFileSystemObject file;
 
         /// <summary>
         /// Opens the index tree with the specified name on the specified file.
@@ -154,7 +154,7 @@ namespace AmbientOS.FileSystem.NTFS
         /// </summary>
         /// <param name="file">the file from which to load the index tree</param>
         /// <param name="name">null to accept any name</param>
-        public IndexTree(NTFSFile file, string name)
+        public IndexTree(NTFSFileSystemObject file, string name)
         {
             this.file = file;
 

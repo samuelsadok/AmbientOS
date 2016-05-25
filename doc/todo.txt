@@ -1,0 +1,13 @@
+- reduce warnings in NTFS code
+- merge DynamicProperty and DynamicEndpoint
+- create ObjectProvider interface (vs ObjectTransformer)
+- provide LocalObject constraint (or semi local?), or create windows specific interfaces
+- review DynamicSet (what about read-only?)
+- update the overview and thoughts documents
+- create tests for everything
+
+build system:
+- make interface parser show errors with accurate line numbers
+- read up on best reference counting practices (and implement code analyzer)
+- implement code analyzer to forbid context usage in early init code
+- code analyzer to forbid invalid usage of ObjectProvider attribute

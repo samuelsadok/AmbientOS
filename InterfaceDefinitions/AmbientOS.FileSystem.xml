@@ -33,62 +33,11 @@
     <value name="Merge" value="0x8" summary="If the conflicting objects are folders, merge them recursively. This flag can be combined with any of the other options (except for Abort)." />
   </enum>
 
-  <struct name="DiskInfo">
-    <field name="ID" type="Guid">
-      <summary>
-        The ID reported by the hard disk.
-        Be careful when using this, it could be modified and non-unique, especially for virtual disks.
-      </summary>
-    </field>
-    <field name="Tracks" type="int">
-      <summary>
-        The total number of tracks on the disk.
-        In most cases (i.e. for normal hard drives, SSDs, and most optical disks), this will be 1.
-        There are however some CD's that have multiple tracks.
-      </summary>
-    </field>
-    <field name="Sectors" type="long">
-      <summary>
-        The total number of sectors on one track of the disk.
-        Each track has the same number of sectors.
-      </summary>
-    </field>
-    <field name="MaxSectors" type="long">
-      <summary>
-        The maximum number of sectors the disk could be expanded to.
-        For most real disks, this will be the same as the current sector count.
-      </summary>
-    </field>
-    <field name="BytesPerSector" type="long">
-      <summary>
-        The number of bytes per sector.
-        Most of the time, this will be 512, and sometimes 4096, but you should not rely on that assumption.
-      </summary>
-    </field>
-  </struct>
-
-  <struct name="VolumeInfo">
-    <field name="ID" type="Guid">
-      <summary>
-        The ID of the volume. Volumes on a disk using the MBR partitioning scheme get an ID derived from the disk ID and volume offet.
-        Be careful when using this, it could be modified and non-unique, especially for virtual disks.
-      </summary>
-    </field>
-    <field name="Type" type="Guid">
-      <summary>
-        The type of the volume, as specified in the partition table.
-        Zero if unknown. For legacy MBR partitions, only the last byte specifies the type and the rest is zero.
-      </summary>
-    </field>
-    <field name="Flags" type="FileSystemFlags" />
-  </struct>
-
   <struct name="VolumeExtent">
-    <field name="Track" type="int" summary="The track of the disk on which the extent resides. In most cases this is 0, since there's mostly only one track." />
-    <field name="StartSector" type="long" summary="The absolute start sector of the extent on the underlying disk." />
-    <field name="Sectors" type="long" summary="The total number of sectors in the extent." />
-    <field name="MaxSectors" type="long" summary="The maximum number of sectors this extent could be expanded to. If there is no free space on disk following the extent, this is the same as the current sector count." />
-    <field name="Disk" type="Disk" summary="The underlying disk." />
+    <field name="Parent" type="BlockStream" summary="The underlying block stream." />
+    <field name="StartBlock" type="long" summary="The absolute start block of the extent on the underlying block stream." />
+    <field name="Blocks" type="long" summary="The total number of blocks in the extent." />
+    <field name="MaxSectors" type="long" summary="The maximum number of blocks that this extent could be expanded to. If there extent cannot be expanded, this is the same as the current blocks count. (probably we'll remove this field)" />
   </struct>
 
   <struct name="FileTimes">
@@ -128,47 +77,126 @@
     <field name="CaseSensitive" type="bool" summary="Indicates whether the file system uses case sensitive name comparision." />
   </struct>
 
-  <interface name="Disk">
-    <property name="Info" type="DiskInfo" summary="Indicates information about the disk. It may be possible for virtual disks to change some of this information." />
-    <method name="Read">
+  <interface name="BlockStream">
+    <summary>
+      Represents a data stream that is organised in blocks.
+    </summary>
+    <property name="Type" type="string">
       <summary>
-        Reads the specified sectors.
+        The type of the stream. This gives a hint as to what kind of data is in the stream.
+        Null if unknown.
+        For raw disks, this is "disk".
+        For GPT partitions, this is the GUID specified in the partition table, prepended by "gpt:" (example: "gpt:EBD0A0A2-B9E5-4433-87C0-68B6B72699C7" for NTFS).
+        For legacy MBR partitions, this is the type-byte specified in the partition table (2 hex letters), prepended by "mbr:" (example: "mbr:af" for HFS+).
+      </summary>
+    </property>
+    <property name="BlockSize" type="long">
+      <summary>
+        Indicates size of one block in the stream. For disks, this is usually 512.
+      </summary>
+    </property>
+    <property name="BlockCount" type="Maybe[long]">
+      <summary>
+        Indicates the total number of blocks in the stream.
+        It may be possible to change this value, e.g. if is a virtual disk or if
+        it is a volume there is unused disk space following the last volume extent.
+        When increasing the length, the new blocks are not initialized.
+      </summary>
+    </property>
+    <method name="ReadBlocks">
+      <summary>
+        Reads from the specified blocks in the stream.
         The method shall fail if the requested range is out of bounds.
       </summary>
-      <param name="track" type="int" />
-      <param name="offset" type="long" summary="The sector number (starting at 0)." />
-      <param name="count" type="long" summary="The number of sectors to read." />
+      <param name="offset" type="long" summary="The block number where the read operation starts (0 being the first block)." />
+      <param name="count" type="long" summary="The number of blocks to read." />
       <param name="buffer" type="Array[byte]" />
       <param name="bufferOffset" type="long" />
     </method>
-    <method name="Write">
+    <method name="WriteBlocks">
       <summary>
-        Writes to the specified sectors.
-        The method shall fail if the requested range is out of bounds.
+        Writes to the specified blocks in the stream.
+        The method shall fail if the specified range is out of bounds.
       </summary>
-      <param name="track" type="int" />
-      <param name="offset" type="long" summary="The sector number (starting at 0)." />
-      <param name="count" type="long" summary="The number of sectors to write." />
+      <param name="offset" type="long" summary="The block number where the write operation starts (0 being the first block)." />
+      <param name="count" type="long" summary="The number of blocks to write." />
       <param name="buffer" type="Array[byte]" />
       <param name="bufferOffset" type="long" />
     </method>
     <method name="Flush">
       <summary>
-        Flushes any cached write operations to this disk to the device.
+        Flushes any cached write operations to this stream to the underlying device.
         The flush operation shall propagate through the stack, i.e. if this is virtual disk image, the underlying file should also be flushed.
         The method must not return until the changes are committed to non-volatile storage.
       </summary>
     </method>
   </interface>
-
-  <interface name="Volume">
-    <property name="Info" type="VolumeInfo" summary="Indicates information about the disk. It may be possible for some volumes to change this information." />
-    <property name="Size" type="long">
+  
+  <interface name="ByteStream">
+    <summary>
+      Represents a random access data stream that can be addressed by byte.
+    </summary>
+    <property name="Type" type="string">
       <summary>
-        Indicates the size of the volume in bytes.
-        It may be possible to change the size of a virtual volume or if there is unused disk space following the last volume extent.
+        The type of the stream. This gives a hint as to what kind of data is in the stream.
+        Null if unknown.
+        For files, this is the (lower case) file extension, prepended by "file:" (example: "file:jpeg" for pictures).
+        If there is no file extension, the value is "file:".
       </summary>
     </property>
+    <property name="Length" type="Maybe[long]">
+      <summary>
+        Indicates the total length of the stream in bytes.
+        If the stream is a file, it is usually possible to change this value.
+        When increasing the length, the new space is initialized to zero.
+      </summary>
+    </property>
+    <method name="Read">
+      <summary>
+        Reads data from the stream.
+        The method shall fail if the requested range is out of bounds.
+      </summary>
+      <param name="offset" type="long" summary="The byte offset where the read operation starts." />
+      <param name="count" type="long" summary="The number of bytes to read." />
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Write">
+      <summary>
+        Writes data to the stream.
+        The method shall fail if the specified range is out of bounds.
+      </summary>
+      <param name="offset" type="long" summary="The byte offset where the write operation starts." />
+      <param name="count" type="long" summary="The number of bytes to write"/>
+      <param name="buffer" type="Array[byte]" />
+      <param name="bufferOffset" type="long" />
+    </method>
+    <method name="Flush">
+      <summary>
+        Flushes any cached write operations to this stream to the underlying device.
+        The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
+        The method must not return until the changes are committed to non-volatile storage.
+      </summary>
+    </method>
+  </interface>
+
+  <interface name="Disk" inherits="BlockStream">
+    <property name="ID" type="Guid">
+      <summary>
+        The ID reported by the hard disk.
+        Be careful when using this, it could be modified and non-unique, especially for virtual disks.
+      </summary>
+    </property>
+  </interface>
+
+  <interface name="Volume" inherits="ByteStream">
+    <property name="ID" type="Guid">
+      <summary>
+        The ID of the volume. Volumes on a disk using the MBR partitioning scheme get an ID derived from the disk ID and volume offet.
+        Be careful when using this, it could be modified and non-unique, especially for virtual disks.
+      </summary>
+    </property>
+    <property name="Flags" type="FileSystemFlags" />
     <method name="GetExtents" ret="Array[VolumeExtent]">
       <summary>
         Returns the extents that make up this volume.
@@ -176,31 +204,12 @@
         The result may be incomplete, for instance if the volume is partially virtual.
       </summary>
     </method>
-    <method name="Read">
+  </interface>
+
+  <interface name="PartitionTable">
+    <method name="GetPartitions" ret="DynamicSet[Volume]">
       <summary>
-        Reads data from the volume.
-        The method shall fail if the requested range is out of bounds.
-      </summary>
-      <param name="offset" type="long" />
-      <param name="count" type="long" />
-      <param name="buffer" type="Array[byte]" />
-      <param name="bufferOffset" type="long" />
-    </method>
-    <method name="Write">
-      <summary>
-        Writes data to the volume.
-        The method shall fail if the requested range is out of bounds.
-      </summary>
-      <param name="offset" type="long" />
-      <param name="count" type="long" />
-      <param name="buffer" type="Array[byte]" />
-      <param name="bufferOffset" type="long" />
-    </method>
-    <method name="Flush">
-      <summary>
-        Flushes any cached write operations to this volume to disk.
-        The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
-        The method must not return until the changes are committed to non-volatile storage.
+        Returns the set of volumes contained in this partition table.
       </summary>
     </method>
   </interface>
@@ -294,20 +303,12 @@
       </summary>
     </property>
     <property name="Times" type="FileTimes" summary="Gets or sets various time fields of this file." />
-    <property name="Size" type="Maybe[long]">
-      <summary>
-        Returns the total size of the file or folder in bytes or null if the value cannot be determined.
-        For folders the size is determined recursively.
-        For files, the size may be altered if write access is available.
-        If increasing the size of a file, the slack space is filled with zeros.
-      </summary>
-    </property>
     <method name="GetSizeOnDisk" ret="Maybe[long]">
       <summary>
-        Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
+        Returns the total size of the file or folder on disk in bytes. This includes the full allocated size including the file system structures that make up this file or folder.
         For folders the size is determined recursively.
-        When querying the size-on-disk of the root folder of a volume, the result should be very close to the occupied disk space.
-        Returns null if the size cannot be determined.
+        When querying the size-on-disk of the root folder of a file system, the result should be very close to the occupied disk space.
+        Returns null if the value cannot be determined.
       </summary>
     </method>
     <method name="GetFileSystem" ret="FileSystem">
@@ -341,6 +342,12 @@
     <summary>
       Exposes a container of file system object (i.e. files and folders).
     </summary>
+    <method name="GetContentSize" ret="Maybe[long]">
+      <summary>
+        Returns the sum of the sizes of all files contained by this folder and all its subfolders.
+        Returns null if the value cannot be determined.
+      </summary>
+    </method>
     <method name="GetChildren" ret="Enumerable[FileSystemObject]">
       <summary>
         Returns the list of files and folders that are direct children of this folder.
@@ -365,36 +372,11 @@
     </method>
   </interface>
 
-  <interface name="File" inherits="FileSystemObject">
+  <interface name="File">
+    <inherits>FileSystemObject</inherits>
+    <inherits>ByteStream</inherits>
     <summary>
       Exposes raw read and write operations.
     </summary>
-    <method name="Read">
-      <summary>
-        Reads data from the file.
-        The method shall fail if the requested range is out of bounds.
-      </summary>
-      <param name="offset" type="long" />
-      <param name="count" type="long" />
-      <param name="buffer" type="Array[byte]" />
-      <param name="bufferOffset" type="long" />
-    </method>
-    <method name="Write">
-      <summary>
-        Writes data to the file.
-        The method shall fail if the requested range is out of bounds.
-      </summary>
-      <param name="offset" type="long" />
-      <param name="count" type="long" />
-      <param name="buffer" type="Array[byte]" />
-      <param name="bufferOffset" type="long" />
-    </method>
-    <method name="Flush">
-      <summary>
-        Flushes any cached write operations to this file to disk.
-        The flush operation shall propagate through the stack, i.e. if the underlying disk itself is a virtual disk image, that file should also be flushed.
-        The method must not return until the changes are committed to non-volatile storage.
-      </summary>
-    </method>
   </interface>
 </namespace>

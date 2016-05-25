@@ -6,7 +6,8 @@ using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem.NTFS
 {
-    class NTFSVolume : IFileSystemImpl
+    [AOSObjectProvider()]
+    public class NTFS : IFileSystemImpl
     {
         public IFileSystem FileSystemRef { get; }
         public DynamicEndpoint<string> Name { get; }
@@ -81,13 +82,13 @@ namespace AmbientOS.FileSystem.NTFS
 
 
 
-        internal IVolume rawVolume;
-        internal string name;
-        internal long bytesPerSector;
-        internal long sectorsPerCluster;
-        internal long bytesPerCluster;
-        internal long bytesPerMFTRecord;
-        internal long bytesPerIndexRecord; // on reading, the size reported in the index root is used
+        internal readonly IByteStream rawStream;
+        internal readonly string name;
+        internal readonly long bytesPerSector;
+        internal readonly long sectorsPerCluster;
+        internal readonly long bytesPerCluster;
+        internal readonly long bytesPerMFTRecord;
+        internal readonly long bytesPerIndexRecord; // on reading, the size reported in the index root is used
 
 
         /// <summary>
@@ -108,17 +109,17 @@ namespace AmbientOS.FileSystem.NTFS
         /// <summary>
         /// Information about the volume (name, NTFS version, flags)
         /// </summary>
-        internal NTFSFile Volume { get; }
+        internal NTFSFileSystemObject Volume { get; }
 
         /// <summary>
         /// Definitions of each attribute type (e.g. min/max length)
         /// </summary>
-        internal NTFSFile AttrDef { get; }
+        internal NTFSFileSystemObject AttrDef { get; }
 
         /// <summary>
         /// The root directory (this is a directory, not a file)
         /// </summary>
-        internal NTFSFile RootDir { get; }
+        internal NTFSFolder RootDir { get; }
 
         /// <summary>
         /// Cluster allocation bitmap
@@ -128,17 +129,17 @@ namespace AmbientOS.FileSystem.NTFS
         /// <summary>
         /// Boot record (includes the VBR and a few following sectors)
         /// </summary>
-        internal NTFSFile Boot { get; }
+        internal NTFSFileSystemObject Boot { get; }
 
         /// <summary>
         /// A sparse file that describes all of the bad clusters (by this definition it cannot be read)
         /// </summary>
-        internal NTFSFile BadClus { get; }
+        internal NTFSFileSystemObject BadClus { get; }
 
         /// <summary>
         /// ?
         /// </summary>
-        internal NTFSFile Secure { get; }
+        internal NTFSFileSystemObject Secure { get; }
 
         /// <summary>
         /// An array (128kB) that contains upper case chars for each unicode char
@@ -148,7 +149,7 @@ namespace AmbientOS.FileSystem.NTFS
         /// <summary>
         /// ??
         /// </summary>
-        NTFSFile Extend { get; }
+        NTFSFileSystemObject Extend { get; }
 
         /// <summary>
         /// NTFS actually imposes very few restrictions on names.
@@ -168,34 +169,35 @@ namespace AmbientOS.FileSystem.NTFS
         private void DumpFile(string path, string target)
         {
             DebugLog("dumping " + path + "...");
-            var file = GetRoot().NavigateToFile(path, OpenMode.Existing).AsImplementation<NTFSFile>();
+            var file = GetRoot().NavigateToFile(path, OpenMode.Existing).AsImplementation<NTFSFileSystemObject>();
             foreach (var attr in file.FileRecord.attributes)
                 DebugLog("  attribute: 0x{0:X8} \"{1}\"", Utilities.EnumToInt(attr.type), attr.name);
-            var buffer = file.FileRef.Read(0, file.Size.Get().Value);
+            byte[] buffer;
+            using (var stream = file.AsReference<IByteStream>())
+                buffer = stream.Read(0, stream.Length.GetValue().Value);
             using (var logFile = System.IO.File.OpenWrite(target))
                 logFile.Write(buffer, 0, buffer.Count());
             DebugLog("dump succeeded, length was {0}", buffer.Length);
         }
 
 
-        public NTFSVolume(IVolume rawVolume, string verb, out List<string> issues)
+        public NTFS(IByteStream rawStream, out List<string> issues)
         {
             FileSystemRef = new FileSystemRef(this);
 
             issues = new List<string>();
 
-            this.rawVolume = rawVolume;
-            var info = rawVolume.Info;
-            var rawSize = rawVolume.Size;
+            this.rawStream = rawStream;
+            var rawSize = rawStream.Length;
 
             var vbrBuffer = new byte[512]; // The VBR is 512 bytes long, period. Even on a 4k sector disk.
-            rawVolume.Read(0, vbrBuffer.Length, vbrBuffer, 0);
+            rawStream.Read(0, vbrBuffer.Length, vbrBuffer, 0);
             var vbr = vbrBuffer.ReadObject<VBR>(0);
-            rawVolume.Read(rawSize.GetValue() - vbrBuffer.Length, vbrBuffer.Length, vbrBuffer, 0);
+            rawStream.Read(rawSize.GetValue().Value - vbrBuffer.Length, vbrBuffer.Length, vbrBuffer, 0);
             var vbrMirr = vbrBuffer.ReadObject<VBR>(0);
 
             if (vbr.magicNumber != "NTFS    ")
-                throw new AOSRejectException("The volume does not contain an NTFS file system", verb, rawVolume);
+                throw new AOSRejectException("The volume does not contain an NTFS file system", rawStream);
 
             if (vbr.volumeLength * vbr.bytesPerSector != rawSize.GetValue())
                 issues.Add(string.Format("the filesystem reports a volume size different from the actual volume size (expected: {0} bytes, actual: {1} bytes)", vbr.volumeLength * vbr.bytesPerSector, rawSize.GetValue()));
@@ -232,13 +234,13 @@ namespace AmbientOS.FileSystem.NTFS
             // load basic NTFS files
             try {
                 MFT = new MFTFile(this, vbr.mftLocation, 0);
-                MFTMir = new MFTFile(MFT.GetFile(1, null));
-                LogFile = new NTFSLogFile(MFT.GetFile(2, null));
+                MFTMir = new MFTFile((NTFSFile)MFT.GetFile(1, null));
+                LogFile = new NTFSLogFile((NTFSFile)MFT.GetFile(2, null));
                 Volume = MFT.GetFile(3, null);
             } catch (Exception) {
                 MFTMir = new MFTFile(this, vbr.mftMirrLocation, 1);
-                MFT = new MFTFile(MFTMir.GetFile(0, null));
-                LogFile = new NTFSLogFile(MFTMir.GetFile(2, null));
+                MFT = new MFTFile((NTFSFile)MFTMir.GetFile(0, null));
+                LogFile = new NTFSLogFile((NTFSFile)MFTMir.GetFile(2, null));
                 Volume = MFTMir.GetFile(3, null);
             }
 
@@ -263,8 +265,8 @@ namespace AmbientOS.FileSystem.NTFS
 
             // load some more basic NTFS files
             AttrDef = MFT.GetFile(4, null);
-            RootDir = MFT.GetFile(5, null);
-            Bitmap = MFT.GetFile(6, null);
+            RootDir = (NTFSFolder)MFT.GetFile(5, null);
+            Bitmap = (NTFSFile)MFT.GetFile(6, null);
             Boot = MFT.GetFile(7, null);
             BadClus = MFT.GetFile(8, null);
 
@@ -287,13 +289,15 @@ namespace AmbientOS.FileSystem.NTFS
 
 
             if (ntfsVolInfo[8] >= 3) {
-                var upcaseFile = MFT.GetFile(0xA, RootDir);
-                var upcaseFileSize = upcaseFile.Size.Get().Value;
+                var upcaseFile = (NTFSFile)MFT.GetFile(0xA, RootDir);
+                var upcaseFileSize = upcaseFile.Length.Get().Value;
                 long temp = 0;
-                if (upcaseFileSize == 2 * (1 << 16))
-                    UpCase = upcaseFile.FileRef.Read(0, upcaseFileSize).ReadUInt16Arr(ref temp, 1 << 16, Endianness.LittleEndian);
-                else
+                if (upcaseFileSize == 2 * (1 << 16)) {
+                    using (var upcaseFileRef = upcaseFile.AsReference<IByteStream>())
+                        UpCase = upcaseFileRef.Read(0, upcaseFileSize).ReadUInt16Arr(ref temp, 1 << 16, Endianness.LittleEndian);
+                } else {
                     issues.Add("the $UpCase file does not have the expected length");
+                }
             }
 
 
@@ -344,20 +348,24 @@ namespace AmbientOS.FileSystem.NTFS
 
         public IFolder GetRoot()
         {
-            return RootDir.FolderRef.Retain();
+            return RootDir.AsReference<IFolder>();
         }
 
         public long? GetTotalSpace()
         {
-            return rawVolume.Size.GetValue();
+            return rawStream.Length.GetValue();
         }
 
         public long? GetFreeSpace()
         {
+            var totalLength = rawStream.Length.GetValue();
+            if (totalLength.HasValue)
+                return null;
+
             long freeClusters = 0;
 
             var buffer = new byte[16777216];
-            var length = Math.Min(Bitmap.Data.GetSize(), (rawVolume.Size.GetValue() / bytesPerCluster + 7) / 8);
+            var length = Math.Min(Bitmap.Data.GetSize(), (rawStream.Length.GetValue().Value / bytesPerCluster + 7) / 8);
             long offset = 0;
 
             while (length > 0) {
@@ -395,6 +403,39 @@ namespace AmbientOS.FileSystem.NTFS
         public IFileSystemObject Copy(IFileSystemObject file, IFolder destination, string newName, MergeMode mode)
         {
             return file.Copy(destination, newName, mode, true);
+        }
+
+
+
+        
+        /// <summary>
+        /// Mounts an NTFS formatted volume.
+        /// </summary>
+        [AOSObjectProvider()]
+        public static IFileSystem Mount(
+            [AOSObjectConstraint("Type", "mbr:07")] // NTFS (also used for IFS, exFAT, HPFS)
+            [AOSObjectConstraint("Type", "mbr:17")] // hidden NTFS (also used for hidden IFS, exFAT, HPFS)
+            [AOSObjectConstraint("Type", "mbr:27")] // NTFS rescue partition (may also be FAT32)
+            [AOSObjectConstraint("Type", "gpt:E3C9E316-0B5C-4DB8-817D-F92DF00215AE")] // Microsoft Reserved Partition
+            [AOSObjectConstraint("Type", "gpt:EBD0A0A2-B9E5-4433-87C0-68B6B72699C7")] // Basic Data Partition
+            [AOSObjectConstraint("Type", "gpt:DE94BBA4-06D1-4D40-A16A-BFD50179D6AC")] // Windows Recovery Environment
+            IByteStream stream)
+        {
+            List<string> issues;
+            var vol = new NTFS(stream, out issues);
+
+            if (issues.Count == 0)
+                Log("The VHD image seems to be healthy.", LogType.Success);
+            else
+                Context.CurrentContext.LogContext.Break();
+
+            if (issues.Count > 1)
+                Log("Multiple issues were found with the VHD image:", LogType.Warning);
+
+            foreach (var issue in issues)
+                Log(issue, LogType.Warning);
+
+            return vol.AsReference<IFileSystem>();
         }
     }
 }

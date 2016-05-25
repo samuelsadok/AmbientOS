@@ -1,22 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AmbientOS.Utils;
+using System.Reflection;
+using System.Threading;
 
 namespace AmbientOS
 {
     [AttributeUsage(AttributeTargets.Interface)]
     public class AOSInterfaceAttribute : Attribute
     {
-        public string TypeName { get; private set; }
-        public Type ImplementationInterface { get; private set; }
-        public Type ReferenceClass { get; private set; }
+        public string TypeName { get; }
+        public Type ImplementationInterface { get; }
+        public Type ReferenceClass { get; }
 
-        public AOSInterfaceAttribute(string typeName, Type implIf, Type refClass)
+        private ObjectStore store = null;
+        public ObjectStore Store
+        {
+            get
+            {
+                // In case of concurrent fetches, the worst thing that can happen is that the same field is retrieved more than once
+                if (store == null)
+                    store = (ObjectStore)ReferenceClass.GetField("store", BindingFlags.Static | BindingFlags.Public).GetValue(null);
+                return store;
+            }
+        }
+
+        public AOSInterfaceAttribute(string typeName, Type implementationInterface, Type referenceClass)
         {
             TypeName = typeName;
-            ImplementationInterface = implIf;
-            ReferenceClass = refClass;
+            ImplementationInterface = implementationInterface;
+            ReferenceClass = referenceClass;
         }
     }
 
@@ -68,38 +81,36 @@ namespace AmbientOS
     }
 
     /// <summary>
-    /// Use this to tag action handlers in a class that is tagged with AOSApplicationAtrribute.
-    /// Methods with this attribute are registered in the application registry when the application (class) is installed.
-    /// The same method can be registered multiple times. This is useful for instance if an application can open files with different extensions.
+    /// Use this to tag methods that can be used as object provider or classes that contain such methods.
+    /// Methods with this attribute are automatically registered as object providers the object store when the assembly is loaded (are they?).
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-    public class AOSActionAttribute : Attribute
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
+    public class AOSObjectProviderAttribute : Attribute
+    {
+    }
+
+    /// <summary>
+    /// Use this on the input or output of object provider methods.
+    /// If this attribute is used, this gives the system more detailed information about what kind of objects the object provider accepts or generates.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.ReturnValue, AllowMultiple = true)]
+    public class AOSObjectConstraintAttribute : Attribute
     {
         /// <summary>
-        /// The verb that this attribute can execute on the object.
+        /// The name of the property that this constraint refers to.
+        /// This should be a valid property of the associated object type.
         /// </summary>
-        public string Verb { get; }
+        public string PropertyName { get; }
 
         /// <summary>
-        /// The constraint that an object must satisfy for the associated action to be considered.
-        /// When the OS selects an action to handle an object, it only considers the ones with constraints that apply to the object's attributes.
+        /// The list of possible values for the specified object property.
         /// </summary>
-        public ObjectConstraints Constraints { get; }
+        public string[] Values { get; }
 
-        public AOSActionAttribute(string verb, params string[] constraints)
+        public AOSObjectConstraintAttribute(string propertyName, params string[] values)
         {
-            Verb = verb;
-
-            var dict = constraints.Select(a => {
-                var parts = a.Split('=');
-                if (parts.Count() != 2)
-                    throw new Exception(string.Format("invalid attribute specifier \"{0}\"", a));
-                return new {
-                    key = parts[0],
-                    value = (object)parts[1].UnescapeFromURL()
-                };
-            }).ToDictionary(a => a.key, a => a.value);
-            Constraints = new ObjectConstraints(dict);
+            PropertyName = propertyName;
+            Values = values;
         }
     }
 

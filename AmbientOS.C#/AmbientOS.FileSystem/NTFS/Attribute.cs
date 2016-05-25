@@ -110,17 +110,22 @@ namespace AmbientOS.FileSystem.NTFS
     /// <summary>
     /// An attribute in a file record
     /// </summary>
-    class NTFSAttribute
+    internal class NTFSAttribute
     {
+        /// <summary>
+        /// The volume that contains this attribute
+        /// </summary>
+        public NTFS Volume { get; }
+
+        /// <summary>
+        /// The MFT file record to which this attribute belongs.
+        /// </summary>
+        public FileRecord FileRecord { get; }
+
         /// <summary>
         /// The offset of this attribute within the file record.
         /// </summary>
         public long FileRecordOffset { get; }
-
-        /// <summary>
-        /// The volume that contains this attribute
-        /// </summary>
-        public NTFSFile File { get; }
 
         /// <summary>
         /// The NTFS logfile client of the volume that contains this attribute.
@@ -130,7 +135,7 @@ namespace AmbientOS.FileSystem.NTFS
             get
             {
                 if (log == null)
-                    log = File.Volume.LogFile.NTFSClient;
+                    log = Volume.LogFile.NTFSClient;
                 return log;
             }
         }
@@ -310,9 +315,10 @@ namespace AmbientOS.FileSystem.NTFS
         [FieldSpecs(Ignore = true)]
         public string name;
 
-        private NTFSAttribute(NTFSFile file, long fileRecordOffset)
+        private NTFSAttribute(FileRecord fileRecord, long fileRecordOffset)
         {
-            File = file;
+            Volume = fileRecord.Volume;
+            FileRecord = fileRecord;
             FileRecordOffset = fileRecordOffset;
         }
 
@@ -321,14 +327,14 @@ namespace AmbientOS.FileSystem.NTFS
         /// </summary>
         /// <param name="clusterOffset">the offset of the file record within the cluster</param>
         /// <param name="recordOffset">the offset of the attribute within the file record</param>
-        public static NTFSAttribute FromBuffer(NTFSFile file, byte[] buffer, Cluster[] clusters, long clusterOffset, long recordOffset)
+        public static NTFSAttribute FromBuffer(FileRecord fileRecord, byte[] buffer, Cluster[] clusters, long clusterOffset, long recordOffset)
         {
-            var result = new NTFSAttribute(file, recordOffset);
+            var result = new NTFSAttribute(fileRecord, recordOffset);
             var actualOffset = (clusterOffset += recordOffset);
             buffer.ReadObject(ref clusterOffset, result, Endianness.LittleEndian);
             result.name = Encoding.Unicode.GetString(buffer, (int)(actualOffset + result.nameOffset), result.nameLength * 2);
 
-            result.SectorsPerBlock = result.type == NTFSAttributeType.IndexAllocation ? (int)(file.Volume.bytesPerIndexRecord / file.Volume.bytesPerSector) : 0;
+            result.SectorsPerBlock = result.type == NTFSAttributeType.IndexAllocation ? (int)(fileRecord.Volume.bytesPerIndexRecord / fileRecord.Volume.bytesPerSector) : 0;
 
             if (result.Resident) {
                 result.residentHeader = buffer.ReadObject<ResidentHeader>(clusterOffset);
@@ -372,8 +378,8 @@ namespace AmbientOS.FileSystem.NTFS
             // Note: we give up the lock while reading to enable reading clusters concurrently.
             // The worst that can happen is that we read the same cluster twice.
 
-            byte[] data = new byte[File.Volume.bytesPerCluster];
-            File.Volume.rawVolume.Read(lcn * File.Volume.bytesPerCluster, File.Volume.bytesPerCluster, data, 0);
+            byte[] data = new byte[Volume.bytesPerCluster];
+            Volume.rawStream.Read(lcn * Volume.bytesPerCluster, Volume.bytesPerCluster, data, 0);
 
             lock (nonResidentHeader.clusters)
                 result.data = data;
@@ -421,23 +427,23 @@ namespace AmbientOS.FileSystem.NTFS
                 if (length > nonResidentHeader.realSize || offset > unchecked(nonResidentHeader.realSize - length))
                     throw new ArgumentOutOfRangeException("Attempt to read beyond the attribute");
 
-                var vcn = offset / File.Volume.bytesPerCluster;
-                var firstClusterOffset = offset % File.Volume.bytesPerCluster;
+                var vcn = offset / Volume.bytesPerCluster;
+                var firstClusterOffset = offset % Volume.bytesPerCluster;
 
                 // handle unaligned beginning
                 if (firstClusterOffset != 0) {
-                    var actualLength = Math.Min(File.Volume.bytesPerCluster - firstClusterOffset, length);
+                    var actualLength = Math.Min(Volume.bytesPerCluster - firstClusterOffset, length);
                     Array.Copy(GetCluster(vcn++, true).data, firstClusterOffset, buffer, bufferOffset, actualLength);
                     bufferOffset += (int)actualLength;
                     length -= actualLength;
                 }
 
-                var clusterCount = length / File.Volume.bytesPerCluster;
-                var remainder = length % File.Volume.bytesPerCluster;
+                var clusterCount = length / Volume.bytesPerCluster;
+                var remainder = length % Volume.bytesPerCluster;
 
                 while (clusterCount-- > 0) {
-                    Array.Copy(GetCluster(vcn++, true).data, 0, buffer, bufferOffset, File.Volume.bytesPerCluster);
-                    bufferOffset += File.Volume.bytesPerCluster;
+                    Array.Copy(GetCluster(vcn++, true).data, 0, buffer, bufferOffset, Volume.bytesPerCluster);
+                    bufferOffset += Volume.bytesPerCluster;
                 }
 
                 if (remainder > 0)
@@ -457,18 +463,18 @@ namespace AmbientOS.FileSystem.NTFS
 
             using (var t = Log.StartTransaction()) {
                 if (Resident) {
-                    new NTFSLogFile.UpdateValueOperation(t, val, true, false).Log(File.Volume.MFT.Data, File.MFTIndex, (ushort)FileRecordOffset, (ushort)offset);
+                    new NTFSLogFile.UpdateValueOperation(t, val, true, false).Log(Volume.MFT.Data, FileRecord.MFTIndex, (ushort)FileRecordOffset, (ushort)offset);
                 } else if (SectorsPerBlock != 0) {
                     throw new NotImplementedException();
                     //new NTFSLogFile.UpdateValueOperation(t, val, false, false).Log(this, offset, );
                 } else {
 
-                    var vcn = offset / File.Volume.bytesPerCluster;
-                    var firstClusterOffset = offset % File.Volume.bytesPerCluster;
+                    var vcn = offset / Volume.bytesPerCluster;
+                    var firstClusterOffset = offset % Volume.bytesPerCluster;
 
                     // handle unaligned beginning
                     if (firstClusterOffset != 0) {
-                        var actualLength = Math.Min(File.Volume.bytesPerCluster - firstClusterOffset, length);
+                        var actualLength = Math.Min(Volume.bytesPerCluster - firstClusterOffset, length);
                         var cluster = GetCluster(vcn++, true);
                         cluster.dirty = true; // todo: add cluster to dirty list (same below)
                         Array.Copy(buffer, bufferOffset, cluster.data, firstClusterOffset, actualLength);
@@ -476,13 +482,13 @@ namespace AmbientOS.FileSystem.NTFS
                         length -= actualLength;
                     }
 
-                    var clusterCount = length / File.Volume.bytesPerCluster;
-                    var remainder = length % File.Volume.bytesPerCluster;
+                    var clusterCount = length / Volume.bytesPerCluster;
+                    var remainder = length % Volume.bytesPerCluster;
 
                     while (clusterCount-- > 0) {
-                        var data = new byte[File.Volume.bytesPerCluster];
-                        Array.Copy(data, 0, buffer, bufferOffset, File.Volume.bytesPerCluster);
-                        bufferOffset += File.Volume.bytesPerCluster;
+                        var data = new byte[Volume.bytesPerCluster];
+                        Array.Copy(data, 0, buffer, bufferOffset, Volume.bytesPerCluster);
+                        bufferOffset += Volume.bytesPerCluster;
 
                         var cluster = GetCluster(vcn++, false);
                         cluster.dirty = true;
@@ -498,6 +504,11 @@ namespace AmbientOS.FileSystem.NTFS
 
                 t.Commit();
             }
+        }
+
+        public void Flush()
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -527,7 +538,7 @@ namespace AmbientOS.FileSystem.NTFS
             return string.Format("{0} {1} of {2}",
                 (name == "" ? null : name) ?? "unnamed",
                 Utilities.EnumToString(type),
-                File.Path.Get());
+                FileRecord.MFTIndex);
         }
     }
 }

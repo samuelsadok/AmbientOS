@@ -15,11 +15,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.Net", "AmbientOS.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chaos.NaCl-Portable", "Chaos.NaCl\Chaos.NaCl\Chaos.NaCl-Portable.csproj", "{992710C3-DFC9-4CC1-A38B-B3F7E4A41B1C}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A1A170EF-E806-4169-8D6B-B2259A0E1E9E}"
-	ProjectSection(SolutionItems) = preProject
-		interfaces.xml = interfaces.xml
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientOS.FileSystem", "AmbientOS.C#\AmbientOS.FileSystem\AmbientOS.FileSystem.csproj", "{5C90AB4C-ECE3-4D15-A935-83ECCF892E90}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildSystem", "BuildSystem", "{4D06273E-6496-41EC-A7AB-DC8E1F19F5FB}"

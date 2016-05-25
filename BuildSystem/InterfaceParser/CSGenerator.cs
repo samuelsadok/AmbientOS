@@ -28,7 +28,7 @@ namespace InterfaceParser
         {
             builder.AppendLine("using System;");
             builder.AppendLine("using System.Collections.Generic;");
-            builder.AppendLine("using AmbientOS.Utils;");
+            builder.AppendLine("using System.Runtime.CompilerServices;");
         }
 
         public static void GenerateCSChapter(this StringBuilder builder, string title)
@@ -283,9 +283,6 @@ namespace InterfaceParser
 
             var baseInterfaces = def.BaseInterfaces.Select(i => def.Namespace.Type.ResolveType(i, "C#")).ToArray();
 
-            foreach (var i in baseInterfaces)
-                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("I{0} {0}Ref {{ get; }}", i.Name));
-
             var allProperties = def.Properties.Select(p => new { def = def, property = p });
             var allMethods = def.Methods.Select(m => new { def = def, method = m });
 
@@ -294,13 +291,18 @@ namespace InterfaceParser
                 allMethods = allMethods.Concat(baseInterface.Methods.Select(m => new { def = baseInterface, method = m }));
             }
 
+            // *** emit static members ***
+            
+            refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("public readonly static ObjectStore<I{0}Impl, {0}Ref> store = new ObjectStore<I{0}Impl, {0}Ref>(impl => new {0}Ref(impl));", def.Name));
+            refBuilder.AppendLine();
+
 
             // *** emit constructor ***
 
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("public {0}Ref(I{0}Impl implementation)", def.Name));
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + ": base(implementation)");
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "{");
-            refBuilder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + "baseReferences = new IObjectRef[] {");
+            refBuilder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + "baseInterfaces = new IObjectRef[] {");
 
             var firstItem = true;
             foreach (var i in baseInterfaces) {
@@ -308,7 +310,7 @@ namespace InterfaceParser
                 if (!firstItem)
                     refBuilder.Append(",");
                 firstItem = false;
-                refBuilder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("{0}Ref = new {0}Ref(implementation)", i.Name));
+                refBuilder.Append(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("{0}Ref.store.GetReference(implementation)", i.Name));
             }
 
             if (!firstItem)
@@ -343,20 +345,22 @@ namespace InterfaceParser
             bool first = true;
 
             foreach (var child in allProperties) {
-                impBuilder.AppendLine();
                 refBuilder.AppendLine();
-                if (!first)
+                if (!first) {
+                    impBuilder.AppendLine();
                     intBuilder.AppendLine();
+                }
                 first = false;
 
                 child.property.GenerateCS(indent + DEFAULT_CS_INDENT, intBuilder, impBuilder, refBuilder, child.def.Name, child.def != def);
             }
 
             foreach (var child in allMethods) {
-                impBuilder.AppendLine();
                 refBuilder.AppendLine();
-                if (!first)
+                if (!first) {
+                    impBuilder.AppendLine();
                     intBuilder.AppendLine();
+                }
                 first = false;
 
                 child.method.GenerateCS(indent + DEFAULT_CS_INDENT, intBuilder, impBuilder, refBuilder, child.def.Name, child.def != def);
@@ -364,7 +368,7 @@ namespace InterfaceParser
 
 
             // *** concat all versions ***
-            
+
             builder.AppendLine(indent + string.Format("[AOSInterface(\"{0}\", typeof(I{1}Impl), typeof({1}Ref))]", def.Type.FullName, def.Name));
             builder.AppendLine(indent + string.Format("public interface I{0} : IObjectRef", def.Name) + string.Join("", baseInterfaces.Select(i => ", " + i.GenerateCS(def.Namespace.Type))));
             builder.AppendLine(indent + "{");
@@ -377,7 +381,6 @@ namespace InterfaceParser
             builder.AppendLine(indent + string.Format("[AOSInterface(\"{0}\", typeof(I{1}Impl), typeof({1}Ref))]", def.Type.FullName, def.Name)); // it's not yet clear if this attribute is actually required in both the interface and the implementation
             builder.AppendLine(indent + string.Format("public interface I{0}Impl : IObjectImpl", def.Name) + string.Join("", baseInterfaces.Select(i => ", " + i.GenerateCS(def.Namespace.Type) + "Impl")));
             builder.AppendLine(indent + "{");
-            builder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("I{0} {0}Ref {{ get; }}", def.Name));
             builder.Append(impBuilder);
             builder.AppendLine(indent + "}");
             builder.AppendLine();

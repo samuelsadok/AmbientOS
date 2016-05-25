@@ -329,7 +329,7 @@
   </interface>
 
   <interface name="List" inherits="UIElement">
-    <property name="Items" type="DynamicList[ObjRef]">
+    <property name="Items" type="DynamicList[Object]">
       <summary>
         Represents the list of items that should be displayed in the list view.
         Depending on the context and platform, tool windows may be floating or docked to a side of the parent window.

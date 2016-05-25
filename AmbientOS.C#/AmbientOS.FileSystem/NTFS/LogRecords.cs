@@ -34,7 +34,7 @@ namespace AmbientOS.FileSystem.NTFS
             /// <summary>
             /// The volume that holds this log entry
             /// </summary>
-            public NTFSVolume Volume { get { return Client.LogFile.Volume; } }
+            public NTFS Volume { get { return Client.LogFile.Volume; } }
 
             /// <summary>
             /// Creates a new log entry from scratch.
@@ -394,7 +394,7 @@ namespace AmbientOS.FileSystem.NTFS
                 // TODO: REMOVE!!! THIS IS WRONG, NO FIXUP APPLIED, WRONG PLACE (is it?), ETC
                 foreach (var cluster in Client.DirtyClusterList.GetAll().ToArray().Except(newClusterList.GetAll().ToArray())) {
                     if (!dryrun)
-                        Volume.rawVolume.Write(cluster.LCN * Volume.bytesPerCluster, Volume.bytesPerCluster, cluster.data, 0);
+                        Volume.rawStream.Write(cluster.LCN * Volume.bytesPerCluster, Volume.bytesPerCluster, cluster.data, 0);
                     cluster.dirty = false;
                 }
 

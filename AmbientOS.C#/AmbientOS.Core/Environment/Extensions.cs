@@ -8,12 +8,12 @@ namespace AmbientOS.Environment
 {
     public static class Extensions
     {
-        /// <summary>
-        /// Indicates whether the action can handle the specified object.
-        /// </summary>
-        public static bool CanHandle(this IAction handler, IObjectRef obj)
-        {
-            return handler.CompliesTo(obj.GetHandlerConstraints());
-        }
+        ///// <summary>
+        ///// Indicates whether the action can handle the specified object.
+        ///// </summary>
+        //public static bool CanHandle(this IAction handler, IObjectRef obj)
+        //{
+        //    return handler.CompliesTo(obj.GetHandlerConstraints());
+        //}
     }
 }

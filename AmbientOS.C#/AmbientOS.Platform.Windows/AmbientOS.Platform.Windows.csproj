@@ -54,6 +54,7 @@
     <Reference Include="Windows.Foundation" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FileSystem\PartitionTable.cs" />
     <Compile Include="WindowsServiceInstaller.cs">
       <SubType>Component</SubType>
     </Compile>

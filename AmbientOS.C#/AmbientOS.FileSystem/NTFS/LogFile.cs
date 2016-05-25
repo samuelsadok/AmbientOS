@@ -494,8 +494,8 @@ namespace AmbientOS.FileSystem.NTFS
 
 
 
-        NTFSVolume Volume { get; }
-        IFile File { get; }
+        NTFS Volume { get; }
+        IByteStream File { get; }
         RestartPageHeader RestartHeader { get; }
         RestartAreaHeader RestartArea { get; }
         ClientRecord[] ClientRecords { get; }
@@ -504,7 +504,7 @@ namespace AmbientOS.FileSystem.NTFS
 
         public NTFSLogFile(NTFSFile file)
         {
-            File = file.FileRef.Retain();
+            File = file.AsReference<IByteStream>();
             Volume = file.Volume;
             var restartAreaRaw = File.Read(0, I_DONT_KNOW_WHERE_TO_FIND_THIS_VALUE_SO_LETS_USE_A_CONST);
 

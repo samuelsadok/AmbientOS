@@ -14,6 +14,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
+// Allow tester to access internal types (why is this not working?)
+[assembly: InternalsVisibleTo("Tester")]
+
 // Setting ComVisible to false makes the types in this assembly not visible 
 // to COM components.  If you need to access a type in this assembly from 
 // COM, set the ComVisible attribute to true on that type.

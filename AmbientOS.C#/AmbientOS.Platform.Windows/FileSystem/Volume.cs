@@ -8,162 +8,145 @@ using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem
 {
-    [AOSService("Windows Volume Service", Description = "Exposes the volumes managed by Windows")]
+    [AOSObjectProvider()]
     [ForPlatform(PlatformType.Windows)]
-    public class WindowsVolumeService
+    public class WindowsVolume : IVolumeImpl
     {
-        public class WindowsVolume : IVolumeImpl
+        public DynamicEndpoint<Guid> ID { get; }
+        public DynamicEndpoint<FileSystemFlags> Flags { get; }
+        public DynamicEndpoint<string> Type { get; }
+        public DynamicEndpoint<long?> Length { get; }
+        
+        private readonly VolumeExtent[] extents;
+
+        /// <summary>
+        /// Returns a name of the form "\\?\Volume{GUID}".
+        /// </summary>
+        public string Name { get { return @"\\?\Volume{" + ID.Get() + "}"; } }
+
+
+        private SafeFileHandle OpenVolume(PInvoke.Access access)
         {
-            public IVolume VolumeRef { get; }
-            public DynamicEndpoint<VolumeInfo> Info { get; }
-            public DynamicEndpoint<long> Size { get; }
+            return PInvoke.CreateFile(Name, access, PInvoke.ShareMode.ReadWrite, IntPtr.Zero, PInvoke.CreationDisposition.OPEN_EXISTING, PInvoke.FileFlags.OVERLAPPED, IntPtr.Zero);
+        }
 
-            private readonly VolumeInfo info;
-            private readonly VolumeExtent[] extents;
-            private readonly long capacity;
+        private static Guid GetVolumeGuid(string name)
+        {
+            string[] PREFIXES = new string[] { @"\\?\", @"\\.\" };
+            const string PREFIX = "Volume{";
+            var str = name.Substring(PREFIXES.FirstOrDefault(p => name.StartsWith(p))?.Length ?? 0).TrimEnd('\\').TrimEnd('}');
+            if (str.StartsWith(PREFIX))
+                str = str.Substring(PREFIX.Length);
 
-            /// <summary>
-            /// Returns a name of the form "\\?\Volume{GUID}".
-            /// </summary>
-            public string Name { get { return @"\\?\Volume{" + Guid + "}"; } }
-            public Guid Guid { get; }
+            Guid guid;
+            if (!Guid.TryParse(str, out guid))
+                throw new Exception(string.Format("The path \"{0}\" is not a valid Windows volume name.", name));
+            return guid;
+        }
 
+        /// <summary>
+        /// Generates a Windows volume object from the provided Guid.
+        /// </summary>
+        public WindowsVolume(Guid guid)
+        {
+            ID = new DynamicEndpoint<Guid>(guid, PropertyAccess.ReadOnly);
+            Flags = new DynamicEndpoint<FileSystemFlags>(0, PropertyAccess.ReadOnly); // todo: implement
+            Type = new DynamicEndpoint<string>("volume:windows", PropertyAccess.ReadOnly);
 
-            private SafeFileHandle OpenVolume(PInvoke.Access access)
-            {
-                return PInvoke.CreateFile(Name, access, PInvoke.ShareMode.ReadWrite, IntPtr.Zero, PInvoke.CreationDisposition.OPEN_EXISTING, PInvoke.FileFlags.OVERLAPPED, IntPtr.Zero);
-            }
+            // Returns the mountpoints of this volume (pops up an undesirable message on some volumes)
+            //var mountpoints = PInvoke.FindVolumeMountPoints(Name + @"\").ToArray();
 
-            private static Guid GetVolumeGuid(string name)
-            {
-                string[] PREFIXES = new string[] { @"\\?\", @"\\.\" };
-                const string PREFIX = "Volume{";
-                var str = name.Substring(PREFIXES.FirstOrDefault(p => name.StartsWith(p))?.Length ?? 0).TrimEnd('\\').TrimEnd('}');
-                if (str.StartsWith(PREFIX))
-                    str = str.Substring(PREFIX.Length);
+            // Returns FS name (fails with "Device not ready" on some volumes)
+            //var fs = PInvoke.GetVolumeInformation(Name + @"\");
 
-                Guid guid;
-                if (!Guid.TryParse(str, out guid))
-                    throw new Exception(string.Format("The path \"{0}\" is not a valid Windows volume name.", name));
-                return guid;
-            }
+            // returns all root paths of the volume
+            var roots = PInvoke.GetVolumePathNamesForVolumeName(Name + @"\");
 
-            /// <summary>
-            /// Generates a Windows volume object from the provided Guid.
-            /// </summary>
-            public WindowsVolume(Guid guid)
-            {
-                VolumeRef = new VolumeRef(this);
-                Guid = guid;
+            try {
+                using (var volume = OpenVolume(0)) {
 
-                // Returns the mountpoints of this volume (pops up an undesirable message on some volumes)
-                //var mountpoints = PInvoke.FindVolumeMountPoints(Name + @"\").ToArray();
-
-                // Returns FS name (fails with "Device not ready" on some volumes)
-                //var fs = PInvoke.GetVolumeInformation(Name + @"\");
-
-                // returns all root paths of the volume
-                var roots = PInvoke.GetVolumePathNamesForVolumeName(Name + @"\");
-
-                try {
-                    using (var volume = OpenVolume(0)) {
-
-                        // read extents (fails with "Incorrect function" on some volumes)
-                        var buffer = new byte[8 + 0x18];
-                        if (PInvoke.DeviceIoControl(volume, PInvoke.IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, null, buffer, PInvoke.ERROR.MORE_DATA) == PInvoke.ERROR.MORE_DATA) {
-                            buffer = new byte[8 + 0x18 * buffer.ReadInt32(0, Endianness.Current)];
-                            PInvoke.DeviceIoControl(volume, PInvoke.IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, null, buffer);
-                        }
-
-                        var extents = buffer.ReadObject<PInvoke.VolumeDiskExtents>(0, Endianness.Current);
-                        this.extents = extents.Extents.Select(e => {
-                            var disk = new WindowsDiskService.WindowsDisk(e.DiskNumber);
-                            var diskInfo = disk.Info.Get();
-                            return new VolumeExtent() {
-                                Track = 0,
-                                Disk = disk.DiskRef.Retain(),
-                                StartSector = e.StartingOffset / diskInfo.BytesPerSector,
-                                MaxSectors = e.StartingOffset / diskInfo.BytesPerSector,
-                                Sectors = e.ExtentLength / diskInfo.BytesPerSector
-                            };
-                        }).ToArray();
-
-
-                        // read general info
-                        var gptBuf = new byte[8];
-                        PInvoke.DeviceIoControl(volume, PInvoke.IOCTL_VOLUME_GET_GPT_ATTRIBUTES, null, gptBuf);
-                        var attr = gptBuf.ReadUInt64(0, Endianness.Current);
-                        // todo: convey GPT attributes
-
-                        info = new VolumeInfo() {
-                            ID = guid,
-                            Type = new Guid()
-                        };
-
-                        // read capacity
-                        // none of these work in the general case
-                        //var capacity = PInvoke.DeviceIoControl<PInvoke.StorageReadCapacity>(volume, PInvoke.IOCTL_STORAGE_READ_CAPACITY);
-                        //var capacity = PInvoke.DeviceIoControl<long>(volume, PInvoke.IOCTL_DISK_GET_LENGTH_INFO);
-                        capacity = extents.Extents.Sum(e => e.ExtentLength);
+                    // read extents (fails with "Incorrect function" on some volumes)
+                    var buffer = new byte[8 + 0x18];
+                    if (PInvoke.DeviceIoControl(volume, PInvoke.IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, null, buffer, PInvoke.ERROR.MORE_DATA) == PInvoke.ERROR.MORE_DATA) {
+                        buffer = new byte[8 + 0x18 * buffer.ReadInt32(0, Endianness.Current)];
+                        PInvoke.DeviceIoControl(volume, PInvoke.IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, null, buffer);
                     }
 
-                } catch (System.ComponentModel.Win32Exception) {
-                    // todo: log error
+                    var extents = buffer.ReadObject<PInvoke.VolumeDiskExtents>(0, Endianness.Current);
+                    this.extents = extents.Extents.Select(e => {
+                        var disk = new WindowsDisk(e.DiskNumber);
+                        return new VolumeExtent() {
+                            Parent = disk.AsReference<IDisk>(),
+                            StartBlock = e.StartingOffset / disk.BlockSize.Get(),
+                            Blocks = e.ExtentLength / disk.BlockSize.Get(),
+                            MaxSectors = e.ExtentLength / disk.BlockSize.Get()
+                        };
+                    }).ToArray();
 
 
+                    // read general info
+                    var gptBuf = new byte[8];
+                    PInvoke.DeviceIoControl(volume, PInvoke.IOCTL_VOLUME_GET_GPT_ATTRIBUTES, null, gptBuf);
+                    var attr = gptBuf.ReadUInt64(0, Endianness.Current);
+                    // todo: convey GPT attributes
+
+                    // read capacity
+                    // none of these work in the general case
+                    //var capacity = PInvoke.DeviceIoControl<PInvoke.StorageReadCapacity>(volume, PInvoke.IOCTL_STORAGE_READ_CAPACITY);
+                    //var capacity = PInvoke.DeviceIoControl<long>(volume, PInvoke.IOCTL_DISK_GET_LENGTH_INFO);
+                    Length = new DynamicEndpoint<long?>(extents.Extents.Sum(e => e.ExtentLength), PropertyAccess.ReadOnly);
                 }
+            } catch (System.ComponentModel.Win32Exception) {
+                // todo: log error
 
-                Info = new DynamicEndpoint<VolumeInfo>(info, PropertyAccess.ReadOnly);
-                Size = new DynamicEndpoint<long>(
-                    () => capacity,
-                    val => { throw new NotImplementedException("Can't change size of a Windows volume. To implement support for this, take at a look at the DeviceIoControl operations FSCTL_EXTEND_VOLUME and IOCTL_DISK_GROW_PARTITION."); });
-            }
 
-            /// <summary>
-            /// Generates a Windows volume object from the provided name.
-            /// </summary>
-            /// <param name="name">A name of the form \\.\Volume{GUID}\ (prefix and suffix are optional)</param>
-            public WindowsVolume(string name)
-                : this(GetVolumeGuid(name))
-            {
             }
+        }
 
-            public VolumeExtent[] GetExtents()
-            {
-                return extents;
-            }
+        /// <summary>
+        /// Generates a Windows volume object from the provided name.
+        /// </summary>
+        /// <param name="name">A name of the form \\.\Volume{GUID}\ (prefix and suffix are optional)</param>
+        public WindowsVolume(string name)
+            : this(GetVolumeGuid(name))
+        {
+        }
 
-            public void Read(long offset, long count, byte[] buffer, long bufferOffset)
-            {
-                using (var volume = OpenVolume(PInvoke.Access.Read))
-                    PInvoke.ReadFile(volume, offset, buffer, (int)bufferOffset, (int)count);
-            }
+        public VolumeExtent[] GetExtents()
+        {
+            return extents;
+        }
 
-            /// <summary>
-            /// Writes to the Windows volume.
-            /// Various restrictions apply. For details see the MSDN documentation of WriteFile (and look for the notes on volumes).
-            /// todo: implement volume locking
-            /// </summary>
-            public void Write(long offset, long count, byte[] buffer, long bufferOffset)
-            {
-                using (var volume = OpenVolume(PInvoke.Access.Write))
-                    PInvoke.WriteFile(volume, offset, buffer, (int)bufferOffset, (int)count);
-            }
+        public void Read(long offset, long count, byte[] buffer, long bufferOffset)
+        {
+            using (var volume = OpenVolume(PInvoke.Access.Read))
+                PInvoke.ReadFile(volume, offset, buffer, (int)bufferOffset, (int)count);
+        }
 
-            public void Flush()
-            {
-                // the handle is closed after each write, which presumably flushes the cache
-            }
+        /// <summary>
+        /// Writes to the Windows volume.
+        /// Various restrictions apply. For details see the MSDN documentation of WriteFile (and look for the notes on volumes).
+        /// todo: implement volume locking
+        /// </summary>
+        public void Write(long offset, long count, byte[] buffer, long bufferOffset)
+        {
+            using (var volume = OpenVolume(PInvoke.Access.Write))
+                PInvoke.WriteFile(volume, offset, buffer, (int)bufferOffset, (int)count);
+        }
 
-            public override int GetHashCode()
-            {
-                return Guid.GetHashCode();
-            }
+        public void Flush()
+        {
+            // the handle is closed after each write, which presumably flushes the cache
+        }
 
-            public override bool Equals(object obj)
-            {
-                return Guid == (obj as WindowsVolume)?.Guid;
-            }
+        public override int GetHashCode()
+        {
+            return ID.Get().GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            return ID.Get() == (obj as WindowsVolume)?.ID.Get();
         }
 
 
@@ -184,20 +167,21 @@ namespace AmbientOS.FileSystem
             }
         }
 
-
-        [AOSAction("mount", "isWrapper=true")]
-        public DynamicSet<IFileSystem> Mount(IVolume disk, Context context)
+        /// <summary>
+        /// Returns a reference to the file system on the specified Windows volume
+        /// </summary>
+        [AOSObjectProvider()]
+        public static IFileSystem Mount([AOSObjectConstraint("Type", "volume:windows")] IVolume volume)
         {
-            var winVol = disk.AsImplementation<WindowsVolume>();
-            if (winVol == null)
+            var volumeImpl = volume.AsImplementation<WindowsVolume>();
+            if (volumeImpl == null)
                 throw new ArgumentException("This service can only mount the filesystem of a native Windows volume");
 
             // .NET framework is not happy with the "?" in //?/Volume
-            return new DynamicSet<IFileSystem>(
-                new InteropFileSystem(winVol.Name.Replace('?', '.'), (a, b) => {
-                    using (var fs = a.FileSystemRef.Retain())
-                        return new WindowsFolder(fs, b).FolderRef.Retain();
-                }).FileSystemRef).Retain();
+            return new InteropFileSystem(volumeImpl.Name.Replace('?', '.'), (a, b) => {
+                using (var fsRef = a.AsReference<IFileSystem>())
+                    return new WindowsFolder(fsRef, b).AsReference<IFolder>();
+            }).AsReference<IFileSystem>();
         }
     }
 }

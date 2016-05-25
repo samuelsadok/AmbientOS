@@ -8,22 +8,12 @@ namespace AmbientOS.FileSystem
 {
     public static class Extensions
     {
-        /// <summary>
-        /// Adds the "ext" appearance attribute to this file.
-        /// todo: this method and IExtensionProperties are hacky. Think about a more general way of supporting extension functions
-        /// </summary>
-        public static void AddCustomAppearance(this IFile file, Dictionary<string, string> dict)
-        {
-            var name = file.Name.GetValue();
-            var lastPoint = name.LastIndexOf('.');
-            if (lastPoint >= 0)
-                dict["ext"] = name.Substring(lastPoint + 1);
-        }
+
 
         /// <summary>
-        /// Reads part of the file into a buffer
+        /// Reads part of the stream into a buffer
         /// </summary>
-        public static byte[] Read(this IFile file, long offset, long length)
+        public static byte[] Read(this IByteStream file, long offset, long length)
         {
             var buffer = new byte[length];
             file.Read(offset, length, buffer, 0);
@@ -31,13 +21,13 @@ namespace AmbientOS.FileSystem
         }
 
         /// <summary>
-        /// Reads the entire file into a buffer
+        /// Reads the entire stream into a buffer
         /// </summary>
-        public static byte[] Read(this IFile file)
+        public static byte[] Read(this IByteStream file)
         {
             // todo: lock file
 
-            var size = file.Size.GetValue();
+            var size = file.Length.GetValue();
             if (!size.HasValue)
                 throw new InvalidOperationException("unknown file size");
 
@@ -45,23 +35,23 @@ namespace AmbientOS.FileSystem
         }
 
         /// <summary>
-        /// Writes the specified content to the file (starting at the beginning).
-        /// The file size is changed to the buffer size.
+        /// Writes the specified content to the stream (starting at the beginning).
+        /// The stream size is changed to the buffer size.
         /// </summary>
-        public static void Write(this IFile file, byte[] buffer)
+        public static void Write(this IByteStream file, byte[] buffer)
         {
-            file.Size.SetValue(buffer.Length);
+            file.Length.SetValue(buffer.Length);
             file.Write(0, buffer.Length, buffer, 0);
         }
 
         /// <summary>
-        /// Appends the provided data to the end of the file.
+        /// Appends the provided data to the end of the stream.
         /// </summary>
-        public static void Append(this IFile file, byte[] value)
+        public static void Append(this IByteStream file, byte[] value)
         {
             // todo: lock file
-            var offset = file.Size.GetValue().Value;
-            file.Size.SetValue(offset + value.Count());
+            var offset = file.Length.GetValue().Value;
+            file.Length.SetValue(offset + value.Count());
             file.Write(offset, value.Count(), value, 0);
         }
 
@@ -205,8 +195,8 @@ namespace AmbientOS.FileSystem
                 var file = obj.Cast<IFile>();
                 var newFile = newObj.Cast<IFile>();
 
-                var length = file.Size.GetValue().Value;
-                newFile.Size.SetValue(length);
+                var length = file.Length.GetValue().Value;
+                newFile.Length.SetValue(length);
 
                 // do a 16MB block copy
                 var block = new byte[16777216];
@@ -261,7 +251,7 @@ namespace AmbientOS.FileSystem
         {
             RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
             byte[] randomData = new byte[4096];
-            var fileSize = file.Size.GetValue().Value;
+            var fileSize = file.Length.GetValue().Value;
 
             for (int i = 0; i < passes; i++) {
                 // scramble data
@@ -286,7 +276,7 @@ namespace AmbientOS.FileSystem
             // scramble file size and name
             for (int i = 0; i < passes; i++) {
                 // todo: scramble file name without violating naming conventions
-                file.Size.SetValue(rng.GetLong(0, fileSize));
+                file.Length.SetValue(rng.GetLong(0, fileSize));
             }
 
             file.Delete(DeleteMode.Permanent);
@@ -326,16 +316,6 @@ namespace AmbientOS.FileSystem
                 return false;
             return true;
         }
-
-
-
-        // public static TOut Mount<TOut>(this IAOSFile file, IShell shell, LogContext logContext)
-        //     where TOut : IAOSObject
-        // {
-        //     return ObjectStore.Action<IAOSFile, TOut>(file, "mount", shell, logContext);
-        // }
-
-
 
         /// <summary>
         /// Substitutes the value of the specified object reference with the new specified value.

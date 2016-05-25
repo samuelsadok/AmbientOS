@@ -957,7 +957,7 @@ namespace AmbientOS.FileSystem.NTFS
                 : base(t)
             {
                 attr = new AttributeList.ListItem(
-                    attribute.File.FileReference,
+                    attribute.FileRecord.FileReference,
                     attribute.type,
                     attribute.type == NTFSAttributeType.IndexAllocation ? attribute.SectorsPerBlock : 0,
                     currentLSN);

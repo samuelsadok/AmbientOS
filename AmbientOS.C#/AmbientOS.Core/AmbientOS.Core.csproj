@@ -38,11 +38,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ApplicationRegistry.cs" />
+    <Compile Include="ObjectConstraints.cs" />
+    <Compile Include="ObjectProvider.cs" />
     <Compile Include="Attributes.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="DynamicProperty.cs" />
     <Compile Include="Environment\Extensions.cs" />
+    <Compile Include="Exceptions.cs" />
+    <Compile Include="ObjectLock.cs" />
+    <Compile Include="ObjectStore.cs" />
     <Compile Include="PlatformType.cs" />
     <Compile Include="IPlatform.cs" />
     <Compile Include="Utils\DynamicList.cs" />
@@ -60,8 +64,7 @@
     <Compile Include="Math\MatrixExtensions.cs" />
     <Compile Include="Math\Vector.cs" />
     <Compile Include="Math\VectorExtensions.cs" />
-    <Compile Include="ObjectStore.cs" />
-    <Compile Include="BaseTypes.cs" />
+    <Compile Include="ObjectRef.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UI\Extensions.cs" />
     <Compile Include="Utils\ActivityTracker.cs" />
@@ -85,6 +88,7 @@
     </InterfaceDefinition>
     <InterfaceDefinition Include="..\..\InterfaceDefinitions\AmbientOS.Environment.xml">
       <Link>InterfaceDefinitions\AmbientOS.Environment.xml</Link>
+      <SubType>Designer</SubType>
     </InterfaceDefinition>
     <InterfaceDefinition Include="..\..\InterfaceDefinitions\AmbientOS.FileSystem.xml">
       <Link>InterfaceDefinitions\AmbientOS.FileSystem.xml</Link>

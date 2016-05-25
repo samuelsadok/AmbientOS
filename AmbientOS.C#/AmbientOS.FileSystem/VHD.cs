@@ -10,108 +10,98 @@ using static AmbientOS.LogContext;
 
 namespace AmbientOS.FileSystem
 {
-    /// <remarks>
-    /// Official VHD and VHDX specifications are available from Microsoft.
-    /// </remarks>
-    [AOSService(
-        "VHD Image Service",
-        Description="Opens VHD image files (*.vhd) and makes them available as a disk. The differencing disk image part of the specification is not yet implemented."
-        )]
-    class VHDService
+    /// <summary>
+    /// Opens VHD image files (*.vhd) and makes them available as a disk. The differencing disk image part of the specification is not yet implemented.
+    /// </summary>
+    [AOSObjectProvider()]
+    public class VHD : IDiskImpl
     {
+        /// <summary>
+        /// VHD images always have a sector size of 512
+        /// </summary>
+        public const int VHD_SECTOR_SIZE = 512;
 
-        public class VHD : IDiskImpl
+        public DynamicEndpoint<Guid> ID { get; }
+        DynamicEndpoint<string> IBlockStreamImpl.Type { get; } = new DynamicEndpoint<string>("disk", PropertyAccess.ReadOnly);
+        DynamicEndpoint<long> IBlockStreamImpl.BlockSize { get; } = new DynamicEndpoint<long>(VHD_SECTOR_SIZE, PropertyAccess.ReadOnly);
+        public DynamicEndpoint<long?> BlockCount { get; }
+
+        readonly IByteStream file;
+        readonly uint[] BAT; // block allocation table: for each block of sectors, contains the corresponding absolute sector number in the file
+        readonly uint sectorsPerBlock;
+
+        public VHD(IByteStream file, Guid guid, long sectorCount, uint[] bat, uint sectorsPerBlock)
         {
-            public IDisk DiskRef { get; }
-            public DynamicEndpoint<DiskInfo> Info { get; }
+            this.file = file;
+            BAT = bat;
+            this.sectorsPerBlock = sectorsPerBlock;
 
-            private IFile file;
-            private Guid guid;
-            private long sectorCount;
-            private uint[] BAT; // block allocation table: for each block of sectors, contains the corresponding absolute sector number in the file
-            private uint sectorsPerBlock;
+            ID = new DynamicEndpoint<Guid>(guid, PropertyAccess.ReadOnly);
+            BlockCount = new DynamicEndpoint<long?>(sectorCount, PropertyAccess.ReadOnly);
+        }
 
-            public VHD(IFile file, Guid guid, long sectorCount, uint[] bat, uint sectorsPerBlock)
-            {
-                DiskRef = new DiskRef(this);
+        public void DoOperation(long offset, long count, byte[] buffer, long bufferOffset, bool read)
+        {
+            var length = BlockCount.Get();
+            if (offset > length)
+                throw new ArgumentOutOfRangeException($"{offset}", "Attempt to read beyond the disk");
+            if (offset + count > length)
+                throw new ArgumentOutOfRangeException($"{count}", "Attempt to read beyond the disk");
+            if (bufferOffset + count * VHD_SECTOR_SIZE > buffer.Length)
+                throw new ArgumentException("The buffer is too small");
 
-                this.file = file;
-                this.guid = guid;
-                this.sectorCount = sectorCount;
-                BAT = bat;
-                this.sectorsPerBlock = sectorsPerBlock;
-
-                Info = new DynamicEndpoint<DiskInfo>(() => new DiskInfo() {
-                    BytesPerSector = 512,
-                    ID = guid,
-                    Tracks = 1,
-                    Sectors = sectorCount,
-                    MaxSectors = sectorCount
-                },
-                val => { throw new NotImplementedException(); });
+            if (BAT == null) {
+                if (read)
+                    file.Read(offset * VHD_SECTOR_SIZE, count * VHD_SECTOR_SIZE, buffer, bufferOffset);
+                else
+                    file.Write(offset * VHD_SECTOR_SIZE, count * VHD_SECTOR_SIZE, buffer, bufferOffset);
+                return;
             }
 
-            public void DoOperation(int track, long offset, long count, byte[] buffer, long bufferOffset, bool read)
-            {
-                if (track != 0)
-                    throw new ArgumentOutOfRangeException($"{track}", track, "VHDs only have one track");
-                if (bufferOffset + count * 512 > buffer.Length)
-                    throw new ArgumentException("The buffer is too small");
+            var blockOffset = offset % sectorsPerBlock;
+            var blockNr = (offset - blockOffset) / sectorsPerBlock;
 
-                if (BAT == null) {
+            while (count > 0) {
+                if (blockNr >= BAT.Count())
+                    throw new IndexOutOfRangeException();
+
+                var batEntry = BAT[blockNr];
+
+                if (batEntry != 0xFFFFFFFF) {
+                    var absoluteOffset = (batEntry + blockOffset + (long)(Math.Ceiling((double)(sectorsPerBlock / 8) / VHD_SECTOR_SIZE))) * VHD_SECTOR_SIZE;
                     if (read)
-                        file.Read(offset * 512, count * 512, buffer, bufferOffset);
+                        file.Read(absoluteOffset, VHD_SECTOR_SIZE, buffer, bufferOffset);
                     else
-                        file.Write(offset * 512, count * 512, buffer, bufferOffset);
-                    return;
+                        file.Write(absoluteOffset, VHD_SECTOR_SIZE, buffer, bufferOffset);
+                } else {
+                    if (read)
+                        Array.Clear(buffer, (int)bufferOffset, VHD_SECTOR_SIZE);
+                    else
+                        throw new NotImplementedException("Can't write to an unallocated block yet, you're welcome to implement it, it shouldn't be hard.");
                 }
 
-                var blockOffset = offset % sectorsPerBlock;
-                var blockNr = (offset - blockOffset) / sectorsPerBlock;
-
-                while (count > 0) {
-                    if (blockNr >= BAT.Count())
-                        throw new IndexOutOfRangeException();
-
-                    var batEntry = BAT[blockNr];
-
-                    if (batEntry != 0xFFFFFFFF) {
-                        var absoluteOffset = (batEntry + blockOffset + (long)(Math.Ceiling((double)(sectorsPerBlock / 8) / 512))) * 512;
-                        if (read)
-                            file.Read(absoluteOffset, 512, buffer, bufferOffset);
-                        else
-                            file.Write(absoluteOffset, 512, buffer, bufferOffset);
-                    } else {
-                        if (read)
-                            Array.Clear(buffer, (int)bufferOffset, 512);
-                        else
-                            throw new NotImplementedException("Can't write to an unallocated block yet, you're welcome to implement it, it shouldn't be hard.");
-                    }
-
-                    bufferOffset += 512;
-                    if (++blockOffset >= sectorsPerBlock) {
-                        blockOffset = 0;
-                        blockNr++;
-                    }
+                bufferOffset += VHD_SECTOR_SIZE;
+                if (++blockOffset >= sectorsPerBlock) {
+                    blockOffset = 0;
+                    blockNr++;
                 }
             }
+        }
+
+        public void ReadBlocks(long offset, long count, byte[] buffer, long bufferOffset)
+        {
+            DoOperation(offset, count, buffer, bufferOffset, true);
+        }
 
 
-            public void Read(int track, long offset, long count, byte[] buffer, long bufferOffset)
-            {
-                DoOperation(track, offset, count, buffer, bufferOffset, true);
-            }
+        public void WriteBlocks(long offset, long count, byte[] buffer, long bufferOffset)
+        {
+            DoOperation(offset, count, buffer, bufferOffset, false);
+        }
 
-
-            public void Write(int track, long offset, long count, byte[] buffer, long bufferOffset)
-            {
-                DoOperation(track, offset, count, buffer, bufferOffset, false);
-            }
-
-            public void Flush()
-            {
-                file.Flush();
-            }
+        public void Flush()
+        {
+            file.Flush();
         }
 
         [Endianness(Endianness.BigEndian)]
@@ -155,7 +145,8 @@ namespace AmbientOS.FileSystem
             [FieldSpecs(Length = 8)]
             public ParentLocatorEntry[] parentLocatorEntries;
 
-            public class ParentLocatorEntry {
+            public class ParentLocatorEntry
+            {
                 public UInt32 platformCode;
                 public UInt32 dataSpace;
                 public UInt32 dataLength;
@@ -164,18 +155,20 @@ namespace AmbientOS.FileSystem
             };
         }
 
+
+
+
         /// <summary>
         /// Opens a VHD image.
         /// Returns a list of messages about issues that occurred.
         /// </summary>
-        /// <param name="info">If not null, receives human readable information about the VHD image.</param>
-        private VHD ParseHeader(IFile file, out List<string> issues)
+        /// <param name="issues">If not null, receives human readable information about the VHD image.</param>
+        private static VHD ParseHeader(IByteStream file, out List<string> issues)
         {
-            var fileLength = file.Size.GetValue();
+            var fileLength = file.Length.GetValue();
             if (fileLength.HasValue)
                 if (fileLength.Value < 2 * 511)
-                    throw new AOSRejectException("The file is too short to be a VHD image. A sane VHD image has at least header and a footer of 511 or 512 bytes length.", null, file);
-
+                    throw new AOSRejectException("The file is too short to be a VHD image. A sane VHD image has at least header and a footer of 511 or 512 bytes length.", file);
 
             issues = new List<string>();
 
@@ -250,7 +243,7 @@ namespace AmbientOS.FileSystem
 
             // a fixed disk doesn't have any more structures
             if (header.diskType != 3 && header.diskType != 4)
-                return new VHD(file, header.guid, header.currSize / 512, null, 0);
+                return new VHD(file, header.guid, header.currSize / VHD.VHD_SECTOR_SIZE, null, 0);
 
             if ((header.offset & 0x1FF) != 0)
                 issues.Add("the dynamic disk header should be 512 byte aligned");
@@ -325,16 +318,14 @@ namespace AmbientOS.FileSystem
             if (header.diskType == 4)
                 issues.Add("Differencing disk images are not supported yet. Go ahead and implement it, it shouldn't be hard and the specs are out there. I'll treat this as a dynamic disk image for now (i.e. unmodified sectors are read as 0 instead of old data).");
 
-            return new VHD(file, header.guid, header.currSize / 512, bat, header2.blockSize / 512);
+            return new VHD(file, header.guid, header.currSize / VHD.VHD_SECTOR_SIZE, bat, header2.blockSize / VHD.VHD_SECTOR_SIZE);
         }
-
-
 
         /// <summary>
         /// Opens the specified file as a virtual hard disk and makes it available as a disk object.
         /// </summary>
-        [AOSAction("mount", "ext=vhd")]
-        public DynamicSet<IDisk> Mount(IFile file)
+        [AOSObjectProvider()]
+        public static IDisk Mount([AOSObjectConstraint("Type", "file:vhd")] IByteStream file)
         {
             // todo: think about locking
             List<string> issues;
@@ -364,33 +355,10 @@ namespace AmbientOS.FileSystem
                     Level = Level.Advanced
                 } });
                 if (answer == 0)
-                    return new DynamicSet<IDisk>();
+                    throw new AOSRejectException("There are problems with reading this image.", file);
             }
 
-            return new DynamicSet<IDisk>(disk.DiskRef).Retain();
-            //ObjectStore.PublishObject(disk, new Dictionary<string, string>());
-            //ObjectStore.Action("init", disk, shell, info);
-        }
-
-        /// <summary>
-        /// Parses the header of a VHD image and returns information about it.
-        /// </summary>
-        [AOSAction("info", "ext=vhd")]
-        public void Info(IFile file)
-        {
-            List<string> issues;
-            var disk = ParseHeader(file, out issues);
-
-            if (issues.Count == 0)
-                Context.CurrentContext.Shell.Notify(new Text() {
-                    Summary = "The VHD image seems to be healthy."
-                }, Severity.Success);
-
-            if (issues.Count > 1)
-                Log("Multiple issues were found with the VHD image:", LogType.Warning);
-
-            foreach (var issue in issues)
-                Log(issue, LogType.Warning);
+            return disk.AsReference<IDisk>();
         }
     }
 }

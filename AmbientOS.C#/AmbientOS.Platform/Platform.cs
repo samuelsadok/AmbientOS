@@ -13,21 +13,6 @@ namespace AmbientOS.Platform
 {
     public static class Platform
     {
-        /// <summary>
-        /// Instantiates and returns the main application of the entry assembly (i.e. the assembly that was started initially).
-        /// </summary>
-        public static IApplication GetMainApp()
-        {
-            var mainApp = Assembly.GetEntryAssembly().ExportedTypes
-                .Where(t => typeof(IApplicationImpl).IsAssignableFrom(t) && t.GetCustomAttribute<AOSMainApplicationAttribute>() != null);
-
-            if (mainApp.Count() != 1)
-                return null;
-
-            var app = (IApplicationImpl)Activator.CreateInstance(mainApp.Single());
-            return app.ApplicationRef.Retain();
-        }
-
         public static PlatformType GetPlatform()
         {
             switch (System.Environment.OSVersion.Platform) {
@@ -38,7 +23,7 @@ namespace AmbientOS.Platform
             }
         }
 
-        public static PlatformType Type { get; private set; } = GetPlatform();
+        public static PlatformType Type { get; } = GetPlatform();
 
         /// <summary>
         /// This is the entry point that should be directly called by the Main function of each executable assembly.
@@ -72,7 +57,6 @@ namespace AmbientOS.Platform
 
             switch (Type) {
                 case PlatformType.Windows:
-
                     if (forceCLI)
                         goto default;
                     else if (forceGUI)
@@ -83,8 +67,6 @@ namespace AmbientOS.Platform
                     break;
 
                 case PlatformType.OSX:
-                    Type = PlatformType.OSX;
-
                     if (forceCLI)
                         goto default;
                     else if (forceGUI)
@@ -95,8 +77,6 @@ namespace AmbientOS.Platform
                 //break;
 
                 case PlatformType.Linux:
-                    Type = PlatformType.Linux;
-
                     if (forceCLI)
                         goto default;
                     else if (forceGUI)

@@ -82,53 +82,79 @@ namespace AmbientOS.FileSystem.NTFS
         /// The offset of this file record within the first cluster that contains it.
         /// </summary>
         [FieldSpecs(Ignore = true)]
-        public long clusterOffset;
+        long clusterOffset;
 
         /// <summary>
         /// The clusters from the MFT that contain this file record
         /// </summary>
         [FieldSpecs(Ignore = true)]
-        public Cluster[] clusters;
+        readonly Cluster[] clusters;
 
         [FieldSpecs(Ignore = true)]
-        public List<NTFSAttribute> attributes;
+        public readonly List<NTFSAttribute> attributes;
 
         public bool IsFile { get { return !flags.HasFlag(FileRecordFlags.IsDirectory); } }
 
-        public static FileRecord FromClusters(NTFSFile file, Cluster[] clusters, long offset)
+        public NTFS Volume { get; }
+
+        /// <summary>
+        /// The index in the MFT. Together with the sequence number this identifies the file on a volume.
+        /// </summary>
+        public long MFTIndex { get { return (clusters.First().VCN * Volume.bytesPerCluster + clusterOffset) / Volume.bytesPerMFTRecord; } }
+
+        /// <summary>
+        /// The sequence number of this file.
+        /// This is incremented whenever the file record updated.
+        /// </summary>
+        public short SequenceNumber { get; }
+
+        /// <summary>
+        /// The MFT reference of this file, consisting of MFTIndex and SequenceNumber.
+        /// </summary>
+        public long FileReference { get { return ((long)SequenceNumber << 48) + MFTIndex; } }
+
+        public FileRecord(NTFS volume, Cluster[] clusters, long offset)
         {
+            Volume = volume;
+
             // read clusters into a consecutive buffer on which we can easily operate
             byte[] buffer;
             if (clusters.Count() != 1) {
-                buffer = new byte[clusters.Count() * file.Volume.bytesPerCluster];
+                buffer = new byte[clusters.Count() * volume.bytesPerCluster];
                 for (long i = 0; i < clusters.Count(); i++)
-                    Array.Copy(clusters[i].data, 0, buffer, i * file.Volume.bytesPerCluster, file.Volume.bytesPerCluster);
+                    Array.Copy(clusters[i].data, 0, buffer, i * volume.bytesPerCluster, volume.bytesPerCluster);
             } else {
                 buffer = clusters[0].data;
             }
-            file.Volume.ReadFixup(buffer, offset, file.Volume.bytesPerMFTRecord, 0x454C4946); // todo: sometimes the actual cluster data is now fixed up, sometimes not
+            volume.ReadFixup(buffer, offset, volume.bytesPerMFTRecord, 0x454C4946); // todo: sometimes the actual cluster data is now fixed up, sometimes not
+
 
             // read file record header
-            var result = new FileRecord();
-            result.clusterOffset = offset;
-            result.clusters = clusters;
-            buffer.ReadObject(ref offset, result, Endianness.LittleEndian);
+            clusterOffset = offset;
+            this.clusters = clusters;
+            buffer.ReadObject(ref offset, this, Endianness.LittleEndian);
+
+            SequenceNumber = Cluster.ReadBytes(clusters, header.updateSequenceOffset, 2).ReadInt16(0, Endianness.LittleEndian);
 
             // read all attributes
-            result.attributes = new List<NTFSAttribute>(4);
+            attributes = new List<NTFSAttribute>(4);
 
-            offset = result.attributeSequenceOffset;
-            while (buffer.ReadUInt32(result.clusterOffset + offset, Endianness.LittleEndian) != 0xFFFFFFFF) {
-                var attr = NTFSAttribute.FromBuffer(file, buffer, clusters, result.clusterOffset, offset);
+            offset = attributeSequenceOffset;
+            while (buffer.ReadUInt32(clusterOffset + offset, Endianness.LittleEndian) != 0xFFFFFFFF) {
+                var attr = NTFSAttribute.FromBuffer(this, buffer, clusters, clusterOffset, offset);
 
                 if (attr.length <= 0) // avoid endless loop
                     throw new Exception("encountered illegal attribute (length 0)");
 
                 offset += attr.length;
-                result.attributes.Add(attr);
+                attributes.Add(attr);
             };
+        }
 
-            return result;
+        public static FileRecord FromClusters(NTFS volume, Cluster[] clusters, long offset)
+        {
+            // todo: why isn't the constructor used directly? may be a relic
+            return new FileRecord(volume, clusters, offset);
         }
 
         /// <summary>
@@ -163,16 +189,12 @@ namespace AmbientOS.FileSystem.NTFS
         }
     }
 
-
-
-
-    class NTFSFile : IFileImpl, IFolderImpl
+    abstract class NTFSFileSystemObject : IFileSystemObjectImpl
     {
-        public IFileSystemObject FileSystemObjectRef { get; }
-        public IFile FileRef { get; }
-        public IFolder FolderRef { get; }
+        public NTFSFile AsFile { get; }
+        public NTFSFolder AsFolder { get; }
 
-        NTFSFile parent;
+        NTFSFileSystemObject parent;
 
         /// <summary>
         /// The MFT file record that represents this file.
@@ -180,35 +202,19 @@ namespace AmbientOS.FileSystem.NTFS
         public FileRecord FileRecord { get; }
 
         /// <summary>
-        /// The index in the MFT. Together with the sequence number this identifies the file on a volume.
-        /// </summary>
-        public long MFTIndex { get; }
-
-        /// <summary>
-        /// The sequence number of this file.
-        /// This is incremented whenever the file record updated.
-        /// </summary>
-        public short SequenceNumber { get; }
-
-        /// <summary>
-        /// The MFT reference of this file, consisting of MFTIndex and SequenceNumber.
-        /// </summary>
-        public long FileReference { get { return ((long)SequenceNumber << 48) + MFTIndex; } }
-
-        /// <summary>
         /// The volume that contains this file.
         /// </summary>
-        public NTFSVolume Volume { get; }
+        public NTFS Volume { get; }
 
         /// <summary>
         /// If this is a file, the data attribute is preloaded (not the actual value - except if it's resident)
         /// </summary>
-        public NTFSAttribute Data { get; }
+        //public NTFSAttribute Data { get; }
 
         /// <summary>
         /// If this is a folder, the index tree "$I30" is preloaded (this is the index on the names of the contained files)
         /// </summary>
-        public IndexTree I30 { get; }
+        //public IndexTree I30 { get; }
 
         /// <summary>
         /// Contains the name and some standard information about the file (e.g. times, sizes).
@@ -221,20 +227,32 @@ namespace AmbientOS.FileSystem.NTFS
         /// </summary>
         public FileNameAttribute FileName { get; }
 
+
         /// <summary>
         /// Creates a new file object from an NTFS MFT file record
         /// </summary>
-        public NTFSFile(NTFSFile parent, NTFSVolume volume, Cluster[] clusters, long offset)
+        public static NTFSFileSystemObject FromBuffer(NTFSFileSystemObject parent, NTFS volume, Cluster[] clusters, long offset)
         {
-            FileSystemObjectRef = new FileSystemObjectRef(this);
+            var fileRecord = FileRecord.FromClusters(volume, clusters, offset);
 
-            //try { // todo: remove try-catch
-            Volume = volume;
+            if (fileRecord.flags.HasFlag(FileRecordFlags.IsSpecialFile))
+                throw new NotImplementedException(); // we can't preload attributes on special files, since they don't have them
+
+            if (fileRecord.IsFile) {
+                return new NTFSFile(fileRecord, parent);
+            } else {
+                return new NTFSFolder(fileRecord, parent);
+            }
+        }
+
+        /// <summary>
+        /// Creates a new file object from an NTFS MFT file record
+        /// </summary>
+        public NTFSFileSystemObject(FileRecord fileRecord, NTFSFileSystemObject parent)
+        {
+            Volume = fileRecord.Volume;
             this.parent = parent;
-            FileRecord = FileRecord.FromClusters(this, clusters, offset);
-
-            MFTIndex = (clusters.First().VCN * Volume.bytesPerCluster + offset) / Volume.bytesPerMFTRecord;
-            SequenceNumber = Cluster.ReadBytes(clusters, FileRecord.header.updateSequenceOffset, 2).ReadInt16(0, Endianness.LittleEndian);
+            FileRecord = fileRecord;
 
             if (!FileRecord.flags.HasFlag(FileRecordFlags.InUse))
                 throw new Exception("The file record is not in use");
@@ -242,24 +260,6 @@ namespace AmbientOS.FileSystem.NTFS
             StandardInformation = FileRecord.ReadAttribute(NTFSAttributeType.StandardInformation, "").ReadObject<StandardInformationAttribute>(0);
             FileName = FileRecord.ReadAttribute(NTFSAttributeType.FileName, "").ReadObject<FileNameAttribute>(0);
 
-            if (!FileRecord.flags.HasFlag(FileRecordFlags.IsSpecialFile)) { // don't preload attributes on special files, since they don't have them
-                if (FileRecord.IsFile) {
-                    Data = FileRecord.GetAttributes(NTFSAttributeType.Data, "").First();
-                    FileRef = new FileRef(this);
-                } else {
-                    I30 = new IndexTree(this, "$I30");
-                    FolderRef = new FolderRef(this);
-                }
-            }
-            //} catch (Exception ex) {
-            //    Exception exc;
-            //    try {
-            //        exc = new Exception(string.Format("flags: {0:X4}, path: {1}, ex: {2}", FileRecord.flags.ToInt(), this.GetInfo().Path, ex.Message));
-            //    } catch {
-            //        exc = new Exception("total failure");
-            //    }
-            //    throw exc;
-            //}
 
             Name = new DynamicEndpoint<string>(() => FileName.fileName, val => FileName.fileName = val);
             Path = new DynamicEndpoint<string>(() => (parent != null ? parent.Path.Get() : "") + "/" + Name.Get().EscapeForURL());
@@ -277,28 +277,6 @@ namespace AmbientOS.FileSystem.NTFS
                         StandardInformation.readTime = val.ReadTime.Value;
                     if (val.ModifiedTime.HasValue)
                         StandardInformation.alteredTime = val.ModifiedTime.Value;
-                });
-
-            Size = new DynamicEndpoint<long?>(
-                () => {
-                    long? size = 0;
-
-                    if (Data != null)
-                        size += Data.GetSize();
-
-                    if (I30 != null)
-                        size += I30.GetAllValues()
-                            .Select(file => Volume.MFT.GetFile(file.Value, this))
-                            .Select(file => file.Size.Get()).Sum();
-
-                    return size;
-                },
-                val => {
-                    if (Data == null)
-                        throw new InvalidOperationException();
-                    if (val == null)
-                        throw new ArgumentNullException($"{val}");
-                    Data.ChangeSize(val.Value);
                 });
         }
 
@@ -330,7 +308,7 @@ namespace AmbientOS.FileSystem.NTFS
         }
 
 
-        #region "common file/folder methods"
+        #region "IFileSystemObject"
 
         public IFileSystem GetFileSystem()
         {
@@ -340,7 +318,12 @@ namespace AmbientOS.FileSystem.NTFS
         public DynamicEndpoint<string> Name { get; }
         public DynamicEndpoint<string> Path { get; }
         public DynamicEndpoint<FileTimes> Times { get; }
-        public DynamicEndpoint<long?> Size { get; }
+
+        /// <summary>
+        /// Shall return all tree contained by this file.
+        /// For normal folders, this is just the $I30 tree.
+        /// </summary>
+        protected abstract IndexTree[] GetTrees();
 
         /// <summary>
         /// Returns the total size of the file or folder (recursive) on disk. This includes the full allocated size including the file system structures that make up this file or folder.
@@ -351,12 +334,10 @@ namespace AmbientOS.FileSystem.NTFS
         public long? GetSizeOnDisk()
         {
             long? size = FileRecord.GetAttributes(NTFSAttributeType.DontCare, null).Select(attr => attr.GetAllocatedSize()).Sum();
-
-            if (I30 != null)
-                size += I30.GetAllValues()
-                    .Select(file => Volume.MFT.GetFile(file.Value, this))
-                    .Select(file => file.GetSizeOnDisk()).Sum();
-
+            size += GetTrees()
+                .SelectMany(tree => tree.GetAllValues())
+                .Select(file => Volume.MFT.GetFile(file.Value, this))
+                .Select(file => file.GetSizeOnDisk()).Sum();
             return size;
         }
 
@@ -370,33 +351,100 @@ namespace AmbientOS.FileSystem.NTFS
             throw new NotImplementedException();
         }
 
-        public void Flush()
+        #endregion
+    }
+
+
+    class NTFSFile : NTFSFileSystemObject, IFileImpl
+    {
+        public DynamicEndpoint<string> Type { get; }
+        public DynamicEndpoint<long?> Length { get; }
+
+        internal NTFSAttribute Data { get; }
+
+        public NTFSFile(FileRecord fileRecord, NTFSFileSystemObject parent)
+            : base(fileRecord, parent)
         {
-            throw new NotImplementedException();
+            Data = fileRecord.GetAttributes(NTFSAttributeType.Data, "").First();
+
+            Type = new DynamicEndpoint<string>(() => {
+                var name = Name.Get();
+                var point = name.LastIndexOf('.');
+                return point >= 0 ? name.Substring(point + 1) : name;
+            });
+
+            Length = new DynamicEndpoint<long?>(() => Data.GetSize(), val => {
+                if (val == null)
+                    throw new ArgumentNullException($"{val}");
+                Data.ChangeSize(val.Value);
+            });
         }
 
-        #endregion
-
-        #region "folder specific methods"
-
-        public IEnumerable<NTFSFile> GetChildren()
+        protected override IndexTree[] GetTrees()
         {
-            if (I30 == null)
-                throw new InvalidOperationException();
+            return new IndexTree[0];
+        }
 
+        public void Read(long offset, long count, byte[] buffer, long bufferOffset)
+        {
+            Data.Read(offset, count, buffer, bufferOffset);
+        }
+
+        public void Write(long offset, long count, byte[] buffer, long bufferOffset)
+        {
+            Data.Write(offset, count, buffer, bufferOffset);
+        }
+
+        public void Flush()
+        {
+            Data.Flush();
+        }
+    }
+
+    class NTFSFolder : NTFSFileSystemObject, IFolderImpl
+    {
+        readonly IndexTree I30;
+
+        public NTFSFolder(FileRecord fileRecord, NTFSFileSystemObject parent)
+            : base(fileRecord, parent)
+        {
+            I30 = new IndexTree(this, "$I30");
+        }
+
+        protected override IndexTree[] GetTrees()
+        {
+            return new IndexTree[] { I30 };
+        }
+
+        public long? GetContentSize()
+        {
+            long? size = 0;
+
+            foreach (var child in GetChildren()) {
+                var file = child as NTFSFile;
+                if (file != null)
+                    size += file.Length.Get();
+
+                var folder = child as NTFSFolder;
+                if (folder != null)
+                    size += folder.GetContentSize();
+            }
+
+            return size;
+        }
+
+        public IEnumerable<NTFSFileSystemObject> GetChildren()
+        {
             return I30.GetAllValues().Select(f => Volume.MFT.GetFile(f.Value, this));
         }
 
         IEnumerable<IFileSystemObject> IFolderImpl.GetChildren()
         {
-            return GetChildren().Select(obj => obj.FileSystemObjectRef.Retain());
+            return GetChildren().Select(obj => obj.AsReference<IFileSystemObject>());
         }
 
-        public NTFSFile GetChild(string name, bool file, OpenMode mode)
+        public NTFSFileSystemObject GetChild(string name, bool file, OpenMode mode)
         {
-            if (I30 == null)
-                throw new InvalidOperationException();
-
             var files = I30.GetValues(name).Select(f => Volume.MFT.GetFile(f, this)).Where(f => f.FileRecord.IsFile == file).ToArray();
 
             if (files.Any()) {
@@ -423,41 +471,12 @@ namespace AmbientOS.FileSystem.NTFS
 
         IFileSystemObject IFolderImpl.GetChild(string name, bool file, OpenMode mode)
         {
-            return GetChild(name, file, mode).FileSystemObjectRef.Retain();
+            return GetChild(name, file, mode).AsReference<IFileSystemObject>();
         }
 
         public bool ChildExists(string name, bool file)
         {
-            if (I30 == null)
-                throw new InvalidOperationException();
-
             return I30.GetValues(name).Select(f => Volume.MFT.GetFile(f, this)).Where(f => f.FileRecord.IsFile == file).Any();
         }
-
-        #endregion
-
-        #region "file specific methods"
-
-        public void Read(long offset, long count, byte[] buffer, long bufferOffset)
-        {
-            if (Data == null)
-                throw new InvalidOperationException();
-            Data.Read(offset, count, buffer, bufferOffset);
-        }
-
-        public void Write(long offset, long count, byte[] buffer, long bufferOffset)
-        {
-            if (Data == null)
-                throw new InvalidOperationException();
-            Data.Write(offset, count, buffer, bufferOffset);
-        }
-
-        public void AddCustomAppearance(Dictionary<string, string> dict, Type type)
-        {
-            if (type == typeof(IFile))
-                ((IFile)this).AddCustomAppearance(dict);
-        }
-
-        #endregion
     }
 }

@@ -14,9 +14,9 @@ namespace AmbientOS.FileSystem.NTFS
 
         public NTFSAttribute Data { get { return File.Data; } }
 
-        private readonly NTFSVolume volume;
+        private readonly NTFS volume;
 
-        private readonly Dictionary<long, NTFSFile> OpenFiles = new Dictionary<long, NTFSFile>();
+        private readonly Dictionary<long, NTFSFileSystemObject> OpenFiles = new Dictionary<long, NTFSFileSystemObject>();
 
 
         /// <summary>
@@ -24,7 +24,7 @@ namespace AmbientOS.FileSystem.NTFS
         /// </summary>
         /// <param name="startCluster">The cluster where the MFT is located</param>
         /// <param name="fileReference">The index of this MFT in the MFT (this should be 0 for $MFT and 1 for $MFTMirr)</param>
-        public MFTFile(NTFSVolume volume, long startCluster, long fileReference)
+        public MFTFile(NTFS volume, long startCluster, long fileReference)
         {
             this.volume = volume;
 
@@ -38,10 +38,10 @@ namespace AmbientOS.FileSystem.NTFS
                     LCN = startCluster + i,
                     dirty = false
                 };
-                volume.rawVolume.Read(mftInitClusters[i].LCN * volume.bytesPerCluster, volume.bytesPerCluster, mftInitClusters[i].data, 0);
+                volume.rawStream.Read(mftInitClusters[i].LCN * volume.bytesPerCluster, volume.bytesPerCluster, mftInitClusters[i].data, 0);
             }
 
-            File = OpenFiles[fileReference] = new NTFSFile(null, volume, mftInitClusters, 0 * volume.bytesPerMFTRecord);
+            File = (NTFSFile)(OpenFiles[fileReference] = NTFSFileSystemObject.FromBuffer(null, volume, mftInitClusters, 0 * volume.bytesPerMFTRecord));
 
             // give the pre-loaded init clusters back to the MFT
             for (int i = 0; i < mftInitClusters.Count(); i++)
@@ -64,12 +64,12 @@ namespace AmbientOS.FileSystem.NTFS
         /// Loads the specified file from this MFT.
         /// For a given file reference, this will always return the same object. (Until it is closed - but when is that? - not implemented yet).
         /// </summary>
-        public NTFSFile GetFile(long fileRef, NTFSFile parent)
+        public NTFSFileSystemObject GetFile(long fileRef, NTFSFileSystemObject parent)
         {
             var mftIndex = (fileRef & 0x0000FFFFFFFFFFFF);
             var sequenceNumber = (fileRef >> 16) & 0xFFFF;
 
-            NTFSFile result;
+            NTFSFileSystemObject result;
 
             lock (OpenFiles) {
                 if (!OpenFiles.TryGetValue(0x0000FFFFFFFFFFFF & fileRef, out result)) {
@@ -83,13 +83,13 @@ namespace AmbientOS.FileSystem.NTFS
                     for (long i = 0; i < clusterCount; i++)
                         clusters[i] = Data.GetCluster(cluster + i, true);
 
-                    OpenFiles[mftIndex] = result = new NTFSFile(parent, volume, clusters, clusterOffset);
+                    OpenFiles[mftIndex] = result = NTFSFileSystemObject.FromBuffer(parent, volume, clusters, clusterOffset);
                 }
             }
 
             if (sequenceNumber != 0)
-                if (result.SequenceNumber != sequenceNumber)
-                    throw new Exception(string.Format("unexpected file sequence number (expected {0:X4}, read {1:X4})", sequenceNumber, result.SequenceNumber));
+                if (result.FileRecord.SequenceNumber != sequenceNumber)
+                    throw new Exception(string.Format("unexpected file sequence number (expected {0:X4}, read {1:X4})", sequenceNumber, result.FileRecord.SequenceNumber));
 
             return result;
         }
