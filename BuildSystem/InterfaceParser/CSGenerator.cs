@@ -319,14 +319,14 @@ namespace InterfaceParser
 
 
             foreach (var i in allProperties)
-                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("I{0}_{1} = new DynamicProperty<{2}>(communicationSignal);", i.def.Name, i.property.Name, i.property.PropertyType.ResolveTypeNameCS(def.Namespace)));
+                refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("I{0}_{1} = implementation.{1};", i.def.Name, i.property.Name, i.property.PropertyType.ResolveTypeNameCS(def.Namespace)));
 
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "}");
             refBuilder.AppendLine();
 
 
             // *** emit override functions ***
-
+            /*
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + string.Format("protected override void DeliverPropertiesTo(I{0}Impl implementation)", def.Name));
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "{");
             foreach (var i in allProperties)
@@ -338,6 +338,7 @@ namespace InterfaceParser
             foreach (var i in allProperties)
                 refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + DEFAULT_CS_INDENT + string.Format("I{0}_{1}.FetchFrom(implementation.{1});", i.def.Name, i.property.Name));
             refBuilder.AppendLine(indent + DEFAULT_CS_INDENT + "}");
+            */
 
 
             // *** emit properties & methods ***
@@ -402,12 +403,12 @@ namespace InterfaceParser
             def.GenerateSummary(indent + DEFAULT_COMMENT_INDENT, intBuilder, impBuilder, refBuilder);
 
             if (!inherited) {
-                intBuilder.AppendLine(indent + string.Format("DynamicProperty<{1}> {0} {{ get; }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
-                impBuilder.AppendLine(indent + string.Format("DynamicEndpoint<{1}> {0} {{ get; }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
+                intBuilder.AppendLine(indent + string.Format("DynamicValue<{1}> {0} {{ get; }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
+                impBuilder.AppendLine(indent + string.Format("DynamicValue<{1}> {0} {{ get; }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
             }
 
-            refBuilder.AppendLine(indent + string.Format("DynamicProperty<{1}> I{2}.{0} {{ get {{ return I{2}_{0}.Get(); }} }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
-            refBuilder.AppendLine(indent + string.Format("readonly DynamicProperty<{1}> I{2}_{0};", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
+            refBuilder.AppendLine(indent + string.Format("DynamicValue<{1}> I{2}.{0} {{ get {{ return I{2}_{0}.Fetch(); }} }}", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
+            refBuilder.AppendLine(indent + string.Format("readonly DynamicValue<{1}> I{2}_{0};", def.Name, def.PropertyType.ResolveTypeNameCS(def.Namespace), interfaceName));
         }
 
         public static void GenerateCS(this MethodDefinition def, string indent, StringBuilder intBuilder, StringBuilder impBuilder, StringBuilder refBuilder, string interfaceName, bool inherited)

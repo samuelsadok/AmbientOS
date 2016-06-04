@@ -21,10 +21,10 @@ namespace AmbientOS.FileSystem
         /// </summary>
         public const int VHD_SECTOR_SIZE = 512;
 
-        public DynamicEndpoint<Guid> ID { get; }
-        DynamicEndpoint<string> IBlockStreamImpl.Type { get; } = new DynamicEndpoint<string>("disk", PropertyAccess.ReadOnly);
-        DynamicEndpoint<long> IBlockStreamImpl.BlockSize { get; } = new DynamicEndpoint<long>(VHD_SECTOR_SIZE, PropertyAccess.ReadOnly);
-        public DynamicEndpoint<long?> BlockCount { get; }
+        public DynamicValue<Guid> ID { get; }
+        DynamicValue<string> IBlockStreamImpl.Type { get; } = new LocalValue<string>("disk");
+        DynamicValue<long> IBlockStreamImpl.BlockSize { get; } = new LocalValue<long>(VHD_SECTOR_SIZE);
+        public DynamicValue<long?> BlockCount { get; }
 
         readonly IByteStream file;
         readonly uint[] BAT; // block allocation table: for each block of sectors, contains the corresponding absolute sector number in the file
@@ -36,8 +36,8 @@ namespace AmbientOS.FileSystem
             BAT = bat;
             this.sectorsPerBlock = sectorsPerBlock;
 
-            ID = new DynamicEndpoint<Guid>(guid, PropertyAccess.ReadOnly);
-            BlockCount = new DynamicEndpoint<long?>(sectorCount, PropertyAccess.ReadOnly);
+            ID = new LocalValue<Guid>(guid);
+            BlockCount = new LocalValue<long?>(sectorCount);
         }
 
         public void DoOperation(long offset, long count, byte[] buffer, long bufferOffset, bool read)
@@ -108,7 +108,7 @@ namespace AmbientOS.FileSystem
         private struct VHDHeader
         {
             [FieldSpecs(StringFormat = StringFormat.ASCII, Length = 8)]
-            public string cookie;
+            public string cookie; // "conectix"
             public Int32 features;
             public Int32 version;
             public Int64 offset;
@@ -165,7 +165,7 @@ namespace AmbientOS.FileSystem
         /// <param name="issues">If not null, receives human readable information about the VHD image.</param>
         private static VHD ParseHeader(IByteStream file, out List<string> issues)
         {
-            var fileLength = file.Length.GetValue();
+            var fileLength = file.Length.Get();
             if (fileLength.HasValue)
                 if (fileLength.Value < 2 * 511)
                     throw new AOSRejectException("The file is too short to be a VHD image. A sane VHD image has at least header and a footer of 511 or 512 bytes length.", file);

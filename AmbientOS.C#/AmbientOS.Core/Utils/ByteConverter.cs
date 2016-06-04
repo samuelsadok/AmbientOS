@@ -39,12 +39,13 @@ namespace AmbientOS
 
         public EndiannessAttribute(Endianness endianness)
         {
+
             Endianness = endianness;
         }
     }
 
     /// <summary>
-    /// Use this attribute to specify that the ByteConverter should also read or write the fields of the basetype of this type.
+    /// Use this attribute to specify whether the ByteConverter should also read or write the fields of the basetype of this type.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
     public class TypeSpecs : Attribute

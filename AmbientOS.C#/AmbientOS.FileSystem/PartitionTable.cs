@@ -38,7 +38,7 @@ namespace AmbientOS.FileSystem
             // todo: test with 4k sectors
             long bytesPerSector;
             long? totalSectors;
-            DynamicProperty.GetValues(disk.BlockSize, out bytesPerSector, disk.BlockCount, out totalSectors);
+            DynamicValue.GetValues(disk.BlockSize, out bytesPerSector, disk.BlockCount, out totalSectors);
 
             var mbrSectors = Math.Max((512 + bytesPerSector - 1) / bytesPerSector, 1); // get the first sector, but at least 512 bytes
             var mbr = new byte[mbrSectors * bytesPerSector];

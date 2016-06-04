@@ -78,14 +78,14 @@ namespace AmbientOS
                 .Select(kv => new {
                     name = kv.Key,
                     acceptedValues = kv.Value,
-                    property = obj.GetType().GetProperty(kv.Key)?.GetValue(obj) as DynamicProperty
+                    property = obj.GetType().GetProperty(kv.Key)?.GetValue(obj) as DynamicValue
                 }).ToArray();
 
             return constraintsArray.All(constraint => {
                 object value;
                 if (constraint.property == null)
                     return true;
-                value = constraint.property.GetValueAsObject();
+                value = constraint.property.GetAsObject();
                 return constraint.acceptedValues.Contains(value);
             });
         }

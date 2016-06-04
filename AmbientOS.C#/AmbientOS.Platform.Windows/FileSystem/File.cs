@@ -8,9 +8,9 @@ namespace AmbientOS.FileSystem
 {
     abstract class WindowsFileSystemObject : IFileSystemObjectImpl, IDisposable
     {
-        public DynamicEndpoint<string> Name { get; }
-        public DynamicEndpoint<string> Path { get; }
-        public DynamicEndpoint<FileTimes> Times { get; }
+        public DynamicValue<string> Name { get; }
+        public DynamicValue<string> Path { get; }
+        public DynamicValue<FileTimes> Times { get; }
 
         private readonly WindowsFolder parent;
         protected readonly PInvoke.ByHandleFileInformation info;
@@ -37,9 +37,9 @@ namespace AmbientOS.FileSystem
             }
 
 
-            Path = new DynamicEndpoint<string>(() => path);
+            Path = new LocalValue<string>(path);
 
-            Name = new DynamicEndpoint<string>(
+            Name = new LambdaValue<string>(
                 () => {
                     var currentPath = Path.Get();
                     var delimiter = currentPath.LastIndexOfAny(new char[] { '\\', '/' });
@@ -56,7 +56,7 @@ namespace AmbientOS.FileSystem
                     // todo: update path
                 });
 
-            Times = new DynamicEndpoint<FileTimes>(
+            Times = new LambdaValue<FileTimes>(
                 () => new FileTimes() {
                     CreatedTime = info.ftCreationTime,
                     ReadTime = info.ftLastAccessTime,
@@ -118,19 +118,15 @@ namespace AmbientOS.FileSystem
 
     class WindowsFile : WindowsFileSystemObject, IFileImpl
     {
-        public DynamicEndpoint<string> Type { get; }
-        public DynamicEndpoint<long?> Length { get; }
+        public DynamicValue<string> Type { get; }
+        public DynamicValue<long?> Length { get; }
 
         public WindowsFile(IFileSystem fs, string path)
             : base(fs, path)
         {
-            Type = new DynamicEndpoint<string>(() => {
-                var name = Name.Get();
-                var point = name.LastIndexOf('.');
-                return point >= 0 ? name.Substring(point + 1) : name;
-            });
+            Type = this.GetStreamTypeFromFileName();
 
-            Length = new DynamicEndpoint<long?>(
+            Length = new LambdaValue<long?>(
                 () => ((long)info.nFileSizeHigh << 32) | (info.nFileSizeLow & 0xFFFFFFFF),
                 val => { throw new NotImplementedException(); });
         }

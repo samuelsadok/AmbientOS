@@ -261,10 +261,10 @@ namespace AmbientOS.FileSystem.NTFS
             FileName = FileRecord.ReadAttribute(NTFSAttributeType.FileName, "").ReadObject<FileNameAttribute>(0);
 
 
-            Name = new DynamicEndpoint<string>(() => FileName.fileName, val => FileName.fileName = val);
-            Path = new DynamicEndpoint<string>(() => (parent != null ? parent.Path.Get() : "") + "/" + Name.Get().EscapeForURL());
+            Name = new LambdaValue<string>(() => FileName.fileName, val => FileName.fileName = val);
+            Path = new LambdaValue<string>(() => (parent != null ? parent.Path.Get() : "") + "/" + Name.Get().EscapeForURL());
 
-            Times = new DynamicEndpoint<FileTimes>(
+            Times = new LambdaValue<FileTimes>(
                 () => new FileTimes() {
                     CreatedTime = StandardInformation.creationTime,
                     ReadTime = StandardInformation.readTime,
@@ -308,16 +308,16 @@ namespace AmbientOS.FileSystem.NTFS
         }
 
 
-        #region "IFileSystemObject"
+        #region IFileSystemObject
 
         public IFileSystem GetFileSystem()
         {
             return Volume.FileSystemRef.Retain();
         }
 
-        public DynamicEndpoint<string> Name { get; }
-        public DynamicEndpoint<string> Path { get; }
-        public DynamicEndpoint<FileTimes> Times { get; }
+        public DynamicValue<string> Name { get; }
+        public DynamicValue<string> Path { get; }
+        public DynamicValue<FileTimes> Times { get; }
 
         /// <summary>
         /// Shall return all tree contained by this file.
@@ -357,8 +357,8 @@ namespace AmbientOS.FileSystem.NTFS
 
     class NTFSFile : NTFSFileSystemObject, IFileImpl
     {
-        public DynamicEndpoint<string> Type { get; }
-        public DynamicEndpoint<long?> Length { get; }
+        public DynamicValue<string> Type { get; }
+        public DynamicValue<long?> Length { get; }
 
         internal NTFSAttribute Data { get; }
 
@@ -367,13 +367,9 @@ namespace AmbientOS.FileSystem.NTFS
         {
             Data = fileRecord.GetAttributes(NTFSAttributeType.Data, "").First();
 
-            Type = new DynamicEndpoint<string>(() => {
-                var name = Name.Get();
-                var point = name.LastIndexOf('.');
-                return point >= 0 ? name.Substring(point + 1) : name;
-            });
+            Type = this.GetStreamTypeFromFileName();
 
-            Length = new DynamicEndpoint<long?>(() => Data.GetSize(), val => {
+            Length = new LambdaValue<long?>(() => Data.GetSize(), val => {
                 if (val == null)
                     throw new ArgumentNullException($"{val}");
                 Data.ChangeSize(val.Value);

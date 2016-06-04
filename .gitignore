@@ -10,6 +10,7 @@ Thumbs.db
 .vs/
 *.v12.suo
 *.csproj.user
+*.sdf
 
 
 # NuGet (these packages are restored by NuGet)

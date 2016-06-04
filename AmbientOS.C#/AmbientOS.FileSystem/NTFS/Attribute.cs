@@ -75,6 +75,7 @@ namespace AmbientOS.FileSystem.NTFS
         public Int64 UpdateSequenceNumber;
     }
 
+
     /// <summary>
     /// Information in this attribute actually becomes outdated until the filename is changed.
     /// This attribute (the version in the filerecord) is only written to disk when the filename changes.

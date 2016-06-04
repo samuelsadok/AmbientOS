@@ -27,7 +27,7 @@ namespace AmbientOS.FileSystem
         {
             // todo: lock file
 
-            var size = file.Length.GetValue();
+            var size = file.Length.Get();
             if (!size.HasValue)
                 throw new InvalidOperationException("unknown file size");
 
@@ -40,7 +40,7 @@ namespace AmbientOS.FileSystem
         /// </summary>
         public static void Write(this IByteStream file, byte[] buffer)
         {
-            file.Length.SetValue(buffer.Length);
+            file.Length.Set(buffer.Length);
             file.Write(0, buffer.Length, buffer, 0);
         }
 
@@ -50,8 +50,8 @@ namespace AmbientOS.FileSystem
         public static void Append(this IByteStream file, byte[] value)
         {
             // todo: lock file
-            var offset = file.Length.GetValue().Value;
-            file.Length.SetValue(offset + value.Count());
+            var offset = file.Length.Get().Value;
+            file.Length.Set(offset + value.Count());
             file.Write(offset, value.Count(), value, 0);
         }
 
@@ -175,8 +175,8 @@ namespace AmbientOS.FileSystem
                             break;
                         case MergeMode.Newer:
                         case MergeMode.Older:
-                            var myTime = obj.Times.GetValue().ModifiedTime.Value;
-                            var otherTime2 = otherObj.Times.GetValue().ModifiedTime.Value;
+                            var myTime = obj.Times.Get().ModifiedTime.Value;
+                            var otherTime2 = otherObj.Times.Get().ModifiedTime.Value;
                             if (myTime == otherTime2)
                                 throw new Exception("cant decide on the right file, times are equal");
                             if ((myTime < otherTime2) != (mode == MergeMode.Older))
@@ -195,8 +195,8 @@ namespace AmbientOS.FileSystem
                 var file = obj.Cast<IFile>();
                 var newFile = newObj.Cast<IFile>();
 
-                var length = file.Length.GetValue().Value;
-                newFile.Length.SetValue(length);
+                var length = file.Length.Get().Value;
+                newFile.Length.Set(length);
 
                 // do a 16MB block copy
                 var block = new byte[16777216];
@@ -213,7 +213,7 @@ namespace AmbientOS.FileSystem
                 var newFolder = newObj.Cast<IFolder>();
                 
                 foreach (var child in folder.GetChildren())
-                    child.Copy(newFolder, child.Name.GetValue(), mode);
+                    child.Copy(newFolder, child.Name.Get(), mode);
             }
 
             return newObj;
@@ -251,7 +251,7 @@ namespace AmbientOS.FileSystem
         {
             RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
             byte[] randomData = new byte[4096];
-            var fileSize = file.Length.GetValue().Value;
+            var fileSize = file.Length.Get().Value;
 
             for (int i = 0; i < passes; i++) {
                 // scramble data
@@ -264,7 +264,7 @@ namespace AmbientOS.FileSystem
                 }
 
                 // scramble times
-                file.Times.SetValue(new FileTimes() {
+                file.Times.Set(new FileTimes() {
                     CreatedTime = new DateTime(rng.GetLong()),
                     ModifiedTime = new DateTime(rng.GetLong()),
                     ReadTime = new DateTime(rng.GetLong()),
@@ -276,7 +276,7 @@ namespace AmbientOS.FileSystem
             // scramble file size and name
             for (int i = 0; i < passes; i++) {
                 // todo: scramble file name without violating naming conventions
-                file.Length.SetValue(rng.GetLong(0, fileSize));
+                file.Length.Set(rng.GetLong(0, fileSize));
             }
 
             file.Delete(DeleteMode.Permanent);
@@ -333,6 +333,24 @@ namespace AmbientOS.FileSystem
             //   }
 
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Generates the IByteStream.Type property from the file extension of the specified file.
+        /// </summary>
+        public static DynamicValue<string> GetStreamTypeFromFileName(this IFileImpl file)
+        {
+            return new DependentValue<string, string>(file.Name, name => {
+                var point = name.LastIndexOf('.');
+                return "file:" + (point >= 0 ? name.Substring(point + 1) : name);
+            }, (type, name) => {
+                if (!type.StartsWith("file:"))
+                    throw new InvalidOperationException("Cannot change a file to a non-file");
+                type = type.Substring("file:".Length);
+
+                var point = name.LastIndexOf('.');
+                return (point >= 0 ? name.Substring(0, point + 1) : "") + type;
+            });
         }
     }
 }

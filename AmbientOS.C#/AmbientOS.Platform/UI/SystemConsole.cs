@@ -13,9 +13,9 @@ namespace AmbientOS.UI
         static System.ConsoleColor defaultBackgroundColor = System.Console.BackgroundColor;
 
         public IConsole ConsoleRef { get; }
-        public DynamicEndpoint<Vector2D<int>> WindowSize { get; }
-        public DynamicEndpoint<Vector2D<int>> CursorPosition { get; }
-        public DynamicEndpoint<bool> CursorVisibility { get; }
+        public DynamicValue<Vector2D<int>> WindowSize { get; }
+        public DynamicValue<Vector2D<int>> CursorPosition { get; }
+        public DynamicValue<bool> CursorVisibility { get; }
 
         private static IConsole console = new SystemConsole().ConsoleRef.Retain();
         public static IConsole Console { get { return console; } }
@@ -42,17 +42,17 @@ namespace AmbientOS.UI
         {
             ConsoleRef = new ConsoleRef(this);
 
-            WindowSize = new DynamicEndpoint<Vector2D<int>>(
+            WindowSize = new LambdaValue<Vector2D<int>>(
                 () => new Vector2D<int>(System.Console.WindowWidth, System.Console.WindowHeight),
                 val => System.Console.SetWindowSize(val.X, val.Y)
                 );
 
-            CursorPosition = new DynamicEndpoint<Vector2D<int>>(
+            CursorPosition = new LambdaValue<Vector2D<int>>(
                 () => new Vector2D<int>(System.Console.CursorLeft, System.Console.CursorTop),
                 val => System.Console.SetCursorPosition(val.X, val.Y)
                 );
 
-            CursorVisibility = new DynamicEndpoint<bool>(
+            CursorVisibility = new LambdaValue<bool>(
                 () => System.Console.CursorVisible,
                 val => System.Console.CursorVisible = val
                 );

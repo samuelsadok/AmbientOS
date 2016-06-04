@@ -56,7 +56,7 @@ namespace AmbientOS.UI
         /// </summary>
         public static IEnumerable<string> ToLines(this IConsole console, string message, string indent = "")
         {
-            var dims = console.WindowSize.GetValue();
+            var dims = console.WindowSize.Get();
             var maxLength = Math.Max(dims.X - indent.Length, 0);
 
             int start = 0, length = 0;

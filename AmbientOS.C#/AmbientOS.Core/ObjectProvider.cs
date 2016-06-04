@@ -8,8 +8,8 @@ namespace AmbientOS.Environment
 {
     public class ObjectProvider : IObjectProviderImpl
     {
-        public DynamicEndpoint<Type> InputInterface { get; }
-        public DynamicEndpoint<Type> OutputInterface { get; }
+        public DynamicValue<Type> InputInterface { get; }
+        public DynamicValue<Type> OutputInterface { get; }
 
         readonly ObjectConstraints inputConstraints;
         readonly ObjectConstraints outputAppearance;
@@ -33,8 +33,8 @@ namespace AmbientOS.Environment
             if (!outputType.IsAmbientOSInterface())
                 throw new Exception("The return value of an object provider method must be an AmbientOS interface type (have " + outputType + ")");
 
-            InputInterface = new DynamicEndpoint<Type>(inputType, PropertyAccess.ReadOnly);
-            OutputInterface = new DynamicEndpoint<Type>(outputType, PropertyAccess.ReadOnly);
+            InputInterface = new LocalValue<Type>(inputType);
+            OutputInterface = new LocalValue<Type>(outputType);
 
             inputConstraints = new ObjectConstraints(input);
             outputAppearance = new ObjectConstraints(method.ReturnTypeCustomAttributes);

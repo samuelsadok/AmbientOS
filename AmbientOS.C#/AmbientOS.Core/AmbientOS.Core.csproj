@@ -42,13 +42,12 @@
     <Compile Include="ObjectProvider.cs" />
     <Compile Include="Attributes.cs" />
     <Compile Include="Context.cs" />
-    <Compile Include="DynamicProperty.cs" />
+    <Compile Include="Utils\DynamicValue.cs" />
     <Compile Include="Environment\Extensions.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="ObjectLock.cs" />
     <Compile Include="ObjectStore.cs" />
     <Compile Include="PlatformType.cs" />
-    <Compile Include="IPlatform.cs" />
     <Compile Include="Utils\DynamicList.cs" />
     <Compile Include="Utils\LogContext.cs" />
     <Compile Include="Extensions.cs" />
@@ -74,6 +73,7 @@
     <Compile Include="Utils\Extensions.cs" />
     <Compile Include="Utils\NetUtils.cs" />
     <Compile Include="Utils\DynamicQueue.cs" />
+    <Compile Include="Utils\SequenceNumber.cs" />
     <Compile Include="Utils\SlowAction.cs" />
     <Compile Include="Utils\SynchronizedAction.cs" />
     <Compile Include="Utils\TaskController.cs" />

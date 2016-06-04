@@ -24,10 +24,10 @@ namespace AmbientOS.FileSystem
         public string MediaType { get { return (string)GetDiskProperty(Name, "MediaType"); } }
         public string SerialNumber { get { return (string)GetDiskProperty(Name, "SerialNumber"); } }
 
-        public DynamicEndpoint<Guid> ID { get; }
-        public DynamicEndpoint<string> Type { get; }
-        public DynamicEndpoint<long> BlockSize { get; }
-        public DynamicEndpoint<long?> BlockCount { get; }
+        public DynamicValue<Guid> ID { get; }
+        public DynamicValue<string> Type { get; }
+        public DynamicValue<long> BlockSize { get; }
+        public DynamicValue<long?> BlockCount { get; }
 
         /// <summary>
         /// If not null, this handle will be closed when this disk is disposed.
@@ -86,16 +86,16 @@ namespace AmbientOS.FileSystem
         {
             Number = number;
 
-            ID = new DynamicEndpoint<Guid>(new Guid(), PropertyAccess.ReadOnly); // todo: implement through serial number or something else
-            Type = new DynamicEndpoint<string>("disk:windows", PropertyAccess.ReadOnly);
+            ID = new LocalValue<Guid>(new Guid()); // todo: implement through serial number or something else
+            Type = new LocalValue<string>("disk:windows");
 
             // get drive info
             using (var disk = OpenDisk(PInvoke.Access.None)) {
                 var geometry = PInvoke.DeviceIoControl<PInvoke.DiskGeometry>(disk, PInvoke.IOCTL_DISK_GET_DRIVE_GEOMETRY);
                 var sectors = geometry.Cylinders * geometry.TracksPerCylinder * geometry.SectorsPerTrack; // TODO: THIS SECTOR CALCULATION IS BULLSHIT
 
-                BlockSize = new DynamicEndpoint<long>(geometry.BytesPerSector, PropertyAccess.ReadOnly);
-                BlockCount = new DynamicEndpoint<long?>(sectors, PropertyAccess.ReadOnly);
+                BlockSize = new LocalValue<long>(geometry.BytesPerSector);
+                BlockCount = new LocalValue<long?>(sectors);
             }
         }
 

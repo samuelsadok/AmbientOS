@@ -12,10 +12,10 @@ namespace AmbientOS.FileSystem
     [ForPlatform(PlatformType.Windows)]
     public class WindowsVolume : IVolumeImpl
     {
-        public DynamicEndpoint<Guid> ID { get; }
-        public DynamicEndpoint<FileSystemFlags> Flags { get; }
-        public DynamicEndpoint<string> Type { get; }
-        public DynamicEndpoint<long?> Length { get; }
+        public DynamicValue<Guid> ID { get; }
+        public DynamicValue<FileSystemFlags> Flags { get; }
+        public DynamicValue<string> Type { get; }
+        public DynamicValue<long?> Length { get; }
         
         private readonly VolumeExtent[] extents;
 
@@ -49,9 +49,9 @@ namespace AmbientOS.FileSystem
         /// </summary>
         public WindowsVolume(Guid guid)
         {
-            ID = new DynamicEndpoint<Guid>(guid, PropertyAccess.ReadOnly);
-            Flags = new DynamicEndpoint<FileSystemFlags>(0, PropertyAccess.ReadOnly); // todo: implement
-            Type = new DynamicEndpoint<string>("volume:windows", PropertyAccess.ReadOnly);
+            ID = new LocalValue<Guid>(guid);
+            Flags = new LocalValue<FileSystemFlags>(0); // todo: implement
+            Type = new LocalValue<string>("volume:windows");
 
             // Returns the mountpoints of this volume (pops up an undesirable message on some volumes)
             //var mountpoints = PInvoke.FindVolumeMountPoints(Name + @"\").ToArray();
@@ -94,7 +94,7 @@ namespace AmbientOS.FileSystem
                     // none of these work in the general case
                     //var capacity = PInvoke.DeviceIoControl<PInvoke.StorageReadCapacity>(volume, PInvoke.IOCTL_STORAGE_READ_CAPACITY);
                     //var capacity = PInvoke.DeviceIoControl<long>(volume, PInvoke.IOCTL_DISK_GET_LENGTH_INFO);
-                    Length = new DynamicEndpoint<long?>(extents.Extents.Sum(e => e.ExtentLength), PropertyAccess.ReadOnly);
+                    Length = new LocalValue<long?>(extents.Extents.Sum(e => e.ExtentLength));
                 }
             } catch (System.ComponentModel.Win32Exception) {
                 // todo: log error

@@ -8,10 +8,10 @@ namespace AmbientOS.FileSystem
 {
     class Volume : IVolumeImpl
     {
-        public DynamicEndpoint<Guid> ID { get; }
-        public DynamicEndpoint<FileSystemFlags> Flags { get; }
-        public DynamicEndpoint<string> Type { get; }
-        public DynamicEndpoint<long?> Length { get; }
+        public DynamicValue<Guid> ID { get; }
+        public DynamicValue<FileSystemFlags> Flags { get; }
+        public DynamicValue<string> Type { get; }
+        public DynamicValue<long?> Length { get; }
 
         readonly VolumeExtent[] extents;
 
@@ -34,13 +34,13 @@ namespace AmbientOS.FileSystem
         {
             this.extents = extents;
 
-            blockSizes = extents.Select(e => e.Parent.BlockSize.GetValue()).ToArray();
+            blockSizes = extents.Select(e => e.Parent.BlockSize.Get()).ToArray();
             extentLengths = extents.Select((e, i) => e.Blocks * blockSizes[i]).ToArray();
 
-            ID = new DynamicEndpoint<Guid>(id, PropertyAccess.ReadOnly);
-            Flags = new DynamicEndpoint<FileSystemFlags>(flags, PropertyAccess.ReadOnly);
-            Type = new DynamicEndpoint<string>(type, PropertyAccess.ReadOnly);
-            Length = new DynamicEndpoint<long?>(() => extentLengths.Sum(), val => { throw new NotImplementedException(); });
+            ID = new LocalValue<Guid>(id);
+            Flags = new LocalValue<FileSystemFlags>(flags);
+            Type = new LocalValue<string>(type);
+            Length = new LambdaValue<long?>(() => extentLengths.Sum(), val => { throw new NotImplementedException(); });
         }
 
         public VolumeExtent[] GetExtents()

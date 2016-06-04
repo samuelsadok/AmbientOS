@@ -10,7 +10,7 @@ namespace AmbientOS.FileSystem.NTFS
     public class NTFS : IFileSystemImpl
     {
         public IFileSystem FileSystemRef { get; }
-        public DynamicEndpoint<string> Name { get; }
+        public DynamicValue<string> Name { get; }
 
         /// <summary>
         /// The NTFS volume boot record
@@ -174,7 +174,7 @@ namespace AmbientOS.FileSystem.NTFS
                 DebugLog("  attribute: 0x{0:X8} \"{1}\"", Utilities.EnumToInt(attr.type), attr.name);
             byte[] buffer;
             using (var stream = file.AsReference<IByteStream>())
-                buffer = stream.Read(0, stream.Length.GetValue().Value);
+                buffer = stream.Read(0, stream.Length.Get().Value);
             using (var logFile = System.IO.File.OpenWrite(target))
                 logFile.Write(buffer, 0, buffer.Count());
             DebugLog("dump succeeded, length was {0}", buffer.Length);
@@ -188,19 +188,19 @@ namespace AmbientOS.FileSystem.NTFS
             issues = new List<string>();
 
             this.rawStream = rawStream;
-            var rawSize = rawStream.Length;
+            var rawSize = rawStream.Length.Get();
 
             var vbrBuffer = new byte[512]; // The VBR is 512 bytes long, period. Even on a 4k sector disk.
             rawStream.Read(0, vbrBuffer.Length, vbrBuffer, 0);
             var vbr = vbrBuffer.ReadObject<VBR>(0);
-            rawStream.Read(rawSize.GetValue().Value - vbrBuffer.Length, vbrBuffer.Length, vbrBuffer, 0);
+            rawStream.Read(rawSize.Value - vbrBuffer.Length, vbrBuffer.Length, vbrBuffer, 0);
             var vbrMirr = vbrBuffer.ReadObject<VBR>(0);
 
             if (vbr.magicNumber != "NTFS    ")
                 throw new AOSRejectException("The volume does not contain an NTFS file system", rawStream);
 
-            if (vbr.volumeLength * vbr.bytesPerSector != rawSize.GetValue())
-                issues.Add(string.Format("the filesystem reports a volume size different from the actual volume size (expected: {0} bytes, actual: {1} bytes)", vbr.volumeLength * vbr.bytesPerSector, rawSize.GetValue()));
+            if (vbr.volumeLength * vbr.bytesPerSector != rawSize)
+                issues.Add(string.Format("the filesystem reports a volume size different from the actual volume size (expected: {0} bytes, actual: {1} bytes)", vbr.volumeLength * vbr.bytesPerSector, rawSize));
 
             bytesPerSector = vbr.bytesPerSector;
             sectorsPerCluster = vbr.sectorsPerCluster;
@@ -245,7 +245,7 @@ namespace AmbientOS.FileSystem.NTFS
             }
 
 
-            Name = new DynamicEndpoint<string>(
+            Name = new LambdaValue<string>(
                 () => {
                     var attr = Volume.FileRecord.ReadAttribute(NTFSAttributeType.VolumeName, null);
                     return attr.ReadString(0, attr.Length / 2, StringFormat.Unicode, Endianness.LittleEndian); ;
@@ -302,7 +302,7 @@ namespace AmbientOS.FileSystem.NTFS
 
 
             foreach (var f in GetRoot().NavigateToFolder("$Extend/$RmMetadata/$TxfLog", OpenMode.Existing).GetChildren())
-                DebugLog("{0}: {1}", f.Cast<IFile>() != null ? "f" : "d", f.Name.GetValue());
+                DebugLog("{0}: {1}", f.Cast<IFile>() != null ? "f" : "d", f.Name.Get());
 
 
             //for (long i = 0; i < MFT.DataAttribute.GetSize() / bytesPerMFTRecord; i++) {
@@ -353,19 +353,19 @@ namespace AmbientOS.FileSystem.NTFS
 
         public long? GetTotalSpace()
         {
-            return rawStream.Length.GetValue();
+            return rawStream.Length.Get();
         }
 
         public long? GetFreeSpace()
         {
-            var totalLength = rawStream.Length.GetValue();
+            var totalLength = rawStream.Length.Get();
             if (totalLength.HasValue)
                 return null;
 
             long freeClusters = 0;
 
             var buffer = new byte[16777216];
-            var length = Math.Min(Bitmap.Data.GetSize(), (rawStream.Length.GetValue().Value / bytesPerCluster + 7) / 8);
+            var length = Math.Min(Bitmap.Data.GetSize(), (rawStream.Length.Get().Value / bytesPerCluster + 7) / 8);
             long offset = 0;
 
             while (length > 0) {

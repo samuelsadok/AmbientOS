@@ -1,13 +1,26 @@
 - reduce warnings in NTFS code
-- merge DynamicProperty and DynamicEndpoint
 - create ObjectProvider interface (vs ObjectTransformer)
 - provide LocalObject constraint (or semi local?), or create windows specific interfaces
 - review DynamicSet (what about read-only?)
-- update the overview and thoughts documents
 - create tests for everything
+- implement remote connections
+- update the overview and thoughts documents
+
+furthermore:
+- new areas: GUI, Bluetooth (demo app), (updates)
+- remoting (authentication, encryption, privileges)
+- attempt to remove the need of local references that wrap the implementation
+- rebase webserver
+- think about multipeer systems (as opposed to simple client-server)
+- rebase S1 simulator
+- rebase S1 remote control
+- port to C++x
+- rebase kernel
+- rebase S1 firmware
 
 build system:
 - make interface parser show errors with accurate line numbers
 - read up on best reference counting practices (and implement code analyzer)
 - implement code analyzer to forbid context usage in early init code
 - code analyzer to forbid invalid usage of ObjectProvider attribute
+- code analyzer to check validity of all classes used in ByteConverter

@@ -48,15 +48,15 @@ namespace AmbientOS.UI
 
             Action newPage = () => {
                 var windowSize = console.WindowSize;
-                var pos = console.CursorPosition.GetValue();
-                var size = windowSize.GetValue();
+                var pos = console.CursorPosition.Get();
+                var size = windowSize.Get();
                 console.Write(new string(' ', (size.X - pos.X) + (size.Y - pos.Y) * size.X));
             };
 
             Action reversePage = () => {
                 var windowSize = console.WindowSize;
                 console.Clear();
-                console.Scroll(-windowSize.GetValue().Y);
+                console.Scroll(-windowSize.Get().Y);
             };
 
             //Action printAbove = () => {
@@ -145,7 +145,7 @@ namespace AmbientOS.UI
             console.Clear(ConsoleColor.DefaultBackground);
             var lines = ToLines(dialog).Skip(dialog.Offset).Take(dialog.BufferSize.Y).ToArray();
             for (int i = 0; i < lines.Count(); i++) {
-                console.CursorPosition.SetValue(new Vector2D<int>(0, i));
+                console.CursorPosition.Set(new Vector2D<int>(0, i));
                 console.Write(lines[i].Item1, lines[i].Item2 ? ConsoleColor.DefaultBackground : ConsoleColor.DefaultForeground, lines[i].Item2 ? ConsoleColor.DefaultForeground : ConsoleColor.DefaultBackground);
             }
         }
@@ -159,7 +159,7 @@ namespace AmbientOS.UI
                 DetailsExpanded = false, // todo: set according to user preference
                 SelectedOption = 0,
                 Offset = 0,
-                BufferSize = console.WindowSize.GetValue(),
+                BufferSize = console.WindowSize.Get(),
                 KeyPresses = new DynamicQueue<KeyPress>()
             };
 

@@ -7,7 +7,7 @@ namespace AmbientOS.FileSystem
 {
     public class InteropFileSystem : IFileSystemImpl
     {
-        public DynamicEndpoint<string> Name { get; }
+        public DynamicValue<string> Name { get; }
 
         private readonly string root;
         private readonly Func<InteropFileSystem, string, IFolder> folderConstructor;
@@ -31,7 +31,7 @@ namespace AmbientOS.FileSystem
             if (colon == 1)
                 info = new DriveInfo(root.Substring(0, 1));
 
-            Name = new DynamicEndpoint<string>(
+            Name = new LambdaValue<string>(
                 () => info != null ? info.VolumeLabel : root,
                 val => {
                     if (info == null)
@@ -112,9 +112,9 @@ namespace AmbientOS.FileSystem
 
     public abstract class InteropFileSystemObject : IFileSystemObjectImpl
     {
-        public DynamicEndpoint<string> Name { get; }
-        public DynamicEndpoint<string> Path { get; }
-        public DynamicEndpoint<FileTimes> Times { get; protected set; }
+        public DynamicValue<string> Name { get; }
+        public DynamicValue<string> Path { get; }
+        public DynamicValue<FileTimes> Times { get; protected set; }
 
         public readonly InteropFileSystem fileSystem;
         public readonly string path;
@@ -124,12 +124,12 @@ namespace AmbientOS.FileSystem
             this.fileSystem = fileSystem;
             this.path = path;
 
-            Name = new DynamicEndpoint<string>(
+            Name = new LambdaValue<string>(
                 () => System.IO.Path.GetFileName(this.path),
                 val => SetName(val)
                 );
 
-            Path = new DynamicEndpoint<string>(() => path);
+            Path = new LocalValue<string>(path);
         }
 
         public IFileSystem GetFileSystem()
@@ -153,7 +153,7 @@ namespace AmbientOS.FileSystem
         public InteropFolder(InteropFileSystem fileSystem, string path)
             : base(fileSystem, path)
         {
-            Times = new DynamicEndpoint<FileTimes>(
+            Times = new LambdaValue<FileTimes>(
                 () => new FileTimes() {
                     CreatedTime = Directory.GetCreationTimeUtc(path),
                     ReadTime = Directory.GetLastAccessTimeUtc(path),
@@ -238,13 +238,13 @@ namespace AmbientOS.FileSystem
 
     public class InteropFile : InteropFileSystemObject, IFileImpl
     {
-        public DynamicEndpoint<string> Type { get; }
-        public DynamicEndpoint<long?> Length { get; }
+        public DynamicValue<string> Type { get; }
+        public DynamicValue<long?> Length { get; }
 
         public InteropFile(InteropFileSystem fileSystem, string path)
             : base(fileSystem, path)
         {
-            Times = new DynamicEndpoint<FileTimes>(
+            Times = new LambdaValue<FileTimes>(
                 () => new FileTimes() {
                     CreatedTime = File.GetCreationTimeUtc(path),
                     ReadTime = File.GetLastAccessTimeUtc(path),
@@ -256,13 +256,9 @@ namespace AmbientOS.FileSystem
                     File.SetLastWriteTimeUtc(path, val.ModifiedTime.Value);
                 });
 
-            Type = new DynamicEndpoint<string>(() => {
-                var name = Name.Get();
-                var point = name.LastIndexOf('.');
-                return point >= 0 ? name.Substring(point + 1) : name;
-            });
+            Type = this.GetStreamTypeFromFileName();
 
-            Length = new DynamicEndpoint<long?>(
+            Length = new LambdaValue<long?>(
                 () => new FileInfo(path).Length,
                 val => {
                     if (val == null)

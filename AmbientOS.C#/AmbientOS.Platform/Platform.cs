@@ -38,8 +38,6 @@ namespace AmbientOS.Platform
             // handle special purpose launches
             var install = args.Select(arg => arg.Trim()).Contains("--install");
             var uninstall = args.Select(arg => arg.Trim()).Contains("--uninstall");
-            var verb = install ? "install" : uninstall ? "uninstall" : "launch";
-            var launchMode = install ? LaunchMode.Install : uninstall ? LaunchMode.Uninstall : LaunchMode.Launch;
 
             // precedence: CLI > GUI > Service
             var forceCLI = args.Select(arg => arg.Trim()).Contains("--mode=cli");

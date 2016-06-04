@@ -50,8 +50,8 @@ namespace AmbientOS
         /// </summary>
         protected AutoResetEvent communicationSignal = new AutoResetEvent(false);
 
-        protected abstract void FetchPropertiesFrom(TImpl implementation);
-        protected abstract void DeliverPropertiesTo(TImpl implementation);
+        //protected abstract void FetchPropertiesFrom(TImpl implementation);
+        //protected abstract void DeliverPropertiesTo(TImpl implementation);
 
 
         public IObjectImpl Implementation { get { return implementation; } }
@@ -81,8 +81,8 @@ namespace AmbientOS
         public void Barrier()
         {
             synchronize.Run(() => {
-                DeliverPropertiesTo(implementation);
-                FetchPropertiesFrom(implementation);
+                //DeliverPropertiesTo(implementation);
+                //FetchPropertiesFrom(implementation);
             });
         }
 
