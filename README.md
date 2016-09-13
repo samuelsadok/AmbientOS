@@ -1,5 +1,7 @@
 # AmbientOS
 
+The AmbientOS project attempts to provide a framework to create distributed modular cross-platform Applications.
+
 ## Where we're at currently
 
 There is a Visual Studio project system that you can install. Having installed the VS extension, you can create an AmbientOS Application or an AmbientOS Library Project in C#. To launch the application, you can select a target platform. Currently, the only available modes are Windows Console, Windows Service and iOS App (if Xamarin is installed).
